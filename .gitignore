@@ -10,3 +10,11 @@ phases/**/step*-output.json
 
 # python
 __pycache__/
+
+# env
+.env*
+!.env.example
+
+# supabase · test
+supabase/.temp/
+coverage/
