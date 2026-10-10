@@ -84,7 +84,10 @@ rounded-md border border-neutral-300 bg-white px-3 py-2 text-sm
 focus:border-blue-600 focus:outline-none focus:ring-1 focus:ring-blue-600
 ```
 
-### 잠금 카드 (Free의 추세·AI 요약)
+### 월 요약 (Free)
+- 요약 본문 아래에 보조 문구 "Pro에서는 확인할 지출 상세와 여러 달 추세까지 요약해요"와 Text 버튼 "Pro로 보기"를 둔다(upgrade source `summary`).
+
+### 잠금 카드 (Free의 추세)
 ```
 rounded-lg border border-dashed border-neutral-300 bg-white p-5
 ```
@@ -94,9 +97,18 @@ rounded-lg border border-dashed border-neutral-300 bg-white p-5
 - amber 박스에 종류별 건수·금액과 `candidateTotal`. 보조 문구 "정상 지출일 수 있어요. 상세에서 확인해 보세요."
 
 ### 업로드 상태 행
-- 파일명(말줄임) · 카드 라벨 · 상태 텍스트(대기 / 올리는 중 / 분석 중 / 완료 / 실패) · 결과 요약 한 줄. 실패 행에는 원인과 다음 행동 버튼.
+- 파일명(말줄임) · 카드 라벨 · 상태 텍스트(대기 / 올리는 중 / 분석 중 / 확인 필요 / 완료 / 실패) · 결과 요약 한 줄. 실패 행에는 원인과 다음 행동 버튼. 확인 필요 행에는 "열 확인하기" Primary 버튼.
 
-### 모달 (업그레이드·삭제 확인)
+### 매핑 확인 (처음 보는 형식)
+- 제안된 열(이용일 · 가맹점 · 금액 · 승인번호 · 취소 표시)을 원래 열 이름과 함께 보여준다. 고칠 수는 없다.
+- 아래에 매핑을 적용한 처음 5행 미리보기 표(금액 오른쪽 정렬, `tabular-nums`).
+- 문구: "처음 보는 형식이에요. 열이 맞는지 확인해 주세요." · Primary "이대로 읽기" · Text "취소".
+
+### 카테고리 수정
+- 카테고리 목록·Top N의 가맹점 행에서 카테고리를 select(고정 14개)로 바꾼다. 바꾸면 바로 저장하고 숫자를 다시 그린다.
+- 보조 문구 "같은 가맹점의 모든 거래에 적용돼요".
+
+### 모달 (업그레이드·삭제·탈퇴 확인)
 ```
 오버레이: fixed inset-0 bg-black/40   (blur 금지)
 패널:     rounded-lg bg-white p-6 max-w-md w-full
@@ -131,6 +143,7 @@ bg-amber-50 border-b border-amber-200 px-4 py-2 text-sm text-amber-900
 ## 숫자 · 날짜 표기
 - 금액: `1,234,000원`(`Intl.NumberFormat('ko-KR')`). 음수는 `−12,000원`. 만 단위 축약은 차트 축에만 쓴다.
 - 전월 대비: `+123,000원 늘었어요` / `−45,000원 줄었어요`. 비교할 수 없으면 표시하지 않는다.
+- 가격: 랜딩·모달은 `월 N원`(KRW). 결제 화면 통화는 Polar가 고객 위치로 정한다(해외는 `$4.99/월`).
 - 날짜: `9월 15일`, 기간 `9/15~9/30`, 월 `2026년 9월`.
 
 ## 문구

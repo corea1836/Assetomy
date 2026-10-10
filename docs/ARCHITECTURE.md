@@ -9,11 +9,11 @@ src/
 │   ├── page.tsx, demo/, login/, privacy/, terms/    # 공개
 │   ├── dashboard/, settings/                      # 보호(requireUser)
 │   ├── auth/callback/                             # OAuth 코드 교환
-│   └── api/              # cards · uploads · me/data · checkout · portal · metrics
+│   └── api/              # cards · uploads · merchant-categories · me · checkout · portal · metrics
 │                         # webhooks/polar · internal/maintenance
 ├── components/           # UI. DTO만 받는다
 ├── lib/
-│   ├── parsing/          # 순수: 파일 읽기·카드사 프로필·거래 정규화 (__fixtures__/ 실제 파일)
+│   ├── parsing/          # 순수: 파일 읽기·카드사 프로필·폴백 매핑 적용·값 패턴·거래 정규화 (__fixtures__/ 실제 파일)
 │   ├── analytics/        # 순수: 스냅샷·전월 대비·추세·탐지·buildDashboard
 │   ├── ingest/           # 업로드 처리(I/O, 의존성 주입)
 │   ├── billing/          # 플랜 조회·Polar 동기화
@@ -21,7 +21,7 @@ src/
 │   ├── store/            # 서버 쓰기(service-role로 RPC 호출, 'server-only')
 │   ├── supabase/         # server · browser · admin 클라이언트
 │   ├── errors/           # 에러 코드 → 사용자 문구(messages.ts)
-│   └── auth.ts · origin.ts · env.ts · mode.ts
+│   └── auth.ts · origin.ts · env.ts · mode.ts · crypto.ts(원본 AES-256-GCM)
 ├── services/             # llm · polar 래퍼와 mock ('server-only')
 ├── types/                # 도메인 타입 · 에러 코드
 └── proxy.ts              # 세션 갱신만
@@ -33,12 +33,12 @@ supabase/
 ## 시스템 구성
 ```
 [Browser]
-  ├─ 페이지 · API ──────────▶ [Next.js @ Vercel icn1]
-  ├─ 파일 PUT(signed URL) ──▶ [Supabase Storage: statements (private, Seoul)]
-  └─ 결제 ──────────────────▶ [Polar Checkout]
+  ├─ 페이지 · API · 파일(4MB) ──▶ [Next.js @ Vercel icn1]
+  └─ 결제 ──────────────────────▶ [Polar Checkout]
 
 [Next.js]
   ├─ Server Components ─▶ lib/queries · lib/analytics ─▶ [Postgres] (사용자 세션 + RLS)
+  ├─ app/api/uploads ─▶ lib/crypto ─▶ [Supabase Storage: statements (private, Seoul, 암호화본만)]
   ├─ app/api/* ─▶ lib/ingest ─▶ services/llm ─▶ [Anthropic, 국외]
   ├─ app/api/checkout · portal ─▶ services/polar ─▶ [Polar, 국외]
   ├─ /api/webhooks/polar ◀── [Polar] (서명 검증)
@@ -57,96 +57,110 @@ types/     도메인 타입 · 에러 코드
 - 외부 서비스(LLM·Polar)는 인터페이스 뒤에 두고 mock 구현을 함께 만든다. mock은 테스트 fake로도 쓴다.
 
 ## 패턴
-- 읽기는 Server Component, 쓰기는 Route Handler다. 예외는 2개(AI 요약 저장, 오래된 결제 상태 보완 동기화)이며 대시보드 렌더 중 서버 쓰기 함수로 한다.
+- 읽기는 Server Component, 쓰기는 Route Handler다. 예외는 2개(AI 요약 저장, 기간이 지난 결제 상태 재동기화)이며 대시보드 렌더 중 서버 쓰기 함수로 한다.
 - 클라이언트 컴포넌트는 업로드·모달·월 선택처럼 상호작용이 필요한 곳에만 쓴다. 서버 상태는 Server Component와 URL(`?month=`)에 두고, 업로드 진행 상태만 클라이언트 state로 둔다. 완료 후 `router.refresh()`. 전역 상태 라이브러리는 쓰지 않는다.
-- Free/Pro 게이팅은 `buildDashboard`의 DTO 유니온 한 곳에서 한다.
+- Free/Pro 게이팅은 `buildDashboard`의 DTO 유니온 한 곳에서 한다. AI 월간 요약의 입력도 그 DTO에서 만든다(Free는 Free DTO 범위만 Sonnet으로, Pro는 Opus로).
 
 ## 데이터 모델
 | 테이블 | 역할 |
 |---|---|
-| cards | 사용자 카드 라벨(전체 번호 없음), 카드사 프로필 |
-| uploads | 업로드 1건. 상태, 파일 해시, 처리 lease, 저장된 결과 |
+| cards | 사용자 카드 라벨(전체 번호 없음), 첫 성공 업로드의 식별 범위·취소 표기 방식 |
+| uploads | 업로드 1건. 상태(매핑 대기 포함), 파일 해시, 만료 시각(lease), 매핑 제안, 저장된 결과 |
 | transactions | 정규화 거래. `(user_id, fingerprint)` unique, (user, card, upload) 복합 FK |
+| column_mappings | (user, 헤더 시그니처)별로 사용자가 확인한 폴백 매핑 |
+| merchant_category_overrides | (user, 정규화 가맹점명)별 사용자 카테고리 수정값 |
 | subscriptions | Polar 구독 상태와, 그 상태를 만든 조회의 시작 시각 |
 | ai_summaries | (user, month)별 요약과 입력 해시 |
-| user_operations | 사용자당 한 행. 데이터 세대, 24시간 업로드 시도 기록. 한도·작업 배타성용 잠금 대상 |
-| user_metrics · upload_attempts | 지표용 최소 이력. 업로드를 지워도 남고, 전체 삭제 시 지운다 |
-| storage `statements` | 원본 파일. private, 경로 `{uid}/{uploadId}.{ext}`, 파일당 10MB |
+| user_metrics · upload_attempts | 지표용 최소 이력. 업로드를 지워도 남고, 전체 삭제 시 지운다. 24시간 업로드 한도도 upload_attempts로 센다 |
+| storage `statements` | 원본 파일의 AES-256-GCM 암호화본만. private, 경로 `{uid}/{uploadId}.enc`, 원본 기준 파일당 4MB |
 
 - 사용자는 RLS로 본인 행만 select한다. user_metrics·upload_attempts는 사용자가 접근하지 않는다. Storage에는 사용자 정책이 없다.
-- 모든 쓰기는 service_role에만 EXECUTE를 준 RPC로 한다. RPC는 `auth.uid()` 대신 서버가 넘긴 user_id와 행 소유권·상태·lease·세대를 검증한다. 권한은 pgTAP으로 단언한다.
-- fingerprint = `sha256(cardId|프로필 식별 범위|거래 식별자|거래 종류)`. 같은 파일(file_hash)은 사용자의 어느 카드에 올렸든 no_new다.
+- 모든 쓰기는 service_role에만 EXECUTE를 준 RPC로 한다. RPC는 `auth.uid()` 대신 서버가 넘긴 user_id와 행 소유권·상태·lease를 검증한다. 권한은 pgTAP으로 단언한다.
+- 사용자 단위 쓰기(업로드 수신·ingest·삭제·요약 저장·탈퇴)는 사용자별 advisory lock(`pg_advisory_xact_lock`)으로 직렬화한다.
+- fingerprint = `sha256(cardId|식별 범위|거래 식별자|거래 종류)`. 식별 범위는 식별자 종류(예: 승인번호)라서 프로필 경로와 폴백 경로에서 같은 거래는 같은 값이 된다. 같은 파일(file_hash)은 사용자의 어느 카드에 올렸든 no_new다.
+- 카드는 첫 성공 업로드의 식별 범위·취소 표기 방식으로 고정한다. 경로(프로필·폴백)가 달라도 둘이 같으면 같은 카드에 올릴 수 있다.
 - 목록 조회는 `.range()`로 끝까지 페이지네이션한다.
 
 ## 업로드 흐름
 ```
-(1) POST /api/uploads         한도 검사 → pending 업로드 커밋 → signed upload URL 발급
-(2) Browser → Storage         signed URL로 직접 업로드 (Vercel 4.5MB 본문 제한 회피)
-(3) POST /api/uploads/:id/process
-      claim(pending → processing, 6분 lease, 사용자당 동시 2개)
-      → 다운로드 → file_hash 검사 → 카드사 프로필로 파싱·정규화(코드만)
-      → 기존 거래에 없는 가맹점만 Claude 분류(실패는 etc)
-      → ingest RPC: 거래 insert와 결과 저장을 한 트랜잭션으로
-      → done / no_new / failed. 응답이 불명확하면 상태를 다시 조회하고, 모르면 202
-(4) GET /api/uploads/:id      처리 상태·저장된 결과
+(1) POST /api/uploads          multipart {cardId, file}(원본 4MB)
+      사용자 잠금 → 24시간 30개·동시 2개 검사 → processing 업로드 커밋(6분 lease)
+      → AES-256-GCM 암호화 후 Storage 저장(평문은 메모리에서만) → file_hash 검사 → 형식 판정
+         ├ 카드사 프로필 있음 / 저장된 폴백 매핑 있음 ─▶ (3)
+         └ 없음 → Haiku 매핑 제안(헤더 + 값 패턴) → 제안을 업로드 행에 저장
+                 → needs_mapping(1시간 만료, lease 해제) + 미리보기 응답
+(2) POST /api/uploads/:id/mapping   본문 없음("이대로 읽기")
+      저장된 제안을 column_mappings에 저장 → claim(needs_mapping → processing) → 복호화 → (3)
+(3)   코드로 파싱·정규화 → 수정값·기존 거래에 없는 가맹점만 Haiku 분류(실패는 etc)
+      → ingest RPC: 거래 insert와 결과 저장을 한 트랜잭션으로 → done / no_new / failed
+      → RPC 오류면 상태를 한 번 다시 읽어 done이면 결과, 아니면 503(행은 보존)
 ```
 ```
-[pending] ──claim──▶ [processing] ──신규 거래 커밋──▶ [done] ──사용자 삭제──▶ (즉시 삭제)
-    │                     ├─ 같은 파일·모두 중복 ──▶ [no_new]
-    │                     └─ 확정 실패·lease 만료 ─▶ [failed]
-    └─ 전송 실패·URL 만료 ─────────────────────▶ [failed]
+(업로드 요청) ──▶ [processing] ──신규 거래 커밋──▶ [done] ──사용자 삭제·12개월 경과──▶ (삭제)
+                     │    ▲
+                     │    └──"이대로 읽기"·claim──┐
+                     ├─ 처음 보는 형식 ──▶ [needs_mapping] ──취소──▶ (삭제)
+                     │                                    └─1시간 경과──▶ [failed]
+                     ├─ 같은 파일·모두 중복 ──▶ [no_new]
+                     └─ 확정 실패·lease 만료 ─▶ [failed]
 ```
-- 같은 uploadId 재요청은 저장된 결과를 돌려준다(멱등). 결과가 불명확하면 지우지 않고 보존한다.
-- lease가 만료된 processing은 정기 작업이 failed로 끝내며 재claim하지 않는다. ingest는 커밋 시 lease를 확인해 늦은 커밋을 거절한다.
+- 응답을 받지 못하면 같은 파일을 다시 올린다. 첫 요청이 커밋됐다면 file_hash·fingerprint 때문에 no_new가 되고, 아니면 새로 처리된다. 결과가 불명확한 행은 지우지 않는다.
+- lease가 만료된 processing은 정기 작업이 failed로 끝내며 재claim하지 않는다. ingest는 커밋 시 lease를 확인해 늦은 커밋을 거절한다. needs_mapping은 lease를 잡지 않아 동시 처리 한도에 세지 않는다.
+- 미리보기는 사용자 본인에게만 반환하고 LLM에 보내지 않는다. 클라이언트는 매핑을 보내지 않고, 서버가 저장한 제안만 확정한다.
 - 반영 기간은 저장된 거래의 최소·최대 이용일이다. 취소·환불은 파일의 날짜로 반영되므로 형식마다 월 귀속이 다를 수 있다(화면에 안내).
 
 ## 삭제와 정리
-- 업로드 삭제와 전체 삭제는 DB 한 트랜잭션으로 즉시 끝내고, 커밋 후 원본 삭제를 시도한다. 전체 삭제는 데이터 세대를 올려 진행 중인 쓰기를 무효화한다. 계정·구독·한도 기록은 유지한다.
-- 5분 주기 정기 작업은 만료된 pending·processing을 failed로 종료하고, 업로드 행이 없거나 no_new·failed인 원본을 지운다. 업로드 행은 URL 발급 전에 커밋되므로 행이 없는 파일은 언제 지워도 안전하다. DB 조회가 실패하면 지우지 않는다.
+- 업로드 삭제와 전체 삭제는 DB 한 트랜잭션으로 즉시 끝내고, 커밋 후 원본 삭제를 시도한다. 삭제 뒤 늦게 도착한 ingest는 업로드 행이 없어서, 요약 저장은 그 달 거래가 없어서 거절된다. 전체 삭제는 계정·구독을 유지한다(24시간 업로드 한도는 upload_attempts와 함께 초기화된다).
+- 탈퇴는 전체 삭제와 같은 트랜잭션에서 운영 기록까지 지우고, 커밋 후 Auth 사용자를 삭제한다. 자동 갱신 예정인 구독이 있으면 409로 거절한다. 탈퇴 뒤 도착한 웹훅은 사용자가 없어 200으로 무시한다.
+- 5분 주기 정기 작업은 만료된 processing(lease)·needs_mapping(1시간)을 failed로 종료하고, 업로드 행이 없거나 no_new·failed인 원본을 지운다. 업로드 행은 파일 저장 전에 커밋되므로 행이 없는 파일은 언제 지워도 안전하다. DB 조회가 실패하면 지우지 않는다.
+- 보관 기한: 같은 정기 작업이 이용일 기준 12개월이 지난 거래·요약을 지우고, 거래가 모두 사라진 업로드의 행과 원본을 지운다. ingest는 보관 기한 밖의 거래를 저장하지 않는다(skipped).
 
 ## 결제 동기화
 ```
-checkout: 이미 Pro면 포털, 아니면 Polar checkout(external_customer_id = 세션 uid)
-success 페이지 · 웹훅(서명 검증) · 1시간 이상 오래된 상태 ─▶ syncFromPolar(uid)
+checkout: 이미 Pro면 포털, 아니면 Polar checkout(external_customer_id = 세션 uid, customer_ip_address = 요청자 IP)
+success 페이지 · 웹훅(서명 검증) · 결제 기간이 지난 상태 ─▶ syncFromPolar(uid)
   조회 시작 시각 기록 → Polar 현재 상태 조회 → 저장된 조회보다 늦게 시작했을 때만 저장
 ```
 - 조회가 실패하면 기존 상태를 유지한다(Free로 덮지 않음). Pro 상품의 active 구독만 권한으로 본다.
 - 첫 실결제는 production에서 active Pro를 처음 확인한 시각이다(쿠폰·무료 구독 미운영 전제).
+- Pro 상품은 USD $4.99를 기본 가격으로, KRW 가격을 추가로 둔다. Polar는 고객 위치로 통화를 고르므로 서버에서 만든 checkout에는 요청자 IP를 넘긴다.
 
 ## API
 | 경로 | 역할 |
 |---|---|
 | `POST /api/cards` | 카드 라벨 등록 |
-| `POST /api/uploads` | 업로드 생성 + signed URL 발급 |
-| `POST /api/uploads/[id]/process` | 처리 또는 저장된 결과 반환 |
-| `GET` · `DELETE /api/uploads/[id]` | 상태 조회 · 업로드 삭제 |
+| `POST /api/uploads` | 파일 수신 → 암호화 저장 → 처리, 또는 매핑 제안(needs_mapping) |
+| `POST /api/uploads/[id]/mapping` | 저장된 매핑 제안 확정 → 처리 |
+| `DELETE /api/uploads/[id]` | 업로드 삭제(매핑 대기 취소 포함) |
+| `PUT /api/merchant-categories` | 가맹점 카테고리 수정 → 그 가맹점 거래 갱신 |
 | `DELETE /api/me/data` | 소비 데이터 전체 삭제 |
+| `DELETE /api/me` | 탈퇴(데이터·계정 삭제) |
 | `POST /api/checkout` · `/api/portal` | Polar URL 반환 |
-| `POST /api/metrics` | 티저 노출·업그레이드 클릭·전송 실패 기록 |
+| `POST /api/metrics` | 티저 노출·업그레이드 클릭 기록 |
 | `POST /api/webhooks/polar` | 서명 검증 → 동기화 |
 | `GET /api/internal/maintenance` | 정기 정리(CRON_SECRET) |
 | `GET /auth/callback` | OAuth 코드 교환 → next(내부 경로만) |
 
-- 상태 코드: 200 완료 · 202 처리 중 · 400 · 401 · 403 Origin/서명 · 404 없음/타인 소유 · 409 충돌 · 422 파일 문제 · 429 한도 · 503 일시 장애. 에러 본문은 `{ error: { code, reason? } }`이며 원문 메시지를 노출하지 않는다.
+- 상태 코드: 200 완료·매핑 대기 · 400 · 401 · 403 Origin/서명 · 404 없음/타인 소유 · 409 충돌 · 422 파일 문제 · 429 한도 · 503 일시 장애. 에러 본문은 `{ error: { code, reason? } }`이며 원문 메시지를 노출하지 않는다.
 
 ## 모드 · 환경
 - `getMode()`: production → live, preview → mock, 로컬 → `APP_MODE`(기본 mock). Production은 mock이 될 수 없다.
-- mock: Claude는 키워드 분류·고정 요약, Polar는 즉시 활성·해지, Analytics는 no-op. Supabase는 실제를 쓴다(Preview=dev, Production=prod, 로컬=Docker). mock이면 상단 배너를 띄운다.
+- mock: Claude는 키워드 분류·헤더 키워드 매핑·고정 요약, Polar는 즉시 활성·해지, Analytics는 no-op. Supabase는 실제를 쓴다(Preview=dev, Production=prod, 로컬=Docker). mock이면 상단 배너를 띄운다.
 - 사이트 Origin은 `lib/origin.ts` 한 곳에서 정한다(Preview `https://${VERCEL_URL}`, Production `NEXT_PUBLIC_SITE_URL`, 로컬 localhost). Origin 검사와 OAuth 복귀 URL에 같이 쓴다.
 - Preview 배포는 `execute.py --deploy`가, Production 배포는 deploy step이 한다. step 세션은 배포하지 않는다. dev DB 마이그레이션은 사용자가 수동으로 push한다. Cron은 production에서만 돈다.
-- env는 `lib/env.ts`에서 lazy 검증한다. 변수 목록은 `.env.example`.
+- env는 `lib/env.ts`에서 lazy 검증한다. 변수 목록은 `.env.example`. 원본 암호화 키 `FILE_ENCRYPTION_KEY`(32바이트, 서버 전용, 환경별로 따로)를 쓴다.
 
 ## 보안
 - 인증: 보호 페이지·핸들러마다 `requireUser()`(`getClaims`). proxy는 세션 갱신만 한다. next는 내부 경로만 허용한다.
-- CSRF: 세션을 쓰는 POST/DELETE는 Origin 정확 일치, JSON POST는 `application/json`만. 웹훅은 서명, Cron은 `CRON_SECRET`.
+- CSRF: 세션을 쓰는 POST/PUT/DELETE는 Origin 정확 일치, JSON 요청은 `application/json`만, 파일 업로드는 `multipart/form-data`만. 웹훅은 서명, Cron은 `CRON_SECRET`.
 - 격리: RLS 읽기 + 검증된 서버 쓰기 + 복합 FK. 타인 리소스는 404.
-- 파일: private 버킷, 확장자·용량·행 수(5,000)·셀 길이 상한, xlsx ZIP 시그니처, 패치된 SheetJS.
-- LLM: 가맹점명과 집계만 보낸다. structured outputs를 쓰고 결과는 코드로 검증한다.
+- 파일: private 버킷에 암호화본만(AES-256-GCM, 파일마다 랜덤 IV). 평문 원본은 메모리에서만 다룬다. 확장자·용량(4MB)·행 수(5,000)·셀 길이 상한, xlsx ZIP 시그니처, 패치된 SheetJS.
+- LLM: 분류에는 가맹점명, 요약에는 월 집계, 폴백 매핑에는 헤더와 값 패턴(숫자 → 9, 문자 → X)만 보낸다. 실제 셀 값과 원본은 보내지 않는다. structured outputs를 쓰고 결과는 코드로 검증한다.
 - 헤더 `X-Frame-Options: DENY` · `nosniff` · `strict-origin-when-cross-origin`. XSS는 `react/no-danger`와 텍스트 렌더링으로 막는다.
 - 로그는 코드와 id만. 비용은 24시간 30개·동시 2개를 DB에서 원자적으로 제한하고 Anthropic·Vercel 지출 한도를 건다.
 
 ## 테스트
 - 단위 `*.test.ts`(`npm test`, Docker 불필요), DB·Storage 통합 `*.db.test.ts`(`npm run test:db`), pgTAP `supabase/tests/`. Stop hook은 단위 테스트만 돌린다.
-- 파싱은 익명화한 실제 fixture로 카드별·월별·전체 기대 합계와 정확히 일치해야 한다.
+- 파싱은 익명화한 실제 fixture로 카드별·월별·전체 기대 합계와 정확히 일치해야 한다. 같은 fixture를 프로필 없이 폴백 매핑으로 읽어도 같은 합계와 fingerprint가 나와야 한다.
 - 외부 서비스는 mock으로 단위 테스트하고, 권한·잠금·경합은 DB 통합 테스트로 확인한다.
-- **[확정 필요]** 지원 카드사 2종과 파일 확장자는 실제 파일을 확인한 뒤 정한다.
+- **[확정 필요]** 초기 프로필 카드사 2종과 .xls 지원 여부는 실제 파일을 확인한 뒤 정한다.
