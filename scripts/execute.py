@@ -3,7 +3,7 @@
 Harness Step Executor — phase 내 step을 순차 실행하고 자가 교정한다.
 
 Usage:
-    python3 scripts/execute.py <phase-dir> [--push]
+    python3 scripts/execute.py <phase-dir> [--push] [--deploy]
 """
 
 import argparse
@@ -58,13 +58,14 @@ class StepExecutor:
     CHORE_MSG = "chore({phase}): step {num} output"
     TZ = timezone(timedelta(hours=9))
 
-    def __init__(self, phase_dir_name: str, *, auto_push: bool = False):
+    def __init__(self, phase_dir_name: str, *, auto_push: bool = False, auto_deploy: bool = False):
         self._root = str(ROOT)
         self._phases_dir = ROOT / "phases"
         self._phase_dir = self._phases_dir / phase_dir_name
         self._phase_dir_name = phase_dir_name
         self._top_index_file = self._phases_dir / "index.json"
         self._auto_push = auto_push
+        self._auto_deploy = auto_deploy
 
         if not self._phase_dir.is_dir():
             print(f"ERROR: {self._phase_dir} not found")
@@ -256,6 +257,33 @@ class StepExecutor:
 
         return output
 
+    # --- 배포 ---
+
+    def _deploy_preview(self, step_num: int):
+        """Vercel preview로 배포하고 URL 또는 에러를 index.json에 기록한다. 실패해도 step 진행은 막지 않는다."""
+        try:
+            r = subprocess.run(
+                ["vercel", "deploy", "--yes"],
+                cwd=self._root, capture_output=True, text=True, timeout=900,
+            )
+            url = r.stdout.strip().splitlines()[-1] if r.returncode == 0 and r.stdout.strip() else ""
+            error = "" if url else (r.stderr.strip()[-500:] or f"vercel deploy exit code {r.returncode}")
+        except FileNotFoundError:
+            url, error = "", "vercel CLI를 찾을 수 없습니다 (npm i -g vercel)"
+        except subprocess.TimeoutExpired:
+            url, error = "", "vercel deploy 시간 초과 (900s)"
+
+        index = self._read_json(self._index_file)
+        for s in index["steps"]:
+            if s["step"] == step_num:
+                if url:
+                    s["deploy_url"] = url
+                    s.pop("deploy_error", None)
+                else:
+                    s["deploy_error"] = error
+        self._write_json(self._index_file, index)
+        print(f"  ↗ Preview: {url}" if url else f"  WARN: 배포 실패 — {error}")
+
     # --- 헤더 & 검증 ---
 
     def _print_header(self):
@@ -264,6 +292,8 @@ class StepExecutor:
         print(f"  Phase: {self._phase_name} | Steps: {self._total}")
         if self._auto_push:
             print(f"  Auto-push: enabled")
+        if self._auto_deploy:
+            print(f"  Auto-deploy: Vercel preview")
         print(f"{'='*60}")
 
     def _check_blockers(self):
@@ -318,6 +348,8 @@ class StepExecutor:
                     if s["step"] == step_num:
                         s["completed_at"] = ts
                 self._write_json(self._index_file, index)
+                if self._auto_deploy:
+                    self._deploy_preview(step_num)
                 self._commit_step(step_num, step_name)
                 print(f"  ✓ Step {step_num}: {step_name} [{elapsed}s]")
                 return True
@@ -408,9 +440,10 @@ def main():
     parser = argparse.ArgumentParser(description="Harness Step Executor")
     parser.add_argument("phase_dir", help="Phase directory name (e.g. 0-mvp)")
     parser.add_argument("--push", action="store_true", help="Push branch after completion")
+    parser.add_argument("--deploy", action="store_true", help="Deploy to Vercel preview after each completed step")
     args = parser.parse_args()
 
-    StepExecutor(args.phase_dir, auto_push=args.push).run()
+    StepExecutor(args.phase_dir, auto_push=args.push, auto_deploy=args.deploy).run()
 
 
 if __name__ == "__main__":

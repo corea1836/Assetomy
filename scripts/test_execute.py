@@ -471,6 +471,88 @@ class TestInvokeClaude:
 
 
 # ---------------------------------------------------------------------------
+# _deploy_preview (--deploy)
+# ---------------------------------------------------------------------------
+
+class TestDeployPreview:
+    @staticmethod
+    def _step(executor, num=2):
+        index = json.loads(executor._index_file.read_text())
+        return next(s for s in index["steps"] if s["step"] == num)
+
+    def test_runs_vercel_deploy_in_project_root(self, executor):
+        mock_result = MagicMock(returncode=0, stdout="https://a.vercel.app\n", stderr="")
+        with patch("subprocess.run", return_value=mock_result) as mock_run:
+            executor._deploy_preview(2)
+
+        assert mock_run.call_args[0][0] == ["vercel", "deploy", "--yes"]
+        assert mock_run.call_args[1]["cwd"] == executor._root
+
+    def test_records_deploy_url_on_success(self, executor):
+        mock_result = MagicMock(returncode=0, stdout="https://assetomy-abc.vercel.app\n", stderr="")
+        with patch("subprocess.run", return_value=mock_result):
+            executor._deploy_preview(2)
+
+        assert self._step(executor)["deploy_url"] == "https://assetomy-abc.vercel.app"
+
+    def test_failure_records_error_without_exit(self, executor):
+        mock_result = MagicMock(returncode=1, stdout="", stderr='Error: Command "npm run build" exited with 1')
+        with patch("subprocess.run", return_value=mock_result):
+            executor._deploy_preview(2)
+
+        step = self._step(executor)
+        assert "deploy_url" not in step
+        assert "npm run build" in step["deploy_error"]
+
+    def test_missing_cli_records_error(self, executor):
+        with patch("subprocess.run", side_effect=FileNotFoundError):
+            executor._deploy_preview(2)
+
+        assert "vercel" in self._step(executor)["deploy_error"]
+
+    def test_timeout_records_error(self, executor):
+        with patch("subprocess.run", side_effect=subprocess.TimeoutExpired(cmd="vercel", timeout=900)):
+            executor._deploy_preview(2)
+
+        assert "시간 초과" in self._step(executor)["deploy_error"]
+
+    def test_success_clears_previous_error(self, executor):
+        index = json.loads(executor._index_file.read_text())
+        index["steps"][2]["deploy_error"] = "old error"
+        executor._index_file.write_text(json.dumps(index))
+
+        mock_result = MagicMock(returncode=0, stdout="https://b.vercel.app\n", stderr="")
+        with patch("subprocess.run", return_value=mock_result):
+            executor._deploy_preview(2)
+
+        assert "deploy_error" not in self._step(executor)
+
+
+class TestExecuteSingleStepDeploy:
+    @staticmethod
+    def _run_completed_step(executor):
+        calls = []
+
+        def fake_invoke(step, preamble):
+            index = json.loads(executor._index_file.read_text())
+            index["steps"][2]["status"] = "completed"
+            executor._index_file.write_text(json.dumps(index))
+
+        executor._invoke_claude = fake_invoke
+        executor._deploy_preview = lambda num: calls.append("deploy")
+        executor._commit_step = lambda num, name: calls.append("commit")
+        assert executor._execute_single_step({"step": 2, "name": "ui"}, "guardrails") is True
+        return calls
+
+    def test_deploys_before_commit_when_enabled(self, executor):
+        executor._auto_deploy = True
+        assert self._run_completed_step(executor) == ["deploy", "commit"]
+
+    def test_no_deploy_by_default(self, executor):
+        assert self._run_completed_step(executor) == ["commit"]
+
+
+# ---------------------------------------------------------------------------
 # progress_indicator (= 이전 Spinner)
 # ---------------------------------------------------------------------------
 
@@ -513,6 +595,12 @@ class TestMainCli:
                 with pytest.raises(SystemExit) as exc_info:
                     ex.main()
                 assert exc_info.value.code == 1
+
+    def test_deploy_flag_enables_auto_deploy(self):
+        with patch("sys.argv", ["execute.py", "0-mvp", "--deploy"]):
+            with patch.object(ex, "StepExecutor") as mock_cls:
+                ex.main()
+        mock_cls.assert_called_once_with("0-mvp", auto_push=False, auto_deploy=True)
 
 
 # ---------------------------------------------------------------------------
