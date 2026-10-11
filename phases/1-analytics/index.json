@@ -2,10 +2,33 @@
   "project": "assetomy",
   "phase": "1-analytics",
   "steps": [
-    { "step": 0, "name": "domain-types", "status": "pending" },
-    { "step": 1, "name": "snapshot", "status": "pending" },
-    { "step": 2, "name": "comparison", "status": "pending" },
-    { "step": 3, "name": "detection", "status": "pending" },
-    { "step": 4, "name": "build-dashboard", "status": "pending" }
-  ]
+    {
+      "step": 0,
+      "name": "domain-types",
+      "status": "completed",
+      "started_at": "2026-10-11T23:22:07+0900",
+      "summary": "src/types/category.ts, src/types/transaction.ts, src/types/dashboard.ts 도메인 타입과 src/lib/analytics/dates.ts의 monthOf, addMonths, daysInMonth, datesOfMonth, daysBetween 구현 및 날짜 테스트 검증 완료"
+    },
+    {
+      "step": 1,
+      "name": "snapshot",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "comparison",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "detection",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "build-dashboard",
+      "status": "pending"
+    }
+  ],
+  "created_at": "2026-10-11T23:22:07+0900"
 }
