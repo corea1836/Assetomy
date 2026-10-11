@@ -7,8 +7,10 @@
 
 ## 실행 환경
 ```bash
-npm run dev                      # http://localhost:3000. APP_MODE 미설정이면 mock(상단 배너 표시)
+lsof -iTCP:3100 -sTCP:LISTEN -n -P   # 비어 있어야 한다
+npm run dev -- -p 3100           # APP_MODE 미설정이면 mock(상단 배너 표시)
 dev-browser --headless --timeout 90 <<'EOF'
+const BASE = "http://localhost:3100";
 const page = await browser.getPage("s1");
 page.setDefaultTimeout(5000);
 page.setDefaultNavigationTimeout(60000);
@@ -16,7 +18,7 @@ await page.setViewportSize({ width: 1280, height: 900 });
 const check = (name, ok, got) => console.log(`${ok ? "PASS" : "FAIL"} ${name}${ok ? "" : ` — got: ${got}`}`);
 const norm = (t) => t.replace(/\s+/g, " ").trim();
 const section = (title) => page.locator("section", { has: page.getByRole("heading", { name: title, exact: true }) }).last();
-await page.goto("http://localhost:3000/demo", { waitUntil: "networkidle" });
+await page.goto(`${BASE}/demo`, { waitUntil: "networkidle" });
 check("총지출", norm(await section("총지출").innerText()).includes("1,517,200원"), "");
 EOF
 ```
@@ -25,12 +27,13 @@ EOF
 
 ### 주의할 점
 - `page.setDefaultTimeout(5000)`과 `--timeout 90`을 쓴다. 이유: 스크립트 제한은 기본 30초이고, locator가 틀리면 Playwright 기본값(30초)만큼 기다리다 스크립트 전체가 결과 없이 끝난다. 이동은 `setDefaultNavigationTimeout(60000)`으로 따로 늘린다. 이유: dev 서버를 막 띄운 뒤 첫 이동은 컴파일 때문에 5초를 넘는다.
-- 테스트가 끝나면 `dev-browser stop`, `lsof -ti tcp:3000 | xargs kill`로 정리한다. `pkill -f "next dev"`는 자식 `next-server`를 남길 수 있고, 남은 서버에 붙으면 `networkidle`에 도달하지 않는다.
+- main은 3100 포트로 띄운다. 이유: `.claude/worktrees/*`의 다른 세션이 3000에 dev 서버를 띄워 두는 일이 있고, 그러면 `npm run dev`는 `EADDRINUSE`로 끝나는데 테스트는 그 worktree 화면을 상대로 통과해 버린다. 띄운 뒤 `lsof -a -p $(lsof -ti tcp:3100 -sTCP:LISTEN) -d cwd`로 서버 위치가 이 저장소인지 확인한다.
+- 테스트가 끝나면 `dev-browser stop`, `lsof -ti tcp:3100 -sTCP:LISTEN | xargs kill`로 내가 띄운 서버만 정리한다(`-sTCP:LISTEN`이 없으면 그 포트에 붙은 다른 프로세스까지 잡힌다). 다른 포트의 서버는 끄지 않는다. `pkill -f "next dev"`는 자식 `next-server`를 남길 수 있고, 남은 서버에 붙으면 `networkidle`에 도달하지 않는다.
 - 섹션은 `<h2>` 제목으로 찾는다(`section(...)`). 제목: `총지출`, `카테고리`, `가장 많이 쓴 곳`, `일별 지출`, `확인이 필요한 지출`, `월별 추세`, `이번 달 요약`.
 - 클라이언트 이동 직후 `page.title()`은 잠깐 빈 문자열이다(Next 16이 metadata를 스트리밍으로 넣음). `await page.waitForFunction(() => document.title !== "")` 뒤에 확인한다.
 - dev 모드에서는 Next.js 개발 도구(`NEXTJS-PORTAL`)가 Tab 순서 첫 번째에 끼어든다. 포커스 검사에서 제외한다.
 - `/login`은 아직 없다(404). CTA는 `href`만 확인하고 누르지 않는다.
-- `next dev`는 실행할 때마다 `AGENTS.md`에 `nextjs-agent-rules` 블록을 붙인다. 테스트 때문에 생긴 이 변경은 커밋하지 않는다.
+- `next.config.ts`의 `agentRules: false` 때문에 에이전트가 띄운 `next dev`도 `AGENTS.md`를 고치지 않는다. 테스트 뒤 `AGENTS.md`가 바뀌어 있으면 이 설정이 빠졌는지 확인한다.
 - 설치 메모(Node 26): `dev-browser install`이 Playwright 브라우저 압축 해제 중 멈출 수 있다. 받아진 zip(`$TMPDIR/playwright-download-*/`)을 `ditto -x -k <zip> ~/Library/Caches/ms-playwright/<브라우저-버전>`으로 풀고 그 폴더에 `INSTALLATION_COMPLETE`를 만든다. `--headless`에는 `chromium-1208`과 별도로 `chromium_headless_shell-1208`이 필요하다.
 
 ## 시나리오
@@ -52,7 +55,7 @@ EOF
 
 | 영역 | 기대 결과 |
 |---|---|
-| 총지출 | `1,517,200원` · `거래 26건 · 반영 기간 9/1~9/30` · `8월보다 +936,000원 늘었어요`(`text-increase`). `진행 중인 달이에요` 없음 |
+| 총지출 | `1,517,200원` · `거래 26건 · 반영 기간 9/1~9/30` · `8월보다 +909,200원 늘었어요`(`text-increase`). `진행 중인 달이에요` 없음 |
 | 상단 줄 | `2026년 9월까지 반영됨` |
 | 카테고리 | 10개. 1위 `쇼핑 989,000원 65%`, 마지막 `교통 9,300원 1%` |
 | 가장 많이 쓴 곳 | 5개: 별숲 가구실 920,000 · 바람결 장터 150,000 · 은잎 밥상 93,000 · 종이달 상점 69,000 · 둥근잎 공방 64,000(모두 `예시 ` 접두어) |
@@ -60,8 +63,8 @@ EOF
 | 후보 합계 | `후보 합계 1,053,900원` + `같은 거래는 한 번만 셌어요. 정상 지출일 수 있어요.` |
 | 상세 (`ul[aria-label="확인할 지출 상세"] > li`) | 4건. 구름선 통신 55,000원·달무늬 음악 14,900원은 각각 `6월 · 7월 · 8월 · 9월 결제`. 둥근잎 공방 64,000원 아래 `9월 18일 · 온라인 쇼핑 카드 32,000원` 2줄. 별숲 가구실 920,000원 |
 | 오탐 없음 | 월 여러 번 가는 `예시 모래별 카페`가 탐지 영역에 없다 |
-| 월별 추세 | 막대(`.recharts-bar-rectangle`) 4개. 숨은 목록 `ul[aria-label="월별 지출 합계"]`: 6·7·8월 `581,200원`, 9월 `1,517,200원`. 9월 막대 hover → 툴팁 `2026년 9월` `1,517,200원` |
-| 지난달과 달라진 카테고리 | `쇼핑 +872,000원 늘었어요`, `문화·여가 +64,000원 늘었어요` |
+| 월별 추세 | 막대(`.recharts-bar-rectangle`) 4개. 숨은 목록 `ul[aria-label="월별 지출 합계"]`: 6월 `590,200원`, 7월 `699,200원`, 8월 `608,000원`, 9월 `1,517,200원`. 9월 막대 마우스 hover → 툴팁 `2026년 9월` `1,517,200원` |
+| 지난달과 달라진 카테고리 | `쇼핑 +872,000원 늘었어요`, `문화·여가 +64,000원 늘었어요`, `식비 −22,000원 줄었어요`, `카페·간식 −4,800원 줄었어요` |
 | 이번 달 요약 | 문단이 있고 숫자(0-9)가 없다 |
 | 화면 전체 | `절약`·`낭비`·`부정 결제`가 없다 |
 
@@ -69,14 +72,16 @@ EOF
 1. `월 선택`의 선택지는 `2026년 9월`, `8월`, `7월`, `6월` 순서다.
 2. 7월을 고른다(`selectOption("2026-07")`).
    - URL `/demo?month=2026-07`, h1 `2026년 7월 지출`, 선택기 값 `2026-07`
-   - 총지출 `581,200원`, `6월보다 같아요`
-   - 추세 막대 2개, `지난달과 달라진 카테고리` 없음
+   - 총지출 `699,200원` · `거래 25건 · 반영 기간 7/1~7/30` · `6월보다 +109,000원 늘었어요`
+   - 추세 막대 2개. 달라진 카테고리 `마트·생활 +57,000원 늘었어요`, `문화·여가 +42,000원 늘었어요`, `배달 +19,000원 늘었어요`, `식비 −9,000원 줄었어요`
    - 탐지 `정기결제로 보여요 2건 · 69,900원` / `중복 결제 의심 0건 · 0원` / `고액 결제 0건 · 0원`
    - 요약 대신 `데모 요약은 2026년 9월에만 있어요`
-3. 6월을 고른다.
-   - 총지출 `581,200원`, 전월 대비 문구 없음(이전 달 데이터 없음), `월별 추세` 섹션 없음(1개월)
-4. 어느 달이든 `2026년 9월까지 반영됨`은 그대로다.
-5. 뒤로가기 → 7월(URL·선택기 `2026-07`) → 뒤로가기 → 9월(URL `/demo`, 선택기 `2026-09`).
+3. 8월을 고른다.
+   - 총지출 `608,000원` · `거래 24건 · 반영 기간 8/1~8/30` · `7월보다 −91,200원 줄었어요`(`text-decrease`)
+4. 6월을 고른다.
+   - 총지출 `590,200원` · `거래 23건`, 전월 대비 문구 없음(이전 달 데이터 없음), `월별 추세` 섹션 없음(1개월)
+5. 어느 달이든 `2026년 9월까지 반영됨`은 그대로다.
+6. 뒤로가기 → 8월(URL·선택기 `2026-08`) → 7월 → 9월(URL `/demo`, 선택기 `2026-09`).
 
 ### S4. 잘못된 month 파라미터
 `?month=abc`, `?month=2025-01`(데이터 없는 달), `?month=2026-13`, `?month=2026-07&month=2026-08`(배열), `?month=`
@@ -98,7 +103,8 @@ EOF
 | 데모 1280px | 카드 2열 |
 | 랜딩 Tab | `로그인` → `데모 보기` → `무료로 시작하기` → `Pro 시작하기`. 모두 `outline: solid 2px` |
 | 랜딩 키보드 이동 | Tab 2번(`데모 보기`) + Enter → `/demo` |
-| 데모 Tab | (`NEXTJS-PORTAL` 제외) `assetomy` → `내 이용내역으로 해보기` → `월 선택`. 포커스 표시 있음(선택기는 ring) |
+| 데모 Tab | (`NEXTJS-PORTAL` 제외) `assetomy` → `내 이용내역으로 해보기` → `월 선택` → 페이지 끝. 포커스 표시 있음(선택기는 ring) |
+| 차트 포커스 | 두 차트(`[role="img"][aria-label$="막대 차트"]`) 안에 `tabindex="0"`·`role="application"`이 없다. 접근성 트리에는 `img "일별 지출 막대 차트"`, `img "월별 지출 추세 막대 차트"`만 나온다 |
 | 콘솔·네트워크 | `/`, `/demo`, `/demo?month=2026-06`, 랜딩 → 데모 클릭 이동에서 콘솔 에러·경고, 4xx/5xx 응답 없음 |
 
 ## 미확인 · 관찰 항목
@@ -114,4 +120,5 @@ EOF
 ## 실행 기록
 | 날짜 | 기준 | 결과 | 메모 |
 |---|---|---|---|
-| 2026-10-12 | `c6e42d4` + 작업 트리(데모 CTA `내 이용내역으로 해보기`) | S1~S6 통과. S5의 `/login` 이동은 제외 | 탭 제목 타이밍·`NEXTJS-PORTAL`은 측정 문제로 판정. 방향키 항목은 미확인 |
+| 2026-10-12 | `c6e42d4` + 작업 트리(데모 CTA `내 이용내역으로 해보기`) | S1~S6 통과. S5의 `/login` 이동은 제외 | 탭 제목 타이밍·`NEXTJS-PORTAL`은 측정 문제로 판정. 방향키 항목은 미확인. 이후 차트가 Tab에 걸리는 문제를 찾음 |
+| 2026-10-12 | `7f6d4d0`(main, 3100 포트) | S1~S6 통과. S5의 `/login` 이동은 제외 | `e43f217`의 차트 포커스 수정 확인. fixture 변경에 맞춰 6~8월 기대값·전월 대비 갱신. 방향키 항목은 미확인 |
