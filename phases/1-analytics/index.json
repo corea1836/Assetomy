@@ -21,7 +21,9 @@
     {
       "step": 2,
       "name": "comparison",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-12T01:25:13+0900",
+      "summary": "TREND_MAX_MONTHS, buildMonthOverMonth, buildTrend 순수 함수와 취소 반영·12개월 연속 구간·카테고리 변화 테스트 구현 및 전체 AC 검증 완료"
     },
     {
       "step": 3,
