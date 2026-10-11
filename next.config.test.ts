@@ -22,3 +22,9 @@ describe("Next.js security headers", () => {
     ]);
   });
 });
+
+describe("Next.js agent rules", () => {
+  it("keeps next dev from rewriting the hand-maintained AGENTS.md", () => {
+    expect(nextConfig.agentRules).toBe(false);
+  });
+});

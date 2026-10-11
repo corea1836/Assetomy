@@ -1,6 +1,8 @@
 import type { NextConfig } from "next";
 
 const nextConfig: NextConfig = {
+  // AGENTS.md는 CLAUDE.md와 같은 내용으로 직접 관리한다. 에이전트가 띄운 next dev가 블록을 붙이지 않게 한다.
+  agentRules: false,
   async headers() {
     return [
       {
