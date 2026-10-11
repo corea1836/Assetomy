@@ -136,7 +136,7 @@ disabled:bg-surface-soft disabled:text-muted-soft      에러: border-danger
 
 ## 레이아웃
 - 대시보드·설정: `max-w-5xl mx-auto px-4 sm:px-6`. 1열 기본, `md:` 이상에서 KPI·차트 2열. 카드 사이 `gap-6`, 섹션 사이 `space-y-12`.
-- 대시보드 상단 한 줄: 월 선택기 · 반영 기간 · "새 명세서 추가".
+- 대시보드 상단 한 줄: 월 선택기 · 반영 기간 · "새 이용내역 추가".
 - 좌측 정렬 기본. 중앙 정렬은 모달·빈 상태·랜딩 CTA에만 쓴다.
 
 ### 랜딩 (`/`)

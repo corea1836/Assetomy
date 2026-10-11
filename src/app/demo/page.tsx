@@ -48,7 +48,7 @@ export default async function DemoPage({
           href="/login"
           className="inline-flex h-9 items-center justify-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-white transition-[background-color,transform] duration-120 ease-standard active:scale-[.98] active:bg-primary-active focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
         >
-          내 명세서로 해보기
+          내 이용내역으로 해보기
         </Link>
       </header>
 
