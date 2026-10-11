@@ -21,7 +21,9 @@
     {
       "step": 2,
       "name": "insight-components",
-      "status": "pending"
+      "status": "completed",
+      "summary": "src/components/dashboard/findings-list.tsx(FindingsList), src/components/dashboard/trend-chart.tsx(TrendChart), src/components/dashboard/monthly-summary.tsx(MonthlySummary)와 컴포넌트 테스트 20개 구현; Node.js 24에서 lint·build·전체 311개 테스트·금지 의존성 및 문구 검사 통과",
+      "started_at": "2026-10-12T03:51:26+0900"
     },
     {
       "step": 3,
