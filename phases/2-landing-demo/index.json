@@ -2,10 +2,33 @@
   "project": "assetomy",
   "phase": "2-landing-demo",
   "steps": [
-    { "step": 0, "name": "format", "status": "pending" },
-    { "step": 1, "name": "snapshot-components", "status": "pending" },
-    { "step": 2, "name": "insight-components", "status": "pending" },
-    { "step": 3, "name": "demo-page", "status": "pending" },
-    { "step": 4, "name": "landing", "status": "pending" }
-  ]
+    {
+      "step": 0,
+      "name": "format",
+      "status": "completed",
+      "summary": "formatWon, formatSignedWon, formatAxisWon, formatRatio, formatMonth, formatMonthShort, formatDate, formatPeriod 순수 포맷 함수와 48개 단위 테스트 구현",
+      "started_at": "2026-10-12T03:41:57+0900"
+    },
+    {
+      "step": 1,
+      "name": "snapshot-components",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "insight-components",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "demo-page",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "landing",
+      "status": "pending"
+    }
+  ],
+  "created_at": "2026-10-12T03:41:57+0900"
 }
