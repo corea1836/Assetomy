@@ -39,7 +39,8 @@
       "name": "build-dashboard",
       "status": "completed",
       "summary": "buildDashboard(input: BuildDashboardInput): Dashboard | null 구현, 요청 월이 listDataMonths에 없으면 최근 데이터 월로 대체, Free/Pro DTO 분리·유출 방지 테스트 및 전체 AC 검증 완료",
-      "started_at": "2026-10-12T03:37:26+0900"
+      "started_at": "2026-10-12T03:37:26+0900",
+      "completed_at": "2026-10-12T03:41:18+0900"
     }
   ],
   "created_at": "2026-10-11T23:22:07+0900"
