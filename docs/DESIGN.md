@@ -21,6 +21,8 @@ Assetomy Design System을 이 제품(한국어 대시보드 MVP)에 맞게 줄�
   --color-primary: #0B7A5E;          /* 포인트는 이것 하나. 드물게 쓴다 */
   --color-primary-active: #08604A;
   --color-primary-disabled: #A9C4BC;
+  --color-primary-soft: #E7F3EE;     /* Pro 표시 바탕. 글자는 primary-active(6.6:1) */
+  --color-primary-on-dark: #3DD6A3;  /* 다크 면 위 막대·아이콘. surface-dark-elevated 대비 9.6:1 */
   --color-canvas: #FFFFFF;
   --color-surface-soft: #F7F7F7;
   --color-surface-strong: #EEF0F3;
@@ -52,6 +54,10 @@ Assetomy Design System을 이 제품(한국어 대시보드 MVP)에 맞게 줄�
 @theme inline {
   --font-mono: var(--font-jetbrains-mono), "Pretendard Variable", ui-monospace, monospace;
 }
+
+@layer base {
+  body { word-break: keep-all; overflow-wrap: break-word; }
+}
 ```
 - Tailwind 기본 팔레트는 amber(확인 필요·mock 배너)와 `red-50`(에러 박스)만 쓴다.
 
@@ -66,9 +72,10 @@ Assetomy Design System을 이 제품(한국어 대시보드 MVP)에 맞게 줄�
 | 주요 버튼·링크·차트 막대·업로드 완료 | `primary` |
 | 지출 증가 / 감소 | `text-increase` / `text-decrease` |
 | 환불·취소(음수 금액) | `text-body` + "−" |
-| 확인이 필요한 지출 | `bg-amber-50 border-amber-200 text-amber-900` |
+| 확인이 필요한 지출 | `bg-amber-50 border-amber-200 text-amber-900` (다크 면 위에서는 `text-amber-200`) |
 | 에러 | `bg-red-50 text-danger` |
-| 다크 밴드 위 | `text-white`, 보조 `text-muted-soft` |
+| 다크 밴드 위 | `text-white`, 보조 `text-muted-soft`, 막대·아이콘 `primary-on-dark` |
+| Pro 표시 | `rounded-full bg-primary-soft px-2.5 py-0.5 text-caption font-semibold text-primary-active` |
 
 - 증가=빨강·감소=파랑은 국내 관례다. 색만으로 구분하지 않고 부호와 "늘었어요/줄었어요"를 함께 쓴다.
 - 포인트 색은 한 화면 구역에 한두 곳만 쓴다.
@@ -103,6 +110,7 @@ Destructive: + bg-surface-strong text-danger active:bg-hairline   (항상 확인
 작게:        + h-9 px-4 text-sm
 Text:        font-semibold text-primary hover:underline active:text-primary-active  (포커스 링은 공통과 같다)
 ```
+- Primary · Secondary 클래스는 `components/button-styles.ts`의 `buttonClass(variant, size?)`로만 만든다.
 - hover에는 바뀌지 않는다. 누를 때만 어두워지고 98%로 줄어든다.
 - Primary는 구역당 한두 개. Text도 포인트 색이라 Primary 옆 "취소"는 Secondary로 한다.
 
@@ -125,6 +133,10 @@ disabled:bg-surface-soft disabled:text-muted-soft      에러: border-danger
 ```
 
 ### 화면별 요소
+- **총지출 카드**: 큰 숫자 바로 아래 전월 대비 문장. 거래 건수·반영 기간·취소·환불 기준은 카드 아래쪽에 `border-t border-hairline-soft`로 나눠 둔다(옆 카드 높이에 맞춰 늘어나면 아래에 붙는다).
+- **카테고리 목록**: 금액순 5개까지 보이고, 나머지는 `<details>`로 접어 Text 스타일 summary "나머지 N개 카테고리 보기"를 둔다. 막대는 전체 최댓값 기준이다.
+- **데모 Pro 구분선**: 탐지 영역 앞에 `border-t border-hairline pt-8` + Pro 표시 + "여기부터 Pro 화면이에요. Free에서는 확인할 지출의 건수와 합계만 보여요."
+- **데모 하단 CTA**: 보조 카드에 "내 카드로 확인해 보세요" + 한 문장 + Primary "내 이용내역으로 해보기".
 - **월 요약(Free)**: 본문 아래 "Pro에서는 확인할 지출 상세와 여러 달 추세까지 요약해요" + Text "Pro로 보기"(upgrade source `summary`).
 - **잠금 카드(Free 추세)**: 보조 카드에 정적 예시(가짜 수치임을 밝힘) + 한 줄 설명 + Primary "Pro로 보기". 실제 데이터를 가리지 않는다.
 - **후보 지출 티저(Free)**: amber 박스(`rounded-3xl border p-6 sm:p-8`)에 종류별 건수·금액과 `candidateTotal`. "정상 지출일 수 있어요. 상세에서 확인해 보세요."
@@ -140,10 +152,11 @@ disabled:bg-surface-soft disabled:text-muted-soft      에러: border-danger
 - 좌측 정렬 기본. 중앙 정렬은 모달·빈 상태·랜딩 CTA에만 쓴다.
 
 ### 랜딩 (`/`)
-- 너비 `mx-auto max-w-[1248px] px-6`, 밴드마다 `py-24`. 순서: 다크 히어로 → 흰/회색(`bg-surface-soft`) 밴드 → 다크 CTA.
-- 히어로(`bg-surface-dark text-white`): 헤드라인 `text-display-sm lg:text-display-xl`, 부제 `text-lg text-muted-soft`, Primary "데모 보기". 오른쪽에는 대시보드 카드 목업 1장(`rounded-3xl border border-hairline-dark bg-surface-dark-elevated p-8`)을 두고, 수치는 `/demo` fixture 값을 쓴다.
-- 섹션 제목 `text-display-sm`. 기능 카드는 기본 카드로 `sm:` 2열 · `lg:` 3열.
-- 가격: Free·Pro 카드 두 장. Pro는 리본 대신 `bg-surface-dark text-white`로 반전한다. 가격은 `text-display-md`, 버튼은 전체 너비(Free Secondary, Pro Primary).
+- 너비 `mx-auto max-w-[1248px] px-6`, 밴드마다 `py-24`. 순서: 다크 히어로 → 기능(흰) → 시작 단계(`bg-surface-soft`) → 요금(흰) → 다크 CTA.
+- 히어로(`bg-surface-dark text-white`): 헤드라인 `text-display-sm lg:text-display-xl`, 부제 `text-lg leading-relaxed text-muted-soft`, Primary "데모 보기". 오른쪽에는 대시보드 카드 목업 1장(`rounded-3xl border border-hairline-dark bg-surface-dark-elevated p-8`)을 두고, 수치는 `/demo` fixture 값을 쓴다. 목업 막대는 `primary-on-dark`, 후보 줄은 `rounded-2xl border border-hairline-dark bg-surface-dark` 안에 `text-amber-200`.
+- 섹션 제목 `text-display-sm`. 기능 카드는 기본 카드로 `sm:` 2열 · `lg:` 3열, 제목 위에 24px `text-primary` 아이콘.
+- 시작 단계: `<ol>` 3칸(`sm:` 3열). 칸마다 `border-t border-hairline pt-6`, 번호 `font-mono text-sm text-primary`("01"), 제목 `text-lg font-semibold`.
+- 가격: 제목 아래 한 문장(`text-lg text-body`). Free·Pro 카드 두 장. Pro는 리본 대신 `bg-surface-dark text-white`로 반전한다. 가격은 `text-display-md`, 기능 목록은 체크 아이콘(Free `text-primary`, Pro `text-primary-on-dark`), 버튼은 전체 너비(Free Secondary, Pro Primary).
 - CTA 밴드: 다크, 가운데 정렬, `text-display-sm sm:text-display-md` + 버튼 하나. 법적 고지는 `text-caption text-body`.
 
 ## 타이포그래피
@@ -151,6 +164,7 @@ disabled:bg-surface-soft disabled:text-muted-soft      에러: border-danger
   - Pretendard: `pretendard` 패키지의 `pretendard/dist/web/variable/pretendardvariable-dynamic-subset.css`를 루트 레이아웃에서 import한다(전체 woff2 약 2MB 대신 필요한 글자 조각만 받는다).
   - JetBrains Mono: `next/font/google`(`weight: '500'`, `variable: '--font-jetbrains-mono'`).
 - 숫자만 따로 놓이는 자리(큰 숫자·표·목록 금액·차트)는 `font-mono`. 문장 안 숫자·날짜는 본문 글꼴 + `tabular-nums`.
+- 한글은 어절 단위로 줄을 바꾼다(`body`의 `word-break: keep-all`). 띄어쓰기 없는 긴 가맹점명은 `overflow-wrap: break-word`로 넘치지 않는다.
 - display·`title-lg`는 굵기 400. 강조는 600.
 
 | 용도 | 스타일 |
@@ -176,7 +190,7 @@ disabled:bg-surface-soft disabled:text-muted-soft      에러: border-danger
 
 ## 모션 · 아이콘 · 접근성
 - 애니메이션은 스켈레톤 `animate-pulse`, 스피너 `animate-spin`, 120~200ms `ease-standard` 색·크기 전환만 쓴다.
-- 아이콘은 인라인 SVG다(Lucide 모양을 필요한 것만 복사). `strokeWidth 2`, 20px(버튼 안 18px), `currentColor`. 아이콘 라이브러리·아이콘 폰트·원형 배경을 쓰지 않는다.
+- 아이콘은 `components/icons.tsx`의 인라인 SVG다(Lucide 모양을 필요한 것만 복사). `strokeWidth 2`, 20px(버튼 안 18px, 랜딩 기능 카드 24px), `currentColor`, `aria-hidden`. 아이콘 라이브러리·아이콘 폰트·원형 배경을 쓰지 않는다.
 - 색만으로 의미를 전달하지 않는다. 정보를 담은 글자는 대비 4.5:1 이상. 버튼·입력에는 보이는 포커스 표시를 둔다. 차트 수치는 카테고리 목록으로 텍스트로도 제공한다.
 
 ## 디자인 시스템과 다르게 정한 것
