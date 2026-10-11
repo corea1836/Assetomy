@@ -125,7 +125,7 @@ export default function Page(): React.JSX.Element {
           <div className="mt-10 grid gap-6 sm:grid-cols-2">
             <article className="flex flex-col rounded-3xl border border-hairline bg-canvas p-6 sm:p-8">
               <h3 className="text-lg font-semibold text-ink">Free</h3>
-              <p className="mt-6 font-mono text-display-md font-normal text-ink">0원</p>
+              <p className="mt-6 text-display-md font-normal tabular-nums text-ink">0원</p>
               <ul className="my-8 space-y-3 text-base text-body">
                 <li>월별 소비 현황</li>
                 <li>전월 대비</li>

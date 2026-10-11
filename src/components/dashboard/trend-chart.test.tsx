@@ -42,6 +42,14 @@ describe("TrendChart", () => {
     expect(within(chart).getByText("9월")).toBeInTheDocument();
   });
 
+  it("keeps the chart inside role=img out of the keyboard focus order", () => {
+    render(<TrendChart trend={trend} />);
+
+    const svg = screen.getByRole("img", { name: "월별 지출 추세 막대 차트" }).querySelector("svg");
+    expect(svg).not.toHaveAttribute("tabindex");
+    expect(svg).not.toHaveAttribute("role", "application");
+  });
+
   it("provides every month's full total in a screen-reader list", () => {
     render(<TrendChart trend={trend} />);
 

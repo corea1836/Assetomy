@@ -27,17 +27,21 @@ export function TotalCard({
       </p>
       {mom !== null && (
         <p className="mt-4 text-sm tabular-nums text-body">
-          {formatMonthShort(mom.previousMonth)}보다{" "}
-          {mom.diff > 0 ? (
-            <span className="text-increase">
-              <span className="font-mono">{formatSignedWon(mom.diff)}</span> 늘었어요
-            </span>
-          ) : mom.diff < 0 ? (
-            <span className="text-decrease">
-              <span className="font-mono">{formatSignedWon(mom.diff)}</span> 줄었어요
-            </span>
+          {mom.diff === 0 ? (
+            `${formatMonthShort(mom.previousMonth)}과 같아요`
           ) : (
-            <span className="text-body">같아요</span>
+            <>
+              {formatMonthShort(mom.previousMonth)}보다{" "}
+              {mom.diff > 0 ? (
+                <span className="text-increase">
+                  <span className="font-mono">{formatSignedWon(mom.diff)}</span> 늘었어요
+                </span>
+              ) : (
+                <span className="text-decrease">
+                  <span className="font-mono">{formatSignedWon(mom.diff)}</span> 줄었어요
+                </span>
+              )}
+            </>
           )}
         </p>
       )}

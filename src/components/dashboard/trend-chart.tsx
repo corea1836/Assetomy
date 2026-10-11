@@ -35,6 +35,7 @@ export function TrendChart({ trend }: { trend: Trend }): React.JSX.Element {
           <BarChart
             data={trend.months}
             margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+            accessibilityLayer={false}
           >
             <CartesianGrid
               vertical={false}
@@ -141,12 +142,10 @@ export function TrendChart({ trend }: { trend: Trend }): React.JSX.Element {
                   <span className="text-increase">
                     <span className="font-mono">{formatSignedWon(diff)}</span> 늘었어요
                   </span>
-                ) : diff < 0 ? (
+                ) : (
                   <span className="text-decrease">
                     <span className="font-mono">{formatSignedWon(diff)}</span> 줄었어요
                   </span>
-                ) : (
-                  <span className="text-body">같아요</span>
                 )}
               </li>
             ))}

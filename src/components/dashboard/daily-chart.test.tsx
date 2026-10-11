@@ -32,6 +32,14 @@ describe("DailyChart", () => {
     expect(chart.querySelector("svg")).not.toBeNull();
   });
 
+  it("keeps the chart inside role=img out of the keyboard focus order", () => {
+    render(<DailyChart daily={daily} />);
+
+    const svg = screen.getByRole("img", { name: "일별 지출 막대 차트" }).querySelector("svg");
+    expect(svg).not.toHaveAttribute("tabindex");
+    expect(svg).not.toHaveAttribute("role", "application");
+  });
+
   it("renders an empty DTO without throwing", () => {
     expect(() => render(<DailyChart daily={[]} />)).not.toThrow();
 

@@ -61,12 +61,28 @@ const monthlyRows: DemoRow[] = [
   ["30", "living", "cafe", 6_000],
 ];
 
-const septemberRows: DemoRow[] = [
-  ["18", "shopping", "workshop", 32_000],
-  ["18", "shopping", "workshop", 32_000],
-  ["23", "shopping", "furniture", 920_000],
-  ["29", "shopping", "shop", -48_000],
-];
+// 달마다 합계가 달라지도록 여러 번 가는 가맹점에만 방문을 더한다.
+// 9월에는 중복 결제 의심·고액 결제·취소를 둔다.
+const extraRows: Record<YearMonth, DemoRow[]> = {
+  "2026-06": [
+    ["15", "living", "food", 9_000],
+  ],
+  "2026-07": [
+    ["07", "living", "delivery", 19_000],
+    ["19", "shopping", "culture", 42_000],
+    ["23", "living", "grocery", 57_000],
+  ],
+  "2026-08": [
+    ["12", "living", "food", 22_000],
+    ["21", "living", "cafe", 4_800],
+  ],
+  "2026-09": [
+    ["18", "shopping", "workshop", 32_000],
+    ["18", "shopping", "workshop", 32_000],
+    ["23", "shopping", "furniture", 920_000],
+    ["29", "shopping", "shop", -48_000],
+  ],
+};
 
 function transactionsForMonth(month: YearMonth, rows: DemoRow[]): Transaction[] {
   return rows.map(([day, card, merchant, amount], index) => ({
@@ -78,12 +94,9 @@ function transactionsForMonth(month: YearMonth, rows: DemoRow[]): Transaction[] 
   }));
 }
 
-export const DEMO_TRANSACTIONS: Transaction[] = [
-  "2026-06", "2026-07", "2026-08", "2026-09",
-].flatMap((month) => transactionsForMonth(
-  month,
-  month === "2026-09" ? [...monthlyRows, ...septemberRows] : monthlyRows,
-));
+export const DEMO_TRANSACTIONS: Transaction[] = Object.entries(extraRows).flatMap(
+  ([month, rows]) => transactionsForMonth(month, [...monthlyRows, ...rows]),
+);
 
 export const DEMO_SUMMARY: string =
   "이번 달에는 가구 구매가 더해져 지난달보다 지출이 늘었어요. "

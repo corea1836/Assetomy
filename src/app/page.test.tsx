@@ -74,8 +74,10 @@ describe("landing page", () => {
     expect(screen.getByRole("heading", { name: "요금" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Free" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Pro" })).toBeInTheDocument();
-    expect(screen.getByText("0원")).toBeInTheDocument();
-    expect(screen.getByText("월 6,900원")).toBeInTheDocument();
+    for (const price of [screen.getByText("0원"), screen.getByText("월 6,900원")]) {
+      expect(price).toHaveClass("text-display-md", "tabular-nums");
+      expect(price).not.toHaveClass("font-mono");
+    }
     for (const feature of [
       "월별 소비 현황", "전월 대비", "확인할 지출 건수와 합계", "월간 요약",
       "Free의 모든 기능", "확인할 지출 상세", "최대 12개월 추세", "더 자세한 월간 요약",

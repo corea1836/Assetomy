@@ -16,9 +16,11 @@ export function MonthSelect({
   const router = useRouter();
 
   return (
+    // 제어 컴포넌트면 이동이 끝날 때까지 이전 달로 되돌아가 보여서, 새 month가 올 때만 다시 마운트한다.
     <select
+      key={month}
       aria-label="월 선택"
-      value={month}
+      defaultValue={month}
       onChange={(event) =>
         router.push(`${pathname}?month=${event.currentTarget.value}`)
       }

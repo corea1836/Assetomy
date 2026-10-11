@@ -24,7 +24,11 @@ export function DailyChart({ daily }: { daily: DailyAmount[] }): React.JSX.Eleme
       <h2 className="text-lg font-semibold text-ink">일별 지출</h2>
       <div role="img" aria-label="일별 지출 막대 차트" className="mt-6 h-64">
         <ResponsiveContainer width="100%" height="100%">
-          <BarChart data={daily} margin={{ top: 8, right: 8, bottom: 0, left: 0 }}>
+          <BarChart
+            data={daily}
+            margin={{ top: 8, right: 8, bottom: 0, left: 0 }}
+            accessibilityLayer={false}
+          >
             <CartesianGrid
               vertical={false}
               stroke="var(--color-hairline-soft)"

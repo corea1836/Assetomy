@@ -29,12 +29,12 @@ describe("TotalCard", () => {
   });
 
   it.each([
-    [123_000, "+123,000원 늘었어요", "text-increase"],
-    [-45_000, "−45,000원 줄었어요", "text-decrease"],
-    [0, "같아요", "text-body"],
+    [123_000, "8월보다 +123,000원 늘었어요", "+123,000원 늘었어요", "text-increase"],
+    [-45_000, "8월보다 −45,000원 줄었어요", "−45,000원 줄었어요", "text-decrease"],
+    [0, "8월과 같아요", "8월과 같아요", "text-body"],
   ] as const)(
     "describes a difference of %i with its color",
-    (diff, text, color) => {
+    (diff, sentence, text, color) => {
       render(
         <TotalCard
           snapshot={snapshot}
@@ -46,11 +46,13 @@ describe("TotalCard", () => {
         />,
       );
 
-      expect(screen.getByText(/8월보다/)).toBeInTheDocument();
       expect(
         screen.getByText(
-          (_, element) => element?.tagName === "SPAN" && element.textContent === text,
+          (_, element) => element?.tagName === "P" && element.textContent === sentence,
         ),
+      ).toBeInTheDocument();
+      expect(
+        screen.getByText((_, element) => element?.textContent === text),
       ).toHaveClass(color);
     },
   );

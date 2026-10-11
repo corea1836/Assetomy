@@ -54,4 +54,15 @@ describe("MonthSelect", () => {
       );
     },
   );
+
+  it("keeps the chosen month while navigating and follows the next month prop", () => {
+    const { rerender } = render(<MonthSelect months={months} month="2026-09" />);
+    const select = screen.getByRole("combobox", { name: "월 선택" });
+
+    fireEvent.change(select, { target: { value: "2026-07" } });
+    expect(screen.getByRole("combobox", { name: "월 선택" })).toHaveValue("2026-07");
+
+    rerender(<MonthSelect months={months} month="2026-08" />);
+    expect(screen.getByRole("combobox", { name: "월 선택" })).toHaveValue("2026-08");
+  });
 });

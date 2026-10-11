@@ -72,6 +72,29 @@ describe("demo fixture", () => {
     expect(dashboard.snapshot.inProgress).toBe(false);
   });
 
+  it("varies every month so each comparison shows a change without extra candidates", () => {
+    const totals = demoDashboard().trend!.months.map(({ total }) => total);
+    expect(new Set(totals).size).toBe(totals.length);
+
+    for (const month of ["2026-06", "2026-07", "2026-08", "2026-09"]) {
+      const dashboard = buildDashboard({
+        transactions: DEMO_TRANSACTIONS,
+        plan: "pro",
+        month,
+        today: DEMO_TODAY,
+      });
+      if (dashboard?.plan !== "pro") throw new Error("Expected a Pro demo dashboard");
+      if (month !== "2026-06") {
+        expect(dashboard.mom?.diff).not.toBe(0);
+        expect(dashboard.trend?.categoryChanges?.length).toBeGreaterThan(0);
+      }
+      if (month !== "2026-09") {
+        expect(dashboard.findings.byKind.duplicate.count).toBe(0);
+        expect(dashboard.findings.byKind.large.count).toBe(0);
+      }
+    }
+  });
+
   it("has a September net total between 1.2 and 2.5 million won and diverse categories", () => {
     const { snapshot } = demoDashboard();
     expect(snapshot.total).toBeGreaterThanOrEqual(1_200_000);
