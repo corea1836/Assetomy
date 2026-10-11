@@ -29,7 +29,9 @@
     {
       "step": 3,
       "name": "detection",
-      "status": "pending"
+      "status": "completed",
+      "summary": "detectRecurring, detectDuplicates, detectLarge, detectFindings, summarizeFindings 순수 함수와 RECURRING_MIN_GAP_DAYS, RECURRING_MAX_GAP_DAYS, RECURRING_AMOUNT_TOLERANCE, DUPLICATE_MIN_AMOUNT, LARGE_MIN_SAMPLE, LARGE_MEDIAN_MULTIPLIER 임계값 상수 구현, 탐지·취소·정렬·candidateTotal 중복 제거 테스트 및 전체 AC 검증 완료",
+      "started_at": "2026-10-12T03:31:14+0900"
     },
     {
       "step": 4,
