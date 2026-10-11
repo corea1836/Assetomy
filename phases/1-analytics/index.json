@@ -1,0 +1,11 @@
+{
+  "project": "assetomy",
+  "phase": "1-analytics",
+  "steps": [
+    { "step": 0, "name": "domain-types", "status": "pending" },
+    { "step": 1, "name": "snapshot", "status": "pending" },
+    { "step": 2, "name": "comparison", "status": "pending" },
+    { "step": 3, "name": "detection", "status": "pending" },
+    { "step": 4, "name": "build-dashboard", "status": "pending" }
+  ]
+}
