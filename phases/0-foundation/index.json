@@ -2,8 +2,23 @@
   "project": "assetomy",
   "phase": "0-foundation",
   "steps": [
-    { "step": 0, "name": "project-setup", "status": "pending" },
-    { "step": 1, "name": "env-mode", "status": "pending" },
-    { "step": 2, "name": "app-shell", "status": "pending" }
-  ]
+    {
+      "step": 0,
+      "name": "project-setup",
+      "status": "completed",
+      "summary": "Next.js 16.4.0·Vitest 5.0.3 도구 체인, 보안 헤더, 최소 App Router 구성; vitest.config.ts의 projects로 .test.ts=node·.test.tsx=jsdom·DB 테스트를 분리하고 vitest.setup.ts에서 DOM matcher와 cleanup 설정.",
+      "started_at": "2026-10-11T23:01:55+0900"
+    },
+    {
+      "step": 1,
+      "name": "env-mode",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "app-shell",
+      "status": "pending"
+    }
+  ],
+  "created_at": "2026-10-11T23:01:55+0900"
 }
