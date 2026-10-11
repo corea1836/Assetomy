@@ -7,7 +7,8 @@
       "name": "domain-types",
       "status": "completed",
       "started_at": "2026-10-11T23:22:07+0900",
-      "summary": "src/types/category.ts, src/types/transaction.ts, src/types/dashboard.ts 도메인 타입과 src/lib/analytics/dates.ts의 monthOf, addMonths, daysInMonth, datesOfMonth, daysBetween 구현 및 날짜 테스트 검증 완료"
+      "summary": "src/types/category.ts, src/types/transaction.ts, src/types/dashboard.ts 도메인 타입과 src/lib/analytics/dates.ts의 monthOf, addMonths, daysInMonth, datesOfMonth, daysBetween 구현 및 날짜 테스트 검증 완료",
+      "completed_at": "2026-10-11T23:26:33+0900"
     },
     {
       "step": 1,
