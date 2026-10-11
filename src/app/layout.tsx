@@ -1,3 +1,4 @@
+import { Analytics } from "@vercel/analytics/next";
 import type { Metadata } from "next";
 import { JetBrains_Mono } from "next/font/google";
 import type { ReactNode } from "react";
@@ -18,11 +19,14 @@ export const metadata: Metadata = {
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {
+  const mode = getMode();
+
   return (
     <html lang="ko" className={jetbrainsMono.variable}>
       <body className="bg-canvas text-ink font-sans antialiased">
-        {getMode() === "mock" && <MockBanner />}
+        {mode === "mock" && <MockBanner />}
         {children}
+        {mode === "live" && <Analytics />}
       </body>
     </html>
   );

@@ -10,6 +10,10 @@ vi.mock("next/font/google", () => ({
 
 vi.mock("@/lib/mode", () => ({ getMode: vi.fn() }));
 
+vi.mock("@vercel/analytics/next", () => ({
+  Analytics: () => <div data-testid="analytics" />,
+}));
+
 describe("RootLayout", () => {
   it.each(["mock", "live"] as const)(
     "renders the mode notice only in mock mode (mode=%s)",
@@ -33,6 +37,29 @@ describe("RootLayout", () => {
         expect(page.body.firstElementChild).toBe(banner);
       } else {
         expect(banner).toBeNull();
+      }
+    },
+  );
+
+  it.each(["mock", "live"] as const)(
+    "renders Analytics at the end of the body only in live mode (mode=%s)",
+    (mode) => {
+      vi.mocked(getMode).mockReturnValue(mode);
+
+      const markup = renderToStaticMarkup(
+        <RootLayout>
+          <main>페이지 내용</main>
+        </RootLayout>,
+      );
+      const page = new DOMParser().parseFromString(markup, "text/html");
+      const analytics = within(page.body).queryByTestId("analytics");
+
+      expect(within(page.body).getByText("페이지 내용")).not.toBeNull();
+      if (mode === "live") {
+        expect(analytics).not.toBeNull();
+        expect(page.body.lastElementChild).toBe(analytics);
+      } else {
+        expect(analytics).toBeNull();
       }
     },
   );
