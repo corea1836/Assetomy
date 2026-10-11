@@ -13,7 +13,9 @@
     {
       "step": 1,
       "name": "snapshot",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-11T23:26:33+0900",
+      "summary": "TOP_MERCHANT_LIMIT, listDataMonths, buildSnapshot 순수 함수와 월별 집계·정렬·취소·불변식 테스트 구현 및 전체 AC 검증 완료"
     },
     {
       "step": 2,
