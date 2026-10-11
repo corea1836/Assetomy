@@ -1,0 +1,11 @@
+{
+  "project": "assetomy",
+  "phase": "2-landing-demo",
+  "steps": [
+    { "step": 0, "name": "format", "status": "pending" },
+    { "step": 1, "name": "snapshot-components", "status": "pending" },
+    { "step": 2, "name": "insight-components", "status": "pending" },
+    { "step": 3, "name": "demo-page", "status": "pending" },
+    { "step": 4, "name": "landing", "status": "pending" }
+  ]
+}
