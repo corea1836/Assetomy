@@ -2,7 +2,7 @@ import { fileURLToPath } from "node:url";
 import react from "@vitejs/plugin-react";
 import { configDefaults, defineConfig } from "vitest/config";
 
-const excluded = [...configDefaults.exclude, "**/.next/**"];
+const excluded = [...configDefaults.exclude, "**/.next/**", ".claude/worktrees/**"];
 
 export default defineConfig({
   plugins: [react()],
