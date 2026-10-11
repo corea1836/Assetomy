@@ -57,6 +57,24 @@ describe("TotalCard", () => {
     },
   );
 
+  it("puts the month-over-month sentence right below the total, before the period", () => {
+    render(
+      <TotalCard
+        snapshot={snapshot}
+        mom={{ previousMonth: "2026-08", previousTotal: 1_111_000, diff: 123_000 }}
+      />,
+    );
+
+    const total = screen.getByText("1,234,000원");
+    const sentence = screen.getByText(
+      (_, element) =>
+        element?.tagName === "P" && element.textContent === "8월보다 +123,000원 늘었어요",
+    );
+    const period = screen.getByText("거래 42건 · 반영 기간 9/1~9/30");
+    expect(total.nextElementSibling).toBe(sentence);
+    expect(sentence.compareDocumentPosition(period)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+  });
+
   it("omits the comparison when mom is null", () => {
     render(<TotalCard snapshot={snapshot} mom={null} />);
 

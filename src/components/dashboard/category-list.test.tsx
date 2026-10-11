@@ -60,4 +60,42 @@ describe("CategoryList", () => {
     expect(screen.getAllByRole("listitem")).toHaveLength(2);
     expect(container.querySelector("div.bg-primary")).toBeNull();
   });
+
+  it("shows up to five categories without a disclosure", () => {
+    const five: CategoryAmount[] = [
+      ...categories,
+      { category: "transport", amount: 5_000, ratio: 0.04 },
+    ];
+    const { container } = render(<CategoryList categories={five} />);
+
+    expect(screen.getAllByRole("listitem")).toHaveLength(5);
+    expect(container.querySelector("details")).toBeNull();
+  });
+
+  it("shows the top five and folds the rest into a closed disclosure", () => {
+    const many: CategoryAmount[] = [
+      { category: "shopping", amount: 500_000, ratio: 0.5 },
+      { category: "food", amount: 200_000, ratio: 0.2 },
+      { category: "cafe", amount: 100_000, ratio: 0.1 },
+      { category: "transport", amount: 80_000, ratio: 0.08 },
+      { category: "delivery", amount: 60_000, ratio: 0.06 },
+      { category: "health", amount: 40_000, ratio: 0.04 },
+      { category: "etc", amount: 20_000, ratio: 0.02 },
+    ];
+    const { container } = render(<CategoryList categories={many} />);
+
+    const visible = container.querySelectorAll("section > ul > li");
+    expect([...visible].map((row) => row.querySelector("span")?.textContent)).toEqual(
+      ["쇼핑", "식비", "카페·간식", "교통", "배달"],
+    );
+    const details = container.querySelector("details");
+    expect(details).not.toBeNull();
+    expect(details).not.toHaveAttribute("open");
+    expect(details?.querySelector("summary")).toHaveTextContent("나머지 2개 카테고리 보기");
+    const folded = details?.querySelectorAll("li") ?? [];
+    expect([...folded].map((row) => row.querySelector("span")?.textContent)).toEqual(
+      ["의료·건강", "기타"],
+    );
+    expect(folded[0].querySelector("div.bg-primary")).toHaveStyle({ width: "8%" });
+  });
 });
