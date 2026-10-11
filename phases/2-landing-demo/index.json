@@ -29,7 +29,9 @@
     {
       "step": 3,
       "name": "demo-page",
-      "status": "pending"
+      "status": "completed",
+      "summary": "DEMO_TODAY·DEMO_TRANSACTIONS·DEMO_SUMMARY 4개월 정적 fixture(9월 정기결제 2건·중복 결제 의심 1건·고액 결제 1건), Wordmark와 /demo Pro 보기 전용 페이지 구현; 테스트 16개 추가 및 전체 327개·lint·build·HTTP AC 통과",
+      "started_at": "2026-10-12T03:57:51+0900"
     },
     {
       "step": 4,
