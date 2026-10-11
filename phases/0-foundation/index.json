@@ -13,7 +13,9 @@
     {
       "step": 1,
       "name": "env-mode",
-      "status": "pending"
+      "status": "completed",
+      "summary": "getDeploymentEnv의 lazy zod 검증, getMode의 환경별 모드 고정, getSiteOrigin·isAllowedOrigin의 단일 Origin·정확 일치 구현; Vitest에서 server-only를 패키지 empty.js로 alias 처리.",
+      "started_at": "2026-10-11T23:06:01+0900"
     },
     {
       "step": 2,
