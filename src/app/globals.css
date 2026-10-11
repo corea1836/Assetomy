@@ -1,1 +1,37 @@
 @import "tailwindcss";
+
+@theme {
+  --color-primary: #0B7A5E;          /* 포인트는 이것 하나. 드물게 쓴다 */
+  --color-primary-active: #08604A;
+  --color-primary-disabled: #A9C4BC;
+  --color-canvas: #FFFFFF;
+  --color-surface-soft: #F7F7F7;
+  --color-surface-strong: #EEF0F3;
+  --color-surface-dark: #0A0B0D;
+  --color-surface-dark-elevated: #16181C;
+  --color-hairline: #DEE1E6;
+  --color-hairline-soft: #EEF0F3;
+  --color-hairline-dark: #2A2D33;
+  --color-ink: #0A0B0D;
+  --color-body: #5B616E;
+  --color-muted: #7C828A;            /* 대비 3.9:1. placeholder에만 */
+  --color-muted-soft: #A8ACB3;
+  --color-increase: #CF202F;         /* 증감·위험 색은 글자에만 칠한다 */
+  --color-decrease: #1B64DA;
+  --color-danger: #CF202F;
+
+  --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
+
+  --text-caption: 0.8125rem; --text-caption--line-height: 1.5;
+  --text-title-lg: 2rem; --text-title-lg--line-height: 1.2; --text-title-lg--letter-spacing: -0.4px;
+  --text-display-sm: 2.25rem; --text-display-sm--line-height: 1.2; --text-display-sm--letter-spacing: -0.5px;
+  --text-display-md: 2.75rem; --text-display-md--line-height: 1.15; --text-display-md--letter-spacing: -1px;
+  --text-display-xl: 4rem; --text-display-xl--line-height: 1.15; --text-display-xl--letter-spacing: -1.6px;
+
+  --shadow-soft: 0 4px 12px rgb(0 0 0 / 0.04);
+  --ease-standard: cubic-bezier(0.2, 0, 0, 1);
+}
+
+@theme inline {
+  --font-mono: var(--font-jetbrains-mono), "Pretendard Variable", ui-monospace, monospace;
+}
