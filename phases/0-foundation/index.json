@@ -7,7 +7,8 @@
       "name": "project-setup",
       "status": "completed",
       "summary": "Next.js 16.4.0·Vitest 5.0.3 도구 체인, 보안 헤더, 최소 App Router 구성; vitest.config.ts의 projects로 .test.ts=node·.test.tsx=jsdom·DB 테스트를 분리하고 vitest.setup.ts에서 DOM matcher와 cleanup 설정.",
-      "started_at": "2026-10-11T23:01:55+0900"
+      "started_at": "2026-10-11T23:01:55+0900",
+      "completed_at": "2026-10-11T23:06:01+0900"
     },
     {
       "step": 1,
