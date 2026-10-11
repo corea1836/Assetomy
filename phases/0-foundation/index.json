@@ -23,7 +23,8 @@
       "name": "app-shell",
       "status": "completed",
       "summary": "src/app/globals.css에 DESIGN 토큰을 그대로 적용하고 layout.tsx에서 Pretendard dynamic-subset·JetBrains Mono 500을 설정; getMode()가 mock일 때만 body 상단에 MockBanner 렌더링.",
-      "started_at": "2026-10-11T23:11:11+0900"
+      "started_at": "2026-10-11T23:11:11+0900",
+      "completed_at": "2026-10-11T23:14:30+0900"
     }
   ],
   "created_at": "2026-10-11T23:01:55+0900"
