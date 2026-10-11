@@ -4,6 +4,8 @@
   --color-primary: #0B7A5E;          /* 포인트는 이것 하나. 드물게 쓴다 */
   --color-primary-active: #08604A;
   --color-primary-disabled: #A9C4BC;
+  --color-primary-soft: #E7F3EE;     /* Pro 표시 바탕. 글자는 primary-active(6.6:1) */
+  --color-primary-on-dark: #3DD6A3;  /* 다크 면 위 막대·아이콘. surface-dark-elevated 대비 9.6:1 */
   --color-canvas: #FFFFFF;
   --color-surface-soft: #F7F7F7;
   --color-surface-strong: #EEF0F3;
@@ -34,4 +36,12 @@
 
 @theme inline {
   --font-mono: var(--font-jetbrains-mono), "Pretendard Variable", ui-monospace, monospace;
+}
+
+@layer base {
+  /* 한글은 어절 단위로 줄을 바꾼다. 띄어쓰기 없는 긴 문자열은 넘치지 않게 끊는다. */
+  body {
+    word-break: keep-all;
+    overflow-wrap: break-word;
+  }
 }

@@ -1,7 +1,7 @@
 import { within } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { describe, expect, it, vi } from "vitest";
-import RootLayout from "./layout";
+import RootLayout, { metadata } from "./layout";
 import { getMode } from "@/lib/mode";
 
 vi.mock("next/font/google", () => ({
@@ -15,6 +15,21 @@ vi.mock("@vercel/analytics/next", () => ({
 }));
 
 describe("RootLayout", () => {
+  it("describes the product for search results and shared link previews", () => {
+    const title = "assetomy · 계좌 연동 없이 카드 지출 확인";
+    const description = "계좌 연동 없이, 카드 이용내역 파일만으로 확인할 지출을 찾아줘요.";
+
+    expect(metadata.title).toBe(title);
+    expect(metadata.description).toBe(description);
+    expect(metadata.openGraph).toEqual({
+      title,
+      description,
+      siteName: "assetomy",
+      locale: "ko_KR",
+      type: "website",
+    });
+  });
+
   it.each(["mock", "live"] as const)(
     "renders the mode notice only in mock mode (mode=%s)",
     (mode) => {

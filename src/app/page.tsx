@@ -1,5 +1,7 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { buttonClass } from "@/components/button-styles";
+import { CardIcon, CheckIcon, SearchIcon, ShieldCheckIcon } from "@/components/icons";
 import { DemoLink } from "@/components/landing/demo-link";
 import { Wordmark } from "@/components/wordmark";
 import { buildDashboard } from "@/lib/analytics/dashboard";
@@ -9,24 +11,41 @@ import { CATEGORY_LABELS } from "@/types/category";
 
 const PRO_PRICE_KRW = 6_900; // 임시값: PRD [확정 필요]
 
-const BUTTON_CLASS = "inline-flex h-11 items-center justify-center gap-2 rounded-full px-5 text-base font-semibold transition-[background-color,transform] duration-120 ease-standard active:scale-[.98] focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary";
-const PRIMARY_BUTTON_CLASS = `${BUTTON_CLASS} bg-primary text-white active:bg-primary-active`;
-const SECONDARY_BUTTON_CLASS = `${BUTTON_CLASS} bg-surface-strong text-ink active:bg-hairline`;
-
 const features = [
   {
+    Icon: CardIcon,
     title: "한 화면에 모든 카드",
     description: "카드사마다 받은 이용내역 파일을 올리면 카드별로 나눠 합산해요.",
   },
   {
+    Icon: SearchIcon,
     title: "확인이 필요한 지출",
     description: "정기결제로 보이는 결제, 중복 결제 의심, 평소보다 큰 결제를 찾아드려요. 정상 지출일 수도 있어요.",
   },
   {
+    Icon: ShieldCheckIcon,
     title: "연동 없이, 언제든 삭제",
     description: "계좌나 카드사에 연동하지 않아요. 원본 파일은 암호화해 보관하고, 원할 때 바로 지울 수 있어요.",
   },
 ];
+
+const steps = [
+  {
+    title: "카드사에서 이용내역 받기",
+    description: "카드사 홈페이지에서 신용카드 이용내역(승인내역)을 엑셀이나 CSV 파일로 받아요. 청구서가 아니라 이용내역이에요.",
+  },
+  {
+    title: "파일마다 카드 고르기",
+    description: "‘생활비 카드’처럼 이름을 붙여 카드별로 나눠 봐요. 카드번호는 받지 않아요.",
+  },
+  {
+    title: "올리고 확인하기",
+    description: "최근 3개월치를 올리면 총지출·카테고리와 함께 정기결제까지 찾아드려요.",
+  },
+];
+
+const freeFeatures = ["월별 소비 현황", "전월 대비", "확인할 지출 건수와 합계", "월간 요약"];
+const proFeatures = ["Free의 모든 기능", "확인할 지출 상세", "최대 12개월 추세", "더 자세한 월간 요약"];
 
 export default function Page(): React.JSX.Element {
   const dashboard = buildDashboard({
@@ -61,10 +80,10 @@ export default function Page(): React.JSX.Element {
               <h1 className="text-display-sm font-normal lg:text-display-xl">
                 계좌 연동 없이,<br />카드 이용내역 파일만으로
               </h1>
-              <p className="mt-6 max-w-lg text-lg text-muted-soft">
+              <p className="mt-6 max-w-lg text-lg leading-relaxed text-muted-soft">
                 흩어진 카드 지출을 한 화면에서 보고, 정기결제와 확인이 필요한 지출을 찾아드려요.
               </p>
-              <DemoLink className={`${PRIMARY_BUTTON_CLASS} mt-8`}>
+              <DemoLink className={`${buttonClass("primary")} mt-8`}>
                 데모 보기
               </DemoLink>
               <p className="mt-3 text-caption text-muted-soft">
@@ -89,16 +108,18 @@ export default function Page(): React.JSX.Element {
                     {amount > 0 && (
                       <div
                         aria-hidden="true"
-                        className="mt-2 h-2 rounded-r-[4px] bg-primary"
+                        className="mt-2 h-2 rounded-r-[4px] bg-primary-on-dark"
                         style={{ width: `${(amount / maxCategoryAmount) * 100}%` }}
                       />
                     )}
                   </li>
                 ))}
               </ul>
-              <p className="mt-6 text-sm tabular-nums text-white">
-                {`확인이 필요한 지출 ${candidateCount}건 · 후보 합계 ${formatWon(findings.candidateTotal)}`}
-              </p>
+              <div className="mt-6 rounded-2xl border border-hairline-dark bg-surface-dark px-4 py-3">
+                <p className="text-sm tabular-nums text-amber-200">
+                  {`확인이 필요한 지출 ${candidateCount}건 · 후보 합계 ${formatWon(findings.candidateTotal)}`}
+                </p>
+              </div>
               <p className="mt-3 text-caption text-muted-soft">예시 데이터</p>
             </div>
           </div>
@@ -109,10 +130,11 @@ export default function Page(): React.JSX.Element {
         <div className="mx-auto max-w-[1248px] px-6 py-24">
           <h2 className="text-display-sm font-normal text-ink">파일 하나로 시작해요</h2>
           <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map(({ title, description }) => (
+            {features.map(({ Icon, title, description }) => (
               <article key={title} className="rounded-3xl border border-hairline bg-canvas p-6 sm:p-8">
-                <h3 className="text-lg font-semibold text-ink">{title}</h3>
-                <p className="mt-4 text-base leading-relaxed text-body">{description}</p>
+                <Icon size={24} className="text-primary" />
+                <h3 className="mt-5 text-lg font-semibold text-ink">{title}</h3>
+                <p className="mt-3 text-base leading-relaxed text-body">{description}</p>
               </article>
             ))}
           </div>
@@ -121,18 +143,40 @@ export default function Page(): React.JSX.Element {
 
       <section className="bg-surface-soft">
         <div className="mx-auto max-w-[1248px] px-6 py-24">
+          <h2 className="text-display-sm font-normal text-ink">이렇게 시작해요</h2>
+          <ol aria-label="시작하는 순서" className="mt-10 grid gap-10 sm:grid-cols-3 sm:gap-6">
+            {steps.map(({ title, description }, index) => (
+              <li key={title} className="border-t border-hairline pt-6">
+                <p className="font-mono text-sm text-primary">
+                  {String(index + 1).padStart(2, "0")}
+                </p>
+                <h3 className="mt-3 text-lg font-semibold text-ink">{title}</h3>
+                <p className="mt-3 text-base leading-relaxed text-body">{description}</p>
+              </li>
+            ))}
+          </ol>
+        </div>
+      </section>
+
+      <section className="bg-canvas">
+        <div className="mx-auto max-w-[1248px] px-6 py-24">
           <h2 className="text-display-sm font-normal text-ink">요금</h2>
+          <p className="mt-4 text-lg text-body">
+            Free로 시작하고, 상세가 필요할 때 Pro로 바꿔요.
+          </p>
           <div className="mt-10 grid gap-6 sm:grid-cols-2">
             <article className="flex flex-col rounded-3xl border border-hairline bg-canvas p-6 sm:p-8">
               <h3 className="text-lg font-semibold text-ink">Free</h3>
               <p className="mt-6 text-display-md font-normal tabular-nums text-ink">0원</p>
               <ul className="my-8 space-y-3 text-base text-body">
-                <li>월별 소비 현황</li>
-                <li>전월 대비</li>
-                <li>확인할 지출 건수와 합계</li>
-                <li>월간 요약</li>
+                {freeFeatures.map((feature) => (
+                  <li key={feature} className="flex items-start gap-3">
+                    <CheckIcon className="mt-0.5 shrink-0 text-primary" />
+                    <span>{feature}</span>
+                  </li>
+                ))}
               </ul>
-              <Link href="/login" className={`${SECONDARY_BUTTON_CLASS} mt-auto w-full`}>
+              <Link href="/login" className={`${buttonClass("secondary")} mt-auto w-full`}>
                 무료로 시작하기
               </Link>
             </article>
@@ -143,12 +187,14 @@ export default function Page(): React.JSX.Element {
                 {`월 ${formatWon(PRO_PRICE_KRW)}`}
               </p>
               <ul className="my-8 space-y-3 text-base text-muted-soft">
-                <li>Free의 모든 기능</li>
-                <li>확인할 지출 상세</li>
-                <li>최대 12개월 추세</li>
-                <li>더 자세한 월간 요약</li>
+                {proFeatures.map((feature) => (
+                  <li key={feature} className="flex items-start gap-3">
+                    <CheckIcon className="mt-0.5 shrink-0 text-primary-on-dark" />
+                    <span>{feature}</span>
+                  </li>
+                ))}
               </ul>
-              <Link href="/login" className={`${PRIMARY_BUTTON_CLASS} mt-auto w-full`}>
+              <Link href="/login" className={`${buttonClass("primary")} mt-auto w-full`}>
                 Pro 시작하기
               </Link>
             </article>
@@ -164,11 +210,11 @@ export default function Page(): React.JSX.Element {
           <h2 className="text-display-sm font-normal sm:text-display-md">
             이번 달 카드 지출, 파일 하나로 확인해 보세요
           </h2>
-          <Link href="/login" className={`${PRIMARY_BUTTON_CLASS} mt-8`}>
+          <Link href="/login" className={`${buttonClass("primary")} mt-8`}>
             무료로 시작하기
           </Link>
           <p className="mt-6 text-caption text-muted-soft">
-            assetomy는 계좌나 카드사에 연동하지 않아요.
+            구글 계정으로 시작해요. 카드번호는 받지 않아요.
           </p>
         </div>
       </section>

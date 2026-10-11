@@ -13,9 +13,13 @@ const jetbrainsMono = JetBrains_Mono({
   subsets: ["latin"],
 });
 
+const title = "assetomy · 계좌 연동 없이 카드 지출 확인";
+const description = "계좌 연동 없이, 카드 이용내역 파일만으로 확인할 지출을 찾아줘요.";
+
 export const metadata: Metadata = {
-  title: "assetomy",
-  description: "계좌 연동 없이, 카드 이용내역 파일만으로 확인할 지출을 찾아줘요.",
+  title,
+  description,
+  openGraph: { title, description, siteName: "assetomy", locale: "ko_KR", type: "website" },
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

@@ -27,8 +27,9 @@ describe("landing page", () => {
 
     expect(screen.getByRole("heading", { level: 1 }))
       .toHaveTextContent("계좌 연동 없이,카드 이용내역 파일만으로");
-    expect(screen.getByRole("link", { name: "데모 보기" }))
-      .toHaveAttribute("href", "/demo");
+    const demoLink = screen.getByRole("link", { name: "데모 보기" });
+    expect(demoLink).toHaveAttribute("href", "/demo");
+    expect(demoLink).toHaveClass("bg-primary", "h-11");
     expect(screen.getByText("로그인 없이 바로 볼 수 있어요")).toBeInTheDocument();
     expect(screen.getByText("assetomy")).toHaveClass("text-white");
     expect(screen.getByText(
@@ -47,13 +48,15 @@ describe("landing page", () => {
     for (const link of freeLinks) expect(link).toHaveAttribute("href", "/login");
   });
 
-  it("explains the three features and closes with the account-free CTA", () => {
+  it("explains the three features with icons and closes with the sign-up CTA", () => {
     render(<Page />);
 
     expect(screen.getByRole("heading", { name: "파일 하나로 시작해요" }))
       .toBeInTheDocument();
     for (const title of ["한 화면에 모든 카드", "확인이 필요한 지출", "연동 없이, 언제든 삭제"]) {
-      expect(screen.getByRole("heading", { name: title, level: 3 })).toBeInTheDocument();
+      const heading = screen.getByRole("heading", { name: title, level: 3 });
+      expect(heading.closest("article")?.querySelector('svg[aria-hidden="true"]'))
+        .not.toBeNull();
     }
     expect(screen.getByText(
       "정기결제로 보이는 결제, 중복 결제 의심, 평소보다 큰 결제를 찾아드려요. 정상 지출일 수도 있어요.",
@@ -64,8 +67,35 @@ describe("landing page", () => {
     expect(screen.getByRole("heading", {
       name: "이번 달 카드 지출, 파일 하나로 확인해 보세요",
     })).toBeInTheDocument();
-    expect(screen.getByText("assetomy는 계좌나 카드사에 연동하지 않아요."))
+    expect(screen.getByText("구글 계정으로 시작해요. 카드번호는 받지 않아요."))
       .toBeInTheDocument();
+  });
+
+  it("shows how to start in three steps between the features and the pricing", () => {
+    render(<Page />);
+
+    const features = screen.getByRole("heading", { name: "파일 하나로 시작해요" });
+    const steps = screen.getByRole("heading", { name: "이렇게 시작해요", level: 2 });
+    const pricing = screen.getByRole("heading", { name: "요금" });
+    expect(features.compareDocumentPosition(steps)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(steps.compareDocumentPosition(pricing)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+
+    const list = screen.getByRole("list", { name: "시작하는 순서" });
+    const items = within(list).getAllByRole("listitem");
+    expect(items).toHaveLength(3);
+    [
+      ["01", "카드사에서 이용내역 받기",
+        "카드사 홈페이지에서 신용카드 이용내역(승인내역)을 엑셀이나 CSV 파일로 받아요. 청구서가 아니라 이용내역이에요."],
+      ["02", "파일마다 카드 고르기",
+        "‘생활비 카드’처럼 이름을 붙여 카드별로 나눠 봐요. 카드번호는 받지 않아요."],
+      ["03", "올리고 확인하기",
+        "최근 3개월치를 올리면 총지출·카테고리와 함께 정기결제까지 찾아드려요."],
+    ].forEach(([number, title, description], index) => {
+      expect(within(items[index]).getByText(number)).toHaveClass("font-mono", "text-primary");
+      expect(within(items[index]).getByRole("heading", { name: title, level: 3 }))
+        .toBeInTheDocument();
+      expect(within(items[index]).getByText(description)).toBeInTheDocument();
+    });
   });
 
   it("shows both plans, the temporary KRW price, and the overseas currency notice", () => {
@@ -78,11 +108,14 @@ describe("landing page", () => {
       expect(price).toHaveClass("text-display-md", "tabular-nums");
       expect(price).not.toHaveClass("font-mono");
     }
+    expect(screen.getByText("Free로 시작하고, 상세가 필요할 때 Pro로 바꿔요."))
+      .toBeInTheDocument();
     for (const feature of [
       "월별 소비 현황", "전월 대비", "확인할 지출 건수와 합계", "월간 요약",
       "Free의 모든 기능", "확인할 지출 상세", "최대 12개월 추세", "더 자세한 월간 요약",
     ]) {
-      expect(screen.getByText(feature)).toBeInTheDocument();
+      const item = screen.getByText(feature).closest("li");
+      expect(item?.querySelector('svg[aria-hidden="true"]')).not.toBeNull();
     }
     expect(screen.getByText(
       "해외에서는 $4.99/월로 결제돼요. 결제 통화는 결제 화면에서 정해져요.",
@@ -102,11 +135,12 @@ describe("landing page", () => {
     snapshot.categories.slice(0, 3).forEach(({ category, amount }, index) => {
       expect(rows[index]).toHaveTextContent(CATEGORY_LABELS[category]);
       expect(rows[index]).toHaveTextContent(formatWon(amount));
+      expect(rows[index].querySelector("div.bg-primary-on-dark")).not.toBeNull();
     });
     const count = Object.values(findings.byKind).reduce((sum, kind) => sum + kind.count, 0);
     expect(screen.getByText(
       `확인이 필요한 지출 ${count}건 · 후보 합계 ${formatWon(findings.candidateTotal)}`,
-    )).toBeInTheDocument();
+    )).toHaveClass("text-amber-200");
     expect(screen.getByText("예시 데이터")).toBeInTheDocument();
   });
 

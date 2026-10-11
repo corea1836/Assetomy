@@ -1,5 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
+import { buttonClass } from "@/components/button-styles";
 import { CategoryList } from "@/components/dashboard/category-list";
 import { DailyChart } from "@/components/dashboard/daily-chart";
 import { FindingsList } from "@/components/dashboard/findings-list";
@@ -44,10 +45,7 @@ export default async function DemoPage({
           </Link>
           <span className="text-caption text-body">데모</span>
         </div>
-        <Link
-          href="/login"
-          className="inline-flex h-9 items-center justify-center gap-2 rounded-full bg-primary px-4 text-sm font-semibold text-white transition-[background-color,transform] duration-120 ease-standard active:scale-[.98] active:bg-primary-active focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
-        >
+        <Link href="/login" className={buttonClass("primary", "sm")}>
           내 이용내역으로 해보기
         </Link>
       </header>
@@ -77,6 +75,16 @@ export default async function DemoPage({
           <DailyChart daily={snapshot.daily} />
         </div>
 
+        {/* 데모는 Pro 화면이다. 가입 후 Free 화면과의 차이를 미리 밝힌다(UX_GUIDE) */}
+        <div className="flex items-start gap-3 border-t border-hairline pt-8">
+          <span className="shrink-0 rounded-full bg-primary-soft px-2.5 py-0.5 text-caption font-semibold text-primary-active">
+            Pro
+          </span>
+          <p className="min-w-0 pt-0.5 text-caption text-body">
+            여기부터 Pro 화면이에요. Free에서는 확인할 지출의 건수와 합계만 보여요.
+          </p>
+        </div>
+
         <FindingsList findings={findings} dataMonthCount={months.length} />
         {trend !== null && <TrendChart trend={trend} />}
         {month === "2026-09" ? (
@@ -86,6 +94,16 @@ export default async function DemoPage({
             데모 요약은 2026년 9월에만 있어요
           </p>
         )}
+
+        <section className="rounded-3xl bg-surface-soft p-6 sm:p-8">
+          <h2 className="text-lg font-semibold text-ink">내 카드로 확인해 보세요</h2>
+          <p className="mt-3 max-w-2xl text-base leading-relaxed text-body">
+            카드사에서 받은 이용내역 파일을 올리면 이 화면이 내 숫자로 바뀌어요. 최근 3개월치를 올리면 정기결제까지 찾아드려요.
+          </p>
+          <Link href="/login" className={`${buttonClass("primary")} mt-6`}>
+            내 이용내역으로 해보기
+          </Link>
+        </section>
       </main>
     </div>
   );
