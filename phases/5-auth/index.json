@@ -1,0 +1,10 @@
+{
+  "project": "assetomy",
+  "phase": "5-auth",
+  "steps": [
+    { "step": 0, "name": "supabase-session", "status": "pending" },
+    { "step": 1, "name": "auth-core", "status": "pending" },
+    { "step": 2, "name": "auth-routes", "status": "pending" },
+    { "step": 3, "name": "auth-pages", "status": "pending" }
+  ]
+}
