@@ -76,8 +76,8 @@ MVP 한 사이클(랜딩 → 데모 → 로그인 → 대시보드 → 결제 �
 **트레이드오프**: Preview에서는 실제 LLM·결제를 검증할 수 없어 로컬 live+sandbox와 production 검증을 따로 해야 한다.
 
 ### ADR-015: 테스트 = 단위(`npm test`)와 DB 통합(`npm run test:db`) 분리
-**결정**: Docker 없이 도는 단위 테스트와 로컬 Supabase가 필요한 통합 테스트(`*.db.test.ts`), pgTAP을 나눈다. 파싱은 익명화한 실제 fixture의 기대 합계와 정확히 일치해야 한다.
-**이유**: Stop hook과 기본 AC가 Docker 상태와 무관하게 돌아야 한다. 금액 정확성이 제품의 신뢰 기반이다.
+**결정**: Supabase 없이 도는 단위 테스트와 Supabase 프로젝트가 필요한 통합 테스트(`*.db.test.ts`), pgTAP을 나눈다(ADR-020). 파싱은 익명화한 실제 fixture의 기대 합계와 정확히 일치해야 한다.
+**이유**: Stop hook과 기본 AC가 Supabase·네트워크 상태와 무관하게 돌아야 한다. 금액 정확성이 제품의 신뢰 기반이다.
 **트레이드오프**: DB를 쓰는 step은 AC에 통합 테스트 명령을 따로 넣어야 한다.
 
 ### ADR-016: 탈퇴는 앱 안에서
@@ -99,6 +99,16 @@ MVP 한 사이클(랜딩 → 데모 → 로그인 → 대시보드 → 결제 �
 **결정**: PDF는 `pdfjs-dist`(legacy build, `isEvalSupported: false`)로 쪽별 글자 조각과 좌표만 뽑는다. 한글 CID 글꼴을 읽도록 패키지의 `cmaps/`를 함께 쓰고 함수 번들에 포함한다. 추출은 `lib/pdf/`(I/O)가, 같은 높이의 조각을 한 줄로 묶고 프로필을 적용하는 일은 순수 레이어 `lib/parsing/`이 한다. 첫 프로필은 현대카드 앱·웹의 명세서 "이용 내역" 화면을 최근순으로 PDF 저장한 형식이다. 날짜 줄(`26. 10. 11 (일)`) 아래에 거래 줄(왼쪽 가맹점, 오른쪽 금액+"원")과 결제 방식 줄(`일시불 …`)이 이어진다. 상단 명세서 금액과 거래 금액 합이 정확히 같을 때만 저장한다. 일시불이 아닌 결제 방식, "취소" 표시 행, 합계 불일치, 구조가 깨진 줄은 UNREADABLE이다. 음수 금액은 취소로 읽는다. `%PDF-` 시그니처가 없거나, 암호가 걸렸거나, 100쪽을 넘거나, 글자가 없거나(스캔), 어느 프로필에도 맞지 않으면 UNSUPPORTED_FILE이다.
 **이유**: 사용자가 쉽게 받을 수 있는 형식이 명세서 PDF뿐인 경우가 있다. 카드사가 계산한 명세서 금액과 대조하면 처음 보는 줄(할부·취소 표기)이 섞여도 틀린 숫자를 저장하지 않는다. 화면 인쇄 PDF는 글자 순서가 화면 순서와 달라 좌표로 줄을 다시 묶어야 한다. `unpdf` 서버리스 빌드에는 cmaps가 없어 한글 가맹점명이 빠진다.
 **트레이드오프**: 인쇄한 브라우저·앱 버전에 따라 줄 배치가 바뀌면 읽지 못할 수 있다(합계 대조로 거절되고 틀린 값은 저장하지 않음). 취소·할부가 있는 명세서는 실제 파일로 확인할 때까지 거절될 수 있다. pdfjs-dist와 cmaps(약 1.6MB)가 서버 번들에 들어간다.
+
+### ADR-020: Supabase = 클라우드 프로젝트에 API로 연결(로컬 Docker 미사용)
+**결정**: 로컬 개발도 클라우드 dev 프로젝트(`assetomy-dev`, 서울)에 URL·키로 연결한다. Preview는 같은 dev 프로젝트, Production은 deploy phase에서 만드는 prod 프로젝트를 쓴다. 인증 설정(Google provider · Site URL · Redirect URLs · 이메일 가입 끔)은 프로젝트 대시보드에서 관리하고, `supabase/config.toml`은 마이그레이션·pgTAP용으로만 둔다.
+**이유**: Docker 없이 바로 쓸 수 있고, 구글 OAuth 리디렉션 URI를 배포 환경과 같은 형태(`https://<ref>.supabase.co/auth/v1/callback`)로 맞춘다.
+**트레이드오프**: 로컬·Preview·DB 통합 테스트가 같은 dev 데이터베이스를 쓴다. 통합 테스트·pgTAP의 격리 방법은 upload phase에서 정한다. 인증 설정이 코드에 없어 prod 프로젝트에 같은 값을 손으로 다시 넣어야 한다. 무료 프로젝트는 오래 쓰지 않으면 일시 정지된다.
+
+### ADR-021: 로그인 = 서버에서 시작하는 구글 OAuth(PKCE) + 폼 POST
+**결정**: `/login`의 폼이 `POST /auth/login`으로 `next`를 보내면, Route Handler가 Origin을 검사하고 서버 Supabase 클라이언트의 `signInWithOAuth`로 PKCE 흐름을 시작해 303으로 구글에 보낸다. 복귀 URL은 `lib/origin.ts`로 만든다. `/auth/callback`이 코드를 교환하고, 로그아웃도 `POST /auth/logout` 폼이다. 브라우저용 Supabase 클라이언트는 두지 않는다. 구글 버튼은 Google 브랜드 가이드(흰 바탕 · `#747775` 테두리 · 원래 색 G 로고, "Google로 계속하기")를 따른다.
+**이유**: 클라이언트 JS·공개 키 전달 없이 쓰기 패턴(Route Handler + Origin 검사)과 같게 만든다. 복귀 URL을 서버 한 곳에서 정해 Preview·Production이 같은 코드로 돈다. Google 브랜드 가이드 준수는 OAuth 앱 검증 요건이다.
+**트레이드오프**: 로그인 버튼에 처리 중 표시가 없다(브라우저가 바로 구글로 이동). 구글 버튼은 디자인 토큰의 Primary 규칙에서 벗어난다(DESIGN "디자인 시스템과 다르게 정한 것").
 
 ---
 

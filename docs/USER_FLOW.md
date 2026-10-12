@@ -7,7 +7,8 @@
 | `/demo` | 데모 대시보드. 정적 fixture, DB·LLM 호출 없음. Pro 기능까지 보여줌 | 공개 |
 | `/login` | 구글 로그인. `?error` 시 안내 | 공개 |
 | `/auth/callback` | OAuth 코드 교환 후 `next`로 302 | 공개(Route Handler) |
-| `/dashboard` | 온보딩(거래 없음) 또는 월별 대시보드, 가맹점 카테고리 수정. `?month=YYYY-MM`, `?checkout=success` | 로그인 |
+| `/auth/login` · `/auth/logout` | 구글 로그인 시작(폼 POST → 구글로 303) · 로그아웃(폼 POST → `/`로 303) | 공개(Route Handler) |
+| `/dashboard` | 온보딩(거래 없음) 또는 월별 대시보드, 가맹점 카테고리 수정, 헤더의 로그아웃. `?month=YYYY-MM`, `?checkout=success` | 로그인 |
 | `/settings` | 플랜·구독 관리, 업로드 내역·삭제, 전체 삭제, 탈퇴 | 로그인 |
 | `/privacy`, `/terms` | 개인정보 처리방침(국외 이전·보관 기간·탈퇴 방법 포함), 약관 | 공개 |
 
@@ -38,9 +39,12 @@
   <로그인 되어 있나?>
   ├─ 예 ─▶ (B)
   └─ 아니오
-        └─▶ [/login] ─▶ 구글 OAuth ─▶ [/auth/callback] ─▶ (B)
-              · next는 내부 경로만 허용("/"로 시작, "//"와 "\" 금지)
+        └─▶ [/login] ─▶ "Google로 계속하기"(POST /auth/login) ─▶ 구글 OAuth ─▶ [/auth/callback] ─▶ (B)
+              · next는 내부 경로만 허용("/"로 시작, "//"와 "\" 금지). 없거나 허용되지 않으면 /dashboard
               · 동의 취소 · 교환 실패 ─▶ /login?error + 안내
+              · 이미 로그인한 상태로 /login에 오면 바로 next로 보낸다
+
+(로그아웃) 대시보드 헤더 "로그아웃" ─▶ POST /auth/logout ─▶ [랜딩 /]
 
 (B) 대시보드 진입
   <저장된 거래가 있나?>

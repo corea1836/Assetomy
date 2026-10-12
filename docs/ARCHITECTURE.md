@@ -8,7 +8,7 @@ src/
 ├── app/                  # 페이지 + Route Handler
 │   ├── page.tsx, demo/, login/, privacy/, terms/    # 공개
 │   ├── dashboard/, settings/                      # 보호(requireUser)
-│   ├── auth/callback/                             # OAuth 코드 교환
+│   ├── auth/             # login(구글 OAuth 시작) · callback(코드 교환) · logout
 │   └── api/              # cards · uploads · merchant-categories · me · checkout · portal · metrics
 │                         # webhooks/polar · internal/maintenance
 ├── components/           # UI. DTO만 받는다
@@ -20,7 +20,7 @@ src/
 │   ├── billing/          # 플랜 조회·Polar 동기화
 │   ├── queries/          # 읽기(사용자 세션 + RLS)
 │   ├── store/            # 서버 쓰기(service-role로 RPC 호출, 'server-only')
-│   ├── supabase/         # server · browser · admin 클라이언트
+│   ├── supabase/         # server · admin 클라이언트(브라우저용 클라이언트는 두지 않는다)
 │   ├── errors/           # 에러 코드 → 사용자 문구(messages.ts)
 │   └── auth.ts · origin.ts · env.ts · mode.ts · crypto.ts(원본 AES-256-GCM)
 ├── services/             # llm · polar 래퍼와 mock ('server-only')
@@ -141,20 +141,23 @@ success 페이지 · 웹훅(서명 검증) · 결제 기간이 지난 상태 ─
 | `POST /api/metrics` | 티저 노출·업그레이드 클릭 기록 |
 | `POST /api/webhooks/polar` | 서명 검증 → 동기화 |
 | `GET /api/internal/maintenance` | 정기 정리(CRON_SECRET) |
+| `POST /auth/login` | 폼 `{next}` · Origin 검사 → 서버에서 구글 OAuth(PKCE) 시작 → 303 |
 | `GET /auth/callback` | OAuth 코드 교환 → next(내부 경로만) |
+| `POST /auth/logout` | Origin 검사 → 로그아웃 → 303 `/` |
 
 - 상태 코드: 200 완료·매핑 대기 · 400 · 401 · 403 Origin/서명 · 404 없음/타인 소유 · 409 충돌 · 422 파일 문제 · 429 한도 · 503 일시 장애. 에러 본문은 `{ error: { code, reason? } }`이며 원문 메시지를 노출하지 않는다.
 
 ## 모드 · 환경
 - `getMode()`: production → live, preview → mock, 로컬 → `APP_MODE`(기본 mock). Production은 mock이 될 수 없다.
-- mock: Claude는 키워드 분류·헤더 키워드 매핑·고정 요약, Polar는 즉시 활성·해지, Analytics는 no-op. Supabase는 실제를 쓴다(Preview=dev, Production=prod, 로컬=Docker). mock이면 상단 배너를 띄운다.
+- mock: Claude는 키워드 분류·헤더 키워드 매핑·고정 요약, Polar는 즉시 활성·해지, Analytics는 no-op. Supabase는 실제를 쓴다(로컬·Preview=dev, Production=prod). mock이면 상단 배너를 띄운다.
+- Supabase는 클라우드 프로젝트에 URL·키로 연결한다(로컬 Docker를 쓰지 않는다, ADR-020). 인증 설정(Google provider · Site URL · Redirect URLs · 이메일 가입 끔)은 프로젝트 대시보드에서 관리하고, `supabase/`는 마이그레이션·pgTAP용으로 둔다.
 - 사이트 Origin은 `lib/origin.ts` 한 곳에서 정한다(Preview `https://${VERCEL_URL}`, Production `NEXT_PUBLIC_SITE_URL`, 로컬 localhost). Origin 검사와 OAuth 복귀 URL에 같이 쓴다.
 - Preview 배포는 `execute.py --deploy`가, Production 배포는 deploy step이 한다. step 세션은 배포하지 않는다. dev DB 마이그레이션은 사용자가 수동으로 push한다. Cron은 production에서만 돈다.
 - env는 `lib/env.ts`에서 lazy 검증한다. 변수 목록은 `.env.example`. 원본 암호화 키 `FILE_ENCRYPTION_KEY`(32바이트, 서버 전용, 환경별로 따로)를 쓴다.
 
 ## 보안
-- 인증: 보호 페이지·핸들러마다 `requireUser()`(`getClaims`). proxy는 세션 갱신만 한다. next는 내부 경로만 허용한다.
-- CSRF: 세션을 쓰는 POST/PUT/DELETE는 Origin 정확 일치, JSON 요청은 `application/json`만, 파일 업로드는 `multipart/form-data`만. 웹훅은 서명, Cron은 `CRON_SECRET`.
+- 인증: 보호 페이지·핸들러마다 `requireUser()`(`getClaims`). proxy는 세션 갱신만 한다. next는 내부 경로만 허용한다. 구글 로그인은 서버에서 시작하고(PKCE, ADR-021) 브라우저에 Supabase 클라이언트를 두지 않는다.
+- CSRF: 세션을 쓰는 POST/PUT/DELETE는 Origin 정확 일치, JSON 요청은 `application/json`만, 파일 업로드는 `multipart/form-data`만. 로그인·로그아웃 폼(`/auth/login`·`/auth/logout`)은 `application/x-www-form-urlencoded`만 받고 Origin을 검사한다. 웹훅은 서명, Cron은 `CRON_SECRET`.
 - 격리: RLS 읽기 + 검증된 서버 쓰기 + 복합 FK. 타인 리소스는 404.
 - 파일: private 버킷에 암호화본만(AES-256-GCM, 파일마다 랜덤 IV). 평문 원본은 메모리에서만 다룬다. 확장자·용량(4MB)·행 수(5,000)·셀 길이 상한, xlsx ZIP 시그니처, 패치된 SheetJS. PDF는 `%PDF-` 시그니처·100쪽 상한·암호 PDF 거절, pdfjs-dist는 `isEvalSupported: false`로 글자·좌표만 읽는다.
 - LLM: 분류에는 가맹점명, 요약에는 월 집계, 폴백 매핑에는 헤더와 값 패턴(숫자 → 9, 문자 → X)만 보낸다. 실제 셀 값과 원본은 보내지 않는다. structured outputs를 쓰고 결과는 코드로 검증한다.
@@ -162,7 +165,7 @@ success 페이지 · 웹훅(서명 검증) · 결제 기간이 지난 상태 ─
 - 로그는 코드와 id만. 비용은 24시간 30개·동시 2개를 DB에서 원자적으로 제한하고 Anthropic·Vercel 지출 한도를 건다.
 
 ## 테스트
-- 단위 `*.test.ts`(`npm test`, Docker 불필요), DB·Storage 통합 `*.db.test.ts`(`npm run test:db`), pgTAP `supabase/tests/`. Stop hook은 단위 테스트만 돌린다.
+- 단위 `*.test.ts`(`npm test`, Supabase 불필요), DB·Storage 통합 `*.db.test.ts`(`npm run test:db`), pgTAP `supabase/tests/`. Stop hook은 단위 테스트만 돌린다.
 - 파싱은 익명화한 실제 fixture로 카드별·월별·전체 기대 합계와 정확히 일치해야 한다. 표 형식(csv·xlsx) fixture는 프로필 없이 폴백 매핑으로 읽어도 같은 합계와 fingerprint가 나와야 한다. PDF fixture는 원본 대신 익명화한 글자 조각·좌표 JSON이고, 원본 PDF 테스트는 로컬에 파일이 있을 때만 돈다.
 - 외부 서비스는 mock으로 단위 테스트하고, 권한·잠금·경합은 DB 통합 테스트로 확인한다.
 - **[확정 필요]** 초기 프로필의 나머지 카드사 1종과 .xls 지원 여부는 실제 파일을 확인한 뒤 정한다(첫 프로필은 현대카드 명세서 PDF).

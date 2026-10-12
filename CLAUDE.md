@@ -38,8 +38,7 @@
 npm run dev       # 개발 서버
 npm run build     # 프로덕션 빌드
 npm run lint      # eslint .
-npm run test      # vitest run, 단위 테스트(Docker 불필요)
-npm run test:db   # vitest DB·Storage 통합 테스트(로컬 Supabase 실행 필요)
-supabase start                          # 로컬 Supabase(Docker)
-supabase db reset && supabase test db   # 마이그레이션 적용 + pgTAP
+npm run test      # vitest run, 단위 테스트(Supabase 불필요)
+npm run test:db   # vitest DB·Storage 통합 테스트(Supabase dev 프로젝트 필요)
+supabase db push --linked && supabase test db --linked   # dev 프로젝트 마이그레이션 + pgTAP(supabase link 후, 사용자가 수동으로)
 ```
