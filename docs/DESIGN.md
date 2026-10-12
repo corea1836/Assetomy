@@ -5,12 +5,12 @@ Assetomy Design System을 이 제품(한국어 대시보드 MVP)에 맞게 줄�
 ## 원칙
 1. **숫자가 주인공이다.** 합계·금액과 그 반영 기간이 먼저 보이게 한다.
 2. **신뢰가 먼저다.** 과장하거나 불안을 부추기지 않는다. 확정되지 않은 것은 "후보·의심"이라고 부른다.
-3. **대시보드는 도구다.** 마케팅 패턴(다크 밴드·큰 display 글자·목업)은 랜딩에만 쓴다.
+3. **대시보드는 도구다.** 마케팅 패턴(다크 밴드·큰 display 글자·목업·다크 밴드의 깊이·등장 모션)은 랜딩에만 쓴다.
 
 ## 금지
-- blur(glass), 그라데이션(글자·배경·버튼), 배경 gradient orb, 글로우 그림자
+- blur(glass), 그라데이션(글자·버튼·밝은 면 배경), 색 있는 orb, 글로우(색 있는 그림자). 예외는 랜딩 다크 밴드의 점 그리드와 빛 하나뿐이다(아래 "랜딩 → 다크 밴드의 깊이")
 - 보라/인디고, 색 있는 왼쪽 보더 카드, 이모지 아이콘, 빨간 경고 배너 남발
-- "Powered by AI" 배지, 숫자 카운트업·차트 진입 애니메이션
+- "Powered by AI" 배지, 숫자 카운트업·막대가 자라는 모션·차트 진입 애니메이션
 - 잠금 카드를 blur·모자이크로 가리기(정적 예시로 보여준다)
 
 ## 토큰 (`src/app/globals.css`)
@@ -19,15 +19,17 @@ Assetomy Design System을 이 제품(한국어 대시보드 MVP)에 맞게 줄�
 
 @theme {
   --color-primary: #0B7A5E;          /* 포인트는 이것 하나. 드물게 쓴다 */
+  --color-primary-hover: #096D54;    /* Primary 버튼 hover. primary와 primary-active 사이 */
   --color-primary-active: #08604A;
   --color-primary-disabled: #A9C4BC;
-  --color-primary-soft: #E7F3EE;     /* Pro 표시 바탕. 글자는 primary-active(6.6:1) */
+  --color-primary-soft: #E7F3EE;     /* Pro 표시·월간 요약 카드 바탕. Pro 글자는 primary-active(6.6:1) */
   --color-primary-on-dark: #3DD6A3;  /* 다크 면 위 막대·아이콘. surface-dark-elevated 대비 9.6:1 */
   --color-canvas: #FFFFFF;
   --color-surface-soft: #F7F7F7;
   --color-surface-strong: #EEF0F3;
   --color-surface-dark: #0A0B0D;
   --color-surface-dark-elevated: #16181C;
+  --color-surface-dark-raised: #1F2228; /* 다크 면 3단계: 겹친 카드 앞면·떠 있는 칩 */
   --color-hairline: #DEE1E6;
   --color-hairline-soft: #EEF0F3;
   --color-hairline-dark: #2A2D33;
@@ -48,6 +50,7 @@ Assetomy Design System을 이 제품(한국어 대시보드 MVP)에 맞게 줄�
   --text-display-xl: 4rem; --text-display-xl--line-height: 1.15; --text-display-xl--letter-spacing: -1.6px;
 
   --shadow-soft: 0 4px 12px rgb(0 0 0 / 0.04);
+  --shadow-float: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 24px 48px -12px rgb(0 0 0 / 0.6); /* 떠 있는 다크 면. 검은 그림자만 */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 }
 
@@ -74,8 +77,10 @@ Assetomy Design System을 이 제품(한국어 대시보드 MVP)에 맞게 줄�
 | 환불·취소(음수 금액) | `text-body` + "−" |
 | 확인이 필요한 지출 | `bg-amber-50 border-amber-200 text-amber-900` (다크 면 위에서는 `text-amber-200`) |
 | 에러 | `bg-red-50 text-danger` |
-| 다크 밴드 위 | `text-white`, 보조 `text-muted-soft`, 막대·아이콘 `primary-on-dark` |
+| 다크 밴드 위 | `text-white`, 보조 `text-muted-soft`, 막대·아이콘 `primary-on-dark`. 증감은 색 없이 흰 글자 + 부호 + "늘었어요/줄었어요"(`increase`는 다크 면 대비 3.7:1) |
+| 다크 면 3단계 | 밴드 `surface-dark` → 카드 `surface-dark-elevated` → 겹친 앞면·떠 있는 칩 `surface-dark-raised` + `shadow-float` |
 | Pro 표시 | `rounded-full bg-primary-soft px-2.5 py-0.5 text-caption font-semibold text-primary-active` |
+| 월간 요약 카드 | `bg-primary-soft`, 반짝임 아이콘 `text-primary` |
 
 - 증가=빨강·감소=파랑은 국내 관례다. 색만으로 구분하지 않고 부호와 "늘었어요/줄었어요"를 함께 쓴다.
 - 포인트 색은 한 화면 구역에 한두 곳만 쓴다.
@@ -87,6 +92,7 @@ Assetomy Design System을 이 제품(한국어 대시보드 MVP)에 맞게 줄�
 - 축은 "120만"처럼 만 단위로 쓰고, 12px `body` 색 `font-mono`. 툴팁은 원 단위 전체 금액을 `rounded-lg border border-hairline bg-canvas px-3 py-2 shadow-soft`에 보여준다.
 - 그리드는 가로선만 1px `hairline-soft`. 글자는 막대 색이 아니라 `ink`·`body`.
 - 차트는 `<div role="img" aria-label="… 막대 차트">`로 감싸고 차트에 `accessibilityLayer={false}`를 준다. 이유: Recharts 3 기본값은 안쪽 `svg`를 이름 없는 `role="application"` 포커스 요소로 만들어, Tab이 차트에 멈추고 화면낭독기가 축 숫자를 나열한다.
+- 랜딩 그림의 막대는 Recharts 대신 서버 컴포넌트의 div·인라인 SVG로 그린다. 단색·값 쪽 끝 4px 규칙은 같고, 다크 면에서는 `primary-on-dark`다. 한 막대를 짚을 때는 나머지를 같은 색 40% 투명도로 낮춘다(다른 색을 쓰지 않는다).
 
 ## 컴포넌트
 모서리: 버튼 `rounded-full` · 카드·모달 `rounded-3xl` · 입력·select `rounded-xl` · 툴팁·행 안 select `rounded-lg`. 각진 모서리는 쓰지 않고, 표·목록 행은 구분선으로 나눈다.
@@ -101,18 +107,23 @@ Assetomy Design System을 이 제품(한국어 대시보드 MVP)에 맞게 줄�
 
 ### 버튼
 ```
-Pill 공통:   inline-flex h-11 items-center justify-center gap-2 rounded-full px-5 text-base font-semibold
+Pill 공통:   group inline-flex h-11 items-center justify-center gap-2 rounded-full px-5 text-base font-semibold
              transition-[background-color,transform] duration-120 ease-standard active:scale-[.98]
              focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary
              disabled:cursor-not-allowed disabled:active:scale-100
-Primary:     + bg-primary text-white active:bg-primary-active disabled:bg-primary-disabled
-Secondary:   + bg-surface-strong text-ink active:bg-hairline disabled:text-muted-soft
-Destructive: + bg-surface-strong text-danger active:bg-hairline   (항상 확인 단계를 거친다)
+Primary:     + bg-primary text-white hover:bg-primary-hover active:bg-primary-active
+               disabled:bg-primary-disabled
+Secondary:   + bg-surface-strong text-ink hover:bg-hairline active:bg-hairline
+               disabled:bg-surface-strong disabled:text-muted-soft
+Destructive: + bg-surface-strong text-danger hover:bg-hairline active:bg-hairline   (항상 확인 단계를 거친다)
 작게:        + h-9 px-4 text-sm
 Text:        font-semibold text-primary hover:underline active:text-primary-active  (포커스 링은 공통과 같다)
+화살표:      버튼 글자 뒤 ArrowRightIcon 18px + transition-transform duration-200 ease-standard
+             group-hover:translate-x-1
 ```
 - Primary · Secondary 클래스는 `components/button-styles.ts`의 `buttonClass(variant, size?)`로만 만든다.
-- hover에는 바뀌지 않는다. 누를 때만 어두워지고 98%로 줄어든다.
+- 마우스를 올리면 Primary는 `primary-hover`, Secondary는 `hairline`으로 바뀐다. 누르면 Primary는 `primary-active`로 더 어두워지고, 모두 98%로 줄어든다. disabled 버튼은 hover로 바뀌지 않는다. Tailwind v4의 `hover:`는 마우스가 있는 기기에서만 적용된다.
+- 화살표는 다른 화면으로 넘어가는 랜딩 CTA(히어로 "데모 보기", CTA 밴드 "무료로 시작하기")에만 붙인다.
 - Primary는 구역당 한두 개. Text도 포인트 색이라 Primary 옆 "취소"는 Secondary로 한다.
 
 ### 입력 필드 · select
@@ -134,7 +145,8 @@ disabled:bg-surface-soft disabled:text-muted-soft      에러: border-danger
 ```
 
 ### 화면별 요소
-- **총지출 카드**: 큰 숫자 바로 아래 전월 대비 문장. 거래 건수·반영 기간·취소·환불 기준은 카드 아래쪽에 `border-t border-hairline-soft`로 나눠 둔다(옆 카드 높이에 맞춰 늘어나면 아래에 붙는다).
+- **총지출 카드**: 큰 숫자 바로 아래 전월 대비 문장. 거래 건수·반영 기간·취소·환불 기준은 카드 아래쪽에 `border-t border-hairline-soft`로 나눠 둔다(카드가 늘어나면 아래에 붙는다).
+- **월간 요약 카드**: 총지출 카드 바로 아래(`md:` 이상에서는 왼쪽 열에 총지출과 함께 쌓고, 오른쪽 열은 카테고리). `rounded-3xl bg-primary-soft p-6 sm:p-8`. 제목 줄은 `SparklesIcon`(20px `text-primary`) + "이번 달 요약"(`text-lg font-semibold text-ink`), 본문 `text-lg leading-relaxed text-ink whitespace-pre-line`, 그 아래 출처 한 줄 `text-caption text-body`. 출처는 실제 대시보드 "AI가 가맹점명과 집계로 쓴 요약이에요. 금액은 코드로 계산해요.", 데모·랜딩 "예시 요약이에요. 가입하면 AI가 내 가맹점명과 집계로 요약해요."(데모 요약은 fixture의 고정 문장이다).
 - **카테고리 목록**: 금액순 5개까지 보이고, 나머지는 `<details>`로 접어 Text 스타일 summary "나머지 N개 카테고리 보기"를 둔다. 막대는 전체 최댓값 기준이다.
 - **데모 Pro 구분선**: 탐지 영역 앞에 `border-t border-hairline pt-8` + Pro 표시 + "여기부터 Pro 화면이에요. Free에서는 확인할 지출의 건수와 합계만 보여요."
 - **데모 하단 CTA**: 보조 카드에 "내 카드로 확인해 보세요" + 한 문장 + Primary "내 이용내역으로 해보기".
@@ -148,17 +160,55 @@ disabled:bg-surface-soft disabled:text-muted-soft      에러: border-danger
 - **워드마크**: 로고 파일 없이 소문자 `assetomy`, `text-[22px] font-medium leading-none tracking-[-0.02em] text-primary`(다크 위에서는 `text-white`).
 
 ## 레이아웃
-- 대시보드·설정: `max-w-5xl mx-auto px-4 sm:px-6`. 1열 기본, `md:` 이상에서 KPI·차트 2열. 카드 사이 `gap-6`, 섹션 사이 `space-y-12`.
+- 대시보드·설정: `max-w-5xl mx-auto px-4 sm:px-6`. 1열 기본, `md:` 이상에서 KPI·차트 2열. 첫 줄은 왼쪽 열에 총지출·월간 요약 카드를 쌓고 오른쪽 열에 카테고리를 둔다. 카드 사이 `gap-6`, 섹션 사이 `space-y-12`.
 - 대시보드 상단 한 줄: 월 선택기 · 반영 기간 · "새 이용내역 추가".
 - 좌측 정렬 기본. 중앙 정렬은 모달·빈 상태·랜딩 CTA에만 쓴다.
 
 ### 랜딩 (`/`)
-- 너비 `mx-auto max-w-[1248px] px-6`, 밴드마다 `py-24`. 순서: 다크 히어로 → 기능(흰) → 시작 단계(`bg-surface-soft`) → 요금(흰) → 다크 CTA.
-- 히어로(`bg-surface-dark text-white`): 헤드라인 `text-display-sm lg:text-display-xl`, 부제 `text-lg leading-relaxed text-muted-soft`, Primary "데모 보기". 오른쪽에는 대시보드 카드 목업 1장(`rounded-3xl border border-hairline-dark bg-surface-dark-elevated p-8`)을 두고, 수치는 `/demo` fixture 값을 쓴다. 목업 막대는 `primary-on-dark`, 후보 줄은 `rounded-2xl border border-hairline-dark bg-surface-dark` 안에 `text-amber-200`.
-- 섹션 제목 `text-display-sm`. 기능 카드는 기본 카드로 `sm:` 2열 · `lg:` 3열, 제목 위에 24px `text-primary` 아이콘.
-- 시작 단계: `<ol>` 3칸(`sm:` 3열). 칸마다 `border-t border-hairline pt-6`, 번호 `font-mono text-sm text-primary`("01"), 제목 `text-lg font-semibold`.
-- 가격: 제목 아래 한 문장(`text-lg text-body`). Free·Pro 카드 두 장. Pro는 리본 대신 `bg-surface-dark text-white`로 반전한다. 가격은 `text-display-md`, 기능 목록은 체크 아이콘(Free `text-primary`, Pro `text-primary-on-dark`), 버튼은 전체 너비(Free Secondary, Pro Primary).
-- CTA 밴드: 다크, 가운데 정렬, `text-display-sm sm:text-display-md` + 버튼 하나. 법적 고지는 `text-caption text-body`.
+- 너비 `mx-auto max-w-[1248px] px-6`, 밴드마다 `py-24`. 순서: 다크 히어로 → 기능 쇼케이스(흰) → 9월 요약(다크) → 시작 단계(`bg-surface-soft`) → 요금(흰) → 다크 CTA.
+- 섹션 제목 `text-display-sm`.
+- 랜딩의 모든 수치는 `/demo`와 같은 fixture를 `buildDashboard`에 넣은 결과에서 가져온다. 화면에 숫자를 직접 적지 않는다. 데모에서 같은 숫자를 다시 보게 하기 위해서다.
+- 그림은 서버 컴포넌트에서 div·인라인 SVG로 그린다(Recharts·클라이언트 JS를 쓰지 않는다). 장식 레이어는 `aria-hidden`이고, 정보를 담은 그림은 같은 내용을 글자(목록·캡션)로도 둔다.
+- 그림 안에 링크·버튼을 두지 않는다. 랜딩 Tab 순서는 `로그인` → `데모 보기` → `무료로 시작하기` → `Pro 시작하기` → `무료로 시작하기` 그대로다.
+- 375px에서 가로 스크롤이 생기지 않는다. 겹치거나 비어져 나오는 배치는 `lg:` 이상에서만 하고, 그 아래 화면에서는 그림 요소를 세로로 쌓는다.
+
+#### 다크 밴드의 깊이 (히어로 · 9월 요약 · CTA)
+- 면은 3단계로 쌓는다(색 쓰임의 "다크 면 3단계"). 카드는 `rounded-3xl border border-hairline-dark`.
+- 밴드 바탕에 점 그리드를 깐다: 24px 간격 1px 흰 점, 불투명도 6%. 가운데는 보이고 가장자리로 갈수록 사라진다(mask). 이 레이어는 `aria-hidden`, `pointer-events-none`이다.
+- 빛은 밴드마다 하나까지, 그림이나 제목 뒤에만 둔다: `primary-on-dark` 불투명도 8% 이하에서 투명으로 사라지는 radial. 여러 개·여러 색·움직이는 빛은 쓰지 않는다.
+- Pro 가격 카드는 `bg-surface-dark` + `shadow-float`이고 점 그리드·빛은 두지 않는다.
+
+#### 히어로
+- 읽는 순서: 헤드라인(`text-display-sm lg:text-display-xl`) → 부제(`text-lg leading-relaxed text-muted-soft`) → Primary "데모 보기" + 화살표 → "로그인 없이 바로 볼 수 있어요" → 그림. `lg:` 이상에서 그림은 오른쪽 열, 그 아래 화면에서는 글 아래다. 첫 화면(375×667)에 헤드라인과 "데모 보기"가 들어온다.
+- 그림은 "흩어진 파일이 한 화면으로 모인다"를 보여준다.
+  1. 파일 칩 2개: fixture의 카드 라벨(`생활비 카드` · `온라인 쇼핑 카드`)과 파일 형식(`.xlsx` · `.csv`). `surface-dark-elevated` 칩, 앞 카드로 이어지는 1px `hairline-dark` 선(SVG).
+  2. 뒤 카드(`surface-dark-elevated`, 앞 카드보다 위·오른쪽으로 어긋남): 그 달 일별 막대. 가장 큰 날만 `primary-on-dark`, 나머지는 같은 색 40%.
+  3. 앞 카드(`surface-dark-raised` + `shadow-float`): `2026년 9월 총지출`, 큰 숫자, 상위 카테고리 3개 막대(`ul aria-label="예시 상위 카테고리"`), 후보 줄 `확인이 필요한 지출 N건 · 후보 합계 N원`(`text-amber-200`), `예시 데이터`.
+  4. 떠 있는 칩(`surface-dark-raised` + `shadow-float`, 앞 카드 모서리에 걸침): 중복 결제 의심 건 `중복 결제 의심 · 9월 18일 32,000원 × 2`(`text-amber-200`).
+
+#### 기능 쇼케이스 (흰)
+- 제목 "파일 하나로 시작해요" 아래 줄 3개. `lg:` 이상에서 글과 그림 2열이고 그림 쪽이 줄마다 좌우로 바뀐다. 그 아래 화면에서는 글 → 그림.
+- 글: 24px `text-primary` 아이콘 → 제목(`text-title-lg`) → 본문(`text-lg leading-relaxed text-body`). 그림: 보조 카드(`rounded-3xl bg-surface-soft p-6 sm:p-8`).
+  1. **한 화면에 모든 카드**: 카드 라벨 칩 2개가 합계 한 줄(`9월 총지출 1,517,200원 · 거래 26건`)로 모인다. 카드별 금액은 쓰지 않는다(대시보드에 없는 정보다).
+  2. **확인이 필요한 지출**: 탐지 종류마다 한 칸, amber 면(`bg-amber-50 border-amber-200 text-amber-900`). 정기결제로 보여요는 데이터가 있는 달 눈금 위에 결제한 달마다 점(`seriesMonths`)과 가맹점·금액, 중복 결제 의심은 같은 날 같은 금액 칸 2개, 고액 결제는 그 달 일별 막대 중 그날만 진하게 하고 금액을 붙인다. 아래 캡션 "정상 지출일 수 있어요".
+  3. **연동 없이, 언제든 삭제**: 받는 것(이용내역 파일, 체크 `text-primary`)과 받지 않는 것(카드번호 · 계좌 · 카드사 비밀번호, X `text-body`) 두 열.
+
+#### 9월 요약 (다크)
+- 제목 "숫자는 코드가 계산하고, 요약은 문장으로 정리해요", 부제 한 문장 `text-muted-soft`.
+- 왼쪽: 월간 요약 카드(대시보드와 같은 민트 카드, 데모 출처 문구). 오른쪽: 근거 `ol aria-label="요약의 근거"` 3칸(`surface-dark-elevated` 카드). 칸마다 번호(①②③) · 탐지 종류(`text-amber-200`) · 날짜·가맹점 · 금액(`font-mono text-white`). 값은 `findings`에서 가져온다(고액 결제 → 정기결제 → 중복 결제 의심 순).
+- 아래: 데이터가 있는 달의 월별 막대(`trend.months`)와 선택 달 막대 위의 ① 표시, 전월 대비 문장. 다크 면이라 증감 색을 쓰지 않는다.
+- 요약 문장을 코드로 쪼개 근거와 선으로 잇지 않는다. 이유: 실제 요약은 형식 없는 AI 문장이라, 데모에 없는 구조를 약속하게 된다.
+
+#### 시작 단계 (`bg-surface-soft`)
+- `<ol aria-label="시작하는 순서">` 3칸(`sm:` 3열). 번호 `font-mono text-sm text-primary`("01"), 제목 `text-lg font-semibold`. 번호 사이를 1px `hairline` 선으로 잇는다(`sm:` 이상 가로, 그 아래 세로).
+- 칸마다 제목 위에 미니 그림(`rounded-2xl border border-hairline bg-canvas`, `aria-hidden`): 01 `XLSX` · `CSV` 형식 배지, 02 카드 라벨 칩, 03 막대 3개짜리 미니 대시보드.
+
+#### 요금 (흰)
+- 제목 아래 한 문장(`text-lg text-body`). Free·Pro 카드 두 장. Pro는 리본 대신 다크로 반전한다(위 "다크 밴드의 깊이"). 가격은 `text-display-md`, 기능 목록은 체크 아이콘(Free `text-primary`, Pro `text-primary-on-dark`), 버튼은 전체 너비(Free Secondary, Pro Primary).
+- 기능 목록과 버튼 사이에 "이 플랜에서 보이는 것" 한 칸. Free는 `확인이 필요한 지출 N건 · 후보 합계 N원`(건수·합계만), Pro는 같은 줄 아래 탐지 상세 2줄(종류 · 가맹점 · 금액). 값은 `findings`에서 가져온다.
+
+#### CTA 밴드 (다크)
+- 가운데 정렬, `text-display-sm sm:text-display-md` + Primary "무료로 시작하기" + 화살표. 고지는 `text-caption text-muted-soft`.
 
 ## 타이포그래피
 - 글자는 Pretendard Variable, 숫자는 JetBrains Mono 500. 런타임에 외부 CDN에서 글꼴을 받지 않는다.
@@ -190,8 +240,9 @@ disabled:bg-surface-soft disabled:text-muted-soft      에러: border-danger
 - 빈 상태는 한 문장과 버튼 하나.
 
 ## 모션 · 아이콘 · 접근성
-- 애니메이션은 스켈레톤 `animate-pulse`, 스피너 `animate-spin`, 120~200ms `ease-standard` 색·크기 전환만 쓴다.
-- 아이콘은 `components/icons.tsx`의 인라인 SVG다(Lucide 모양을 필요한 것만 복사). `strokeWidth 2`, 20px(버튼 안 18px, 랜딩 기능 카드 24px), `currentColor`, `aria-hidden`. 아이콘 라이브러리·아이콘 폰트·원형 배경을 쓰지 않는다.
+- 애니메이션은 스켈레톤 `animate-pulse`, 스피너 `animate-spin`, 120~200ms `ease-standard` 색·크기·위치 전환(버튼 hover·누름, 화살표 이동)만 쓴다. 예외는 아래 랜딩 등장 모션 하나다.
+- 랜딩 등장 모션: 히어로를 뺀 밴드의 제목 묶음과 그림이 화면에 들어올 때 한 번, 불투명도 0→1과 24px 아래→제자리. CSS scroll-driven(`animation-timeline: view()`)으로만 하고 JS를 쓰지 않는다. `prefers-reduced-motion: reduce`이거나 브라우저가 지원하지 않으면 처음부터 보인다. 숫자와 막대 길이는 움직이지 않는다.
+- 아이콘은 `components/icons.tsx`의 인라인 SVG다(Lucide 모양을 필요한 것만 복사). `strokeWidth 2`, 20px(버튼 안 18px, 랜딩 기능 24px, 월간 요약 반짝임 20px), `currentColor`, `aria-hidden`. 아이콘 라이브러리·아이콘 폰트·원형 배경을 쓰지 않는다.
 - 색만으로 의미를 전달하지 않는다. 정보를 담은 글자는 대비 4.5:1 이상. 버튼·입력에는 보이는 포커스 표시를 둔다. 차트 수치는 카테고리 목록으로 텍스트로도 제공한다.
 
 ## 디자인 시스템과 다르게 정한 것
