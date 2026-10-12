@@ -137,7 +137,7 @@ scripts/browser-test/run.sh s2 s3    # 일부만
 ## 수동 확인: 실제 구글 로그인
 자동화하지 않는다. 로그인 흐름을 바꿨을 때 `npm run dev`(3000)에서 직접 확인한다. Supabase dev 프로젝트의 Google provider · Redirect URLs(`http://localhost:3000/auth/callback`)가 설정돼 있어야 한다.
 1. `/login` → `Google로 계속하기` → 구글 계정 선택·동의 → `/dashboard`에 `아직 올린 이용내역이 없어요`와 `로그아웃`.
-2. 로그인한 채 `/login` → 바로 `/dashboard`.
+2. 로그인한 채 `/login` → 바로 `/dashboard`. 로그인한 채 `/` → 헤더 링크가 `대시보드`(`/dashboard`).
 3. `/login?next=%2Fdashboard%3Fmonth%3D2026-09`로 로그인 → `/dashboard?month=2026-09`로 돌아온다.
 4. 구글 동의 화면에서 취소 → `/login`에 취소 안내.
 5. `로그아웃` → `/`. 다시 `/dashboard` → `/login?next=%2Fdashboard`.
@@ -162,3 +162,4 @@ scripts/browser-test/run.sh s2 s3    # 일부만
 | 2026-10-12 | `b2d8b1c`(feat-3-landing-visual) + 작업 트리(시나리오 갱신), `run.sh` 프로덕션 빌드 | PASS 92 · FAIL 0 · 스크립트 오류 0 | 첫 실행 FAIL 4건(기능 카드 아이콘 수·시작 단계 글자·요금 li 수·랜딩 1280 열 수)은 랜딩 시각 강화로 기대값이 낡은 것. 히어로 칩·요약 밴드·요금 미리보기·데모 요약 위치·hover·모바일 등장 모션 검사를 추가. 화면을 보다 히어로 연결선과 긴 구역 등장 모션 버그를 찾아 `b2d8b1c`에서 고침. 방향키 항목은 미확인 |
 | 2026-10-12 | `faf31b2`(feat-4-pdf-parsing), `run.sh` 프로덕션 빌드, Node 24.21.0 | PASS 92 · FAIL 0 · 스크립트 오류 0 | 화면 변경 없는 phase(PDF 파싱 레이어·`pdfjs-dist` 추가)의 회귀 확인. 방향키 항목은 미확인 |
 | 2026-10-13 | `f6a3596`(feat-5-auth) + 작업 트리(S5 클릭 이동·S7 추가, `run.sh` 3100 Origin), `run.sh` 프로덕션 빌드, Node 24.21.0 | PASS 124 · FAIL 0 · 스크립트 오류 0 | 로그인 화면·콜백 실패 경로·폼 POST 거절·구글 도착·PKCE 쿠키 확인. 첫 실행 실패는 Next 경로 알림의 `role="alert"`와 샌드박스에 없는 `page.request` 때문인 측정 문제였다. 실제 구글 로그인은 수동 확인 대기. 방향키 항목은 미확인 |
+| 2026-10-13 | `21f0103`(feat-5-auth) + 작업 트리(랜딩 헤더 로그인 상태 반영), `run.sh` 프로덕션 빌드, Node 24.21.0 | PASS 124 · FAIL 0 · 스크립트 오류 0 | 로그인 상태의 `대시보드` 링크는 단위 테스트와 수동 확인 2번으로 본다(실제 세션은 자동화하지 않는다) |

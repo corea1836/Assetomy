@@ -1,14 +1,16 @@
 import { render, screen, within } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
-import { afterEach, describe, expect, it, vi } from "vitest";
+import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Page from "@/app/page";
 import { FINDING_KIND_LABELS } from "@/components/dashboard/finding-labels";
 import * as analytics from "@/lib/analytics/dashboard";
+import { getSessionUser } from "@/lib/auth";
 import { DEMO_SUMMARY, DEMO_TODAY, DEMO_TRANSACTIONS } from "@/lib/demo/fixture";
 import { formatDate, formatMonth, formatMonthShort, formatWon } from "@/lib/format";
 import { CATEGORY_LABELS } from "@/types/category";
 
 vi.mock("@vercel/analytics", () => ({ track: vi.fn() }));
+vi.mock("@/lib/auth", () => ({ getSessionUser: vi.fn() }));
 
 function demoDashboard() {
   const dashboard = analytics.buildDashboard({
@@ -20,11 +22,15 @@ function demoDashboard() {
   return dashboard;
 }
 
+beforeEach(() => {
+  vi.mocked(getSessionUser).mockReset().mockResolvedValue(null);
+});
+
 afterEach(() => vi.restoreAllMocks());
 
 describe("landing page", () => {
-  it("introduces the product with a demo link and a dark wordmark", () => {
-    render(<Page />);
+  it("introduces the product with a demo link and a dark wordmark", async () => {
+    render(await Page());
 
     expect(screen.getByRole("heading", { level: 1 }))
       .toHaveTextContent("계좌 연동 없이,카드 이용내역 파일만으로");
@@ -38,8 +44,16 @@ describe("landing page", () => {
     )).toBeInTheDocument();
   });
 
-  it("links login and every signup entry to the future login page", () => {
-    render(<Page />);
+  it("replaces the header login link with a dashboard link for a signed-in user", async () => {
+    vi.mocked(getSessionUser).mockResolvedValue({ id: "u1" });
+    render(await Page());
+
+    expect(screen.getByRole("link", { name: "대시보드" })).toHaveAttribute("href", "/dashboard");
+    expect(screen.queryByRole("link", { name: "로그인" })).toBeNull();
+  });
+
+  it("links login and every signup entry to the future login page", async () => {
+    render(await Page());
 
     expect(screen.getByRole("link", { name: "로그인" })).toHaveAttribute("href", "/login");
     expect(screen.getByRole("link", { name: "Pro 시작하기" }))
@@ -49,8 +63,8 @@ describe("landing page", () => {
     for (const link of freeLinks) expect(link).toHaveAttribute("href", "/login");
   });
 
-  it("contains decorative dots and one light inside each isolated dark band", () => {
-    const { container } = render(<Page />);
+  it("contains decorative dots and one light inside each isolated dark band", async () => {
+    const { container } = render(await Page());
     const hero = screen.getByRole("heading", { level: 1 }).closest("section")!;
     const summary = screen.getByRole("heading", {
       name: "숫자는 코드가 계산하고, 요약은 문장으로 정리해요",
@@ -75,8 +89,8 @@ describe("landing page", () => {
     expect(container.querySelectorAll(".landing-dots")).toHaveLength(3);
   });
 
-  it("adds decorative 18px arrows only to the hero and closing CTA links", () => {
-    render(<Page />);
+  it("adds decorative 18px arrows only to the hero and closing CTA links", async () => {
+    render(await Page());
     const cta = screen.getByRole("heading", {
       name: "이번 달 카드 지출, 파일 하나로 확인해 보세요",
     }).closest("section")!;
@@ -97,16 +111,16 @@ describe("landing page", () => {
     }
   });
 
-  it("gives the Pro pricing card a floating shadow without backdrop layers", () => {
-    render(<Page />);
+  it("gives the Pro pricing card a floating shadow without backdrop layers", async () => {
+    render(await Page());
     const proCard = screen.getByRole("heading", { name: "Pro" }).closest("article")!;
 
     expect(proCard).toHaveClass("bg-surface-dark", "shadow-float");
     expect(proCard.querySelector(".landing-dots, .landing-light")).toBeNull();
   });
 
-  it("reveals the title and card groups of every band after the hero", () => {
-    render(<Page />);
+  it("reveals the title and card groups of every band after the hero", async () => {
+    render(await Page());
     const hero = screen.getByRole("heading", { level: 1 }).closest("section")!;
     expect(hero.querySelector(".reveal")).toBeNull();
     expect(hero).not.toHaveClass("reveal");
@@ -128,8 +142,8 @@ describe("landing page", () => {
     ]);
   });
 
-  it("explains the three features with icons and closes with the sign-up CTA", () => {
-    render(<Page />);
+  it("explains the three features with icons and closes with the sign-up CTA", async () => {
+    render(await Page());
 
     expect(screen.getByRole("heading", { name: "파일 하나로 시작해요" }))
       .toBeInTheDocument();
@@ -151,9 +165,9 @@ describe("landing page", () => {
       .toBeInTheDocument();
   });
 
-  it("illustrates the three features using the demo dashboard without adding navigation", () => {
+  it("illustrates the three features using the demo dashboard without adding navigation", async () => {
     const { month, snapshot, findings } = demoDashboard();
-    render(<Page />);
+    render(await Page());
     const band = screen.getByRole("heading", { name: "파일 하나로 시작해요", level: 2 })
       .closest("section")!;
     const rows = within(band).getAllByRole("article");
@@ -179,8 +193,8 @@ describe("landing page", () => {
     expect(band.querySelector("[tabindex]")).toBeNull();
   });
 
-  it("orders the bands as features, summary, three starting steps, and pricing", () => {
-    render(<Page />);
+  it("orders the bands as features, summary, three starting steps, and pricing", async () => {
+    render(await Page());
 
     const features = screen.getByRole("heading", { name: "파일 하나로 시작해요" });
     const summary = screen.getByRole("heading", {
@@ -210,8 +224,8 @@ describe("landing page", () => {
     });
   });
 
-  it("shows the fixture summary beside analytics evidence, trend, and month-over-month figures", () => {
-    render(<Page />);
+  it("shows the fixture summary beside analytics evidence, trend, and month-over-month figures", async () => {
+    render(await Page());
 
     const band = screen.getByRole("heading", {
       name: "숫자는 코드가 계산하고, 요약은 문장으로 정리해요",
@@ -227,8 +241,8 @@ describe("landing page", () => {
     expect(within(band).getByText("8월보다 +909,200원 늘었어요")).toBeInTheDocument();
   });
 
-  it("shows both plans, the temporary KRW price, and the overseas currency notice", () => {
-    render(<Page />);
+  it("shows both plans, the temporary KRW price, and the overseas currency notice", async () => {
+    render(await Page());
 
     expect(screen.getByRole("heading", { name: "요금" })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "Free" })).toBeInTheDocument();
@@ -249,12 +263,12 @@ describe("landing page", () => {
     expect(screen.getByText(
       "해외에서는 $4.99/월로 결제돼요. 결제 통화는 결제 화면에서 정해져요.",
     )).toBeInTheDocument();
-    expect(renderToStaticMarkup(<Page />)).toContain("월 6,900원");
+    expect(renderToStaticMarkup(await Page())).toContain("월 6,900원");
   });
 
-  it("uses the demo analytics result for the month, total, top three categories, and candidates", () => {
+  it("uses the demo analytics result for the month, total, top three categories, and candidates", async () => {
     const { month, snapshot, findings } = demoDashboard();
-    render(<Page />);
+    render(await Page());
     const hero = screen.getByRole("heading", { level: 1 }).closest("section")!;
 
     expect(screen.getByText(`${formatMonth(month)} 총지출`)).toBeInTheDocument();
@@ -274,9 +288,9 @@ describe("landing page", () => {
     expect(screen.getByText("예시 데이터")).toBeInTheDocument();
   });
 
-  it("places a DTO-based preview between each plan's feature list and signup button", () => {
+  it("places a DTO-based preview between each plan's feature list and signup button", async () => {
     const { findings } = demoDashboard();
-    render(<Page />);
+    render(await Page());
 
     const count = Object.values(findings.byKind).reduce((sum, { count }) => sum + count, 0);
     const sentence = `확인이 필요한 지출 ${count}건 · 후보 합계 ${formatWon(findings.candidateTotal)}`;
@@ -304,8 +318,8 @@ describe("landing page", () => {
     }
   });
 
-  it("uses the first sorted demo card label in the starting illustration", () => {
-    render(<Page />);
+  it("uses the first sorted demo card label in the starting illustration", async () => {
+    render(await Page());
 
     const labels = [...new Set(DEMO_TRANSACTIONS.map(({ cardLabel }) => cardLabel))]
       .sort((a, b) => a.localeCompare(b, "ko"));
@@ -314,19 +328,19 @@ describe("landing page", () => {
     expect(list.querySelector("a, button, [tabindex]")).toBeNull();
   });
 
-  it("shows the floating duplicate sentence and the demo card files in the hero", () => {
-    render(<Page />);
+  it("shows the floating duplicate sentence and the demo card files in the hero", async () => {
+    render(await Page());
     const hero = screen.getByRole("heading", { level: 1 }).closest("section")!;
 
     expect(within(hero).getByText("중복 결제 의심 · 9월 18일 32,000원 × 2"))
       .toHaveClass("text-amber-200");
     expect(within(hero).getByText("생활비 카드.xlsx")).toBeInTheDocument();
     expect(within(hero).getByText("온라인 쇼핑 카드.csv")).toBeInTheDocument();
-    expect(renderToStaticMarkup(<Page />))
+    expect(renderToStaticMarkup(await Page()))
       .toContain("중복 결제 의심 · 9월 18일 32,000원 × 2");
   });
 
-  it("keeps mockup numbers tied to buildDashboard when its result changes", () => {
+  it("keeps mockup numbers tied to buildDashboard when its result changes", async () => {
     const dashboard = demoDashboard();
     const changed = {
       ...dashboard,
@@ -356,7 +370,7 @@ describe("landing page", () => {
       },
     };
     const buildDashboard = vi.spyOn(analytics, "buildDashboard").mockReturnValue(changed);
-    render(<Page />);
+    render(await Page());
     const hero = screen.getByRole("heading", { level: 1 }).closest("section")!;
 
     expect(buildDashboard).toHaveBeenCalledWith({

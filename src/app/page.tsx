@@ -11,6 +11,7 @@ import { StartSteps } from "@/components/landing/start-steps";
 import { SummaryBand } from "@/components/landing/summary-band";
 import { Wordmark } from "@/components/wordmark";
 import { buildDashboard } from "@/lib/analytics/dashboard";
+import { getSessionUser } from "@/lib/auth";
 import { DEMO_SUMMARY, DEMO_SUMMARY_MONTH, DEMO_TODAY, DEMO_TRANSACTIONS } from "@/lib/demo/fixture";
 import { formatWon } from "@/lib/format";
 
@@ -19,7 +20,8 @@ const PRO_PRICE_KRW = 6_900; // 임시값: PRD [확정 필요]
 const freeFeatures = ["월별 소비 현황", "전월 대비", "확인할 지출 건수와 합계", "월간 요약"];
 const proFeatures = ["Free의 모든 기능", "확인할 지출 상세", "최대 12개월 추세", "더 자세한 월간 요약"];
 
-export default function Page(): React.JSX.Element {
+export default async function Page(): Promise<React.JSX.Element> {
+  const user = await getSessionUser();
   const dashboard = buildDashboard({
     transactions: DEMO_TRANSACTIONS,
     plan: "pro",
@@ -39,10 +41,10 @@ export default function Page(): React.JSX.Element {
           <header className="flex items-center justify-between gap-6">
             <Wordmark tone="onDark" />
             <Link
-              href="/login"
+              href={user ? "/dashboard" : "/login"}
               className="rounded-lg font-semibold text-white hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
-              로그인
+              {user ? "대시보드" : "로그인"}
             </Link>
           </header>
 
