@@ -254,9 +254,11 @@ class TestBuildPreamble:
         result = executor._build_preamble("", ctx)
         assert "이전 Step 산출물" in result
 
-    def test_includes_commit_example(self, executor):
+    def test_tells_session_not_to_commit(self, executor):
+        # 커밋은 실행기가 feat(코드)·chore(index.json)로 나눠 한다.
         result = executor._build_preamble("", "")
-        assert "feat(mvp):" in result
+        assert "커밋하지 마라" in result
+        assert "모든 변경사항을 커밋하라" not in result
 
     def test_includes_rules(self, executor):
         result = executor._build_preamble("", "")
@@ -610,6 +612,55 @@ class TestExecuteSingleStepDeploy:
         assert self._run_completed_step(executor) == ["commit"]
 
 
+class TestExecuteSingleStepOutcome:
+    @staticmethod
+    def _fake_progress(seconds):
+        import contextlib
+        import types as _types
+
+        @contextlib.contextmanager
+        def fake(label):
+            info = _types.SimpleNamespace(elapsed=0.0)
+            try:
+                yield info
+            finally:
+                info.elapsed = seconds
+        return fake
+
+    @staticmethod
+    def _set_status(executor, **fields):
+        def fake_invoke(step, preamble):
+            index = json.loads(executor._index_file.read_text())
+            index["steps"][2].update(fields)
+            executor._index_file.write_text(json.dumps(index))
+        executor._invoke_codex = fake_invoke
+
+    def test_reports_elapsed_after_codex_returns(self, executor, capsys):
+        self._set_status(executor, status="completed", summary="done")
+        executor._commit_step = lambda num, name: None
+        with patch.object(ex, "progress_indicator", self._fake_progress(42.7)):
+            executor._execute_single_step({"step": 2, "name": "ui"}, "guardrails")
+        assert "[42s]" in capsys.readouterr().out
+
+    def test_blocked_does_not_commit(self, executor, top_index):
+        commits = []
+        self._set_status(executor, status="blocked", blocked_reason="키 필요")
+        executor._commit_step = lambda num, name: commits.append(num)
+        with pytest.raises(SystemExit) as exc_info:
+            executor._execute_single_step({"step": 2, "name": "ui"}, "guardrails")
+        assert exc_info.value.code == 2
+        assert commits == []
+
+    def test_error_after_retries_does_not_commit(self, executor, top_index):
+        commits = []
+        self._set_status(executor, status="error", error_message="AC 실패")
+        executor._commit_step = lambda num, name: commits.append(num)
+        with pytest.raises(SystemExit) as exc_info:
+            executor._execute_single_step({"step": 2, "name": "ui"}, "guardrails")
+        assert exc_info.value.code == 1
+        assert commits == []
+
+
 # ---------------------------------------------------------------------------
 # progress_indicator (= 이전 Spinner)
 # ---------------------------------------------------------------------------
@@ -658,7 +709,13 @@ class TestMainCli:
         with patch("sys.argv", ["execute.py", "0-mvp", "--deploy"]):
             with patch.object(ex, "StepExecutor") as mock_cls:
                 ex.main()
-        mock_cls.assert_called_once_with("0-mvp", auto_push=False, auto_deploy=True)
+        mock_cls.assert_called_once_with("0-mvp", auto_push=False, auto_deploy=True, resume=False)
+
+    def test_resume_flag_enables_resume(self):
+        with patch("sys.argv", ["execute.py", "0-mvp", "--resume"]):
+            with patch.object(ex, "StepExecutor") as mock_cls:
+                ex.main()
+        mock_cls.assert_called_once_with("0-mvp", auto_push=False, auto_deploy=False, resume=True)
 
 
 # ---------------------------------------------------------------------------
@@ -682,7 +739,59 @@ class TestCheckBlockers:
         inst._top_index_file = tmp_project / "phases" / "index.json"
         inst._phase_name = "test"
         inst._total = len(steps)
+        inst._resume = False
         return inst
+
+    @staticmethod
+    def _write_top(tmp_project, entry):
+        p = tmp_project / "phases" / "index.json"
+        p.write_text(json.dumps({"phases": [entry, {"dir": "other", "status": "blocked", "blocked_at": "x"}]}))
+        return p
+
+    def test_blocked_message_suggests_resume(self, tmp_project, capsys):
+        steps = [{"step": 0, "name": "stuck", "status": "blocked", "blocked_reason": "push 필요"}]
+        inst = self._make_executor_with_steps(tmp_project, steps)
+        with pytest.raises(SystemExit):
+            inst._check_blockers()
+        assert "--resume" in capsys.readouterr().out
+
+    def test_resume_resets_blocked_step_and_phase(self, tmp_project):
+        steps = [
+            {"step": 0, "name": "ok", "status": "completed"},
+            {"step": 1, "name": "stuck", "status": "blocked", "blocked_reason": "push 필요",
+             "blocked_at": "2026-10-13T08:33:47+0900", "started_at": "2026-10-13T08:29:17+0900"},
+        ]
+        inst = self._make_executor_with_steps(tmp_project, steps)
+        top = self._write_top(tmp_project, {"dir": "test-phase", "status": "blocked", "blocked_at": "t"})
+        inst._resume = True
+        inst._check_blockers()
+
+        step = json.loads(inst._index_file.read_text())["steps"][1]
+        assert step["status"] == "pending"
+        assert "blocked_reason" not in step and "blocked_at" not in step
+        assert step["started_at"] == "2026-10-13T08:29:17+0900"
+        phases = json.loads(top.read_text())["phases"]
+        assert phases[0] == {"dir": "test-phase", "status": "pending"}
+        assert phases[1]["status"] == "blocked"  # 다른 phase는 그대로
+
+    def test_resume_resets_error_step(self, tmp_project):
+        steps = [{"step": 0, "name": "bad", "status": "error", "error_message": "fail", "failed_at": "t"}]
+        inst = self._make_executor_with_steps(tmp_project, steps)
+        self._write_top(tmp_project, {"dir": "test-phase", "status": "error", "failed_at": "t"})
+        inst._resume = True
+        inst._check_blockers()
+
+        step = json.loads(inst._index_file.read_text())["steps"][0]
+        assert step["status"] == "pending"
+        assert "error_message" not in step and "failed_at" not in step
+
+    def test_resume_without_blocker_is_noop(self, tmp_project):
+        steps = [{"step": 0, "name": "ok", "status": "completed"}, {"step": 1, "name": "next", "status": "pending"}]
+        inst = self._make_executor_with_steps(tmp_project, steps)
+        before = inst._index_file.read_text()
+        inst._resume = True
+        inst._check_blockers()
+        assert inst._index_file.read_text() == before
 
     def test_error_step_exits_1(self, tmp_project):
         steps = [

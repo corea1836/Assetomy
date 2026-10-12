@@ -135,6 +135,7 @@ npm test        # 테스트 통과
 python3 scripts/execute.py {task-name}        # 순차 실행
 python3 scripts/execute.py {task-name} --push  # 실행 후 push
 python3 scripts/execute.py {task-name} --deploy  # step 완료마다 Vercel preview 배포
+python3 scripts/execute.py {task-name} --resume  # blocked·error step을 pending으로 되돌리고 이어서 실행
 ```
 
 execute.py가 자동으로 처리하는 것:
@@ -144,11 +145,12 @@ execute.py가 자동으로 처리하는 것:
 - 가드레일 주입 — CLAUDE.md + docs/*.md 내용을 매 step 프롬프트에 포함(하위 폴더 `docs/testing/` 등은 제외)
 - 컨텍스트 누적 — 완료된 step의 summary를 다음 step 프롬프트에 전달
 - 자가 교정 — 실패 시 최대 3회 재시도하며, 이전 에러 메시지를 프롬프트에 피드백
-- 2단계 커밋 — 코드 변경(`feat`)과 메타데이터(`chore`)를 분리 커밋
+- 2단계 커밋 — step이 completed일 때만 코드 변경(`feat`)과 메타데이터(`chore`)를 분리 커밋. step 세션은 커밋하지 않는다. blocked·error면 커밋하지 않고 작업 트리에 남긴다
 - 타임스탬프 — started_at, completed_at, failed_at, blocked_at 자동 기록
 - 배포(`--deploy`) — step 완료 시 커밋 전에 `vercel deploy --yes`를 실행하고 `deploy_url` 또는 `deploy_error`를 기록 (배포 실패는 step을 실패시키지 않음)
 
 에러 복구:
 
-- **error 발생 시**: `phases/{task-name}/index.json`에서 해당 step의 `status`를 `"pending"`으로 바꾸고 `error_message`를 삭제한 뒤 재실행한다.
-- **blocked 발생 시**: `blocked_reason`에 적힌 사유를 해결한 뒤, `status`를 `"pending"`으로 바꾸고 `blocked_reason`을 삭제한 뒤 재실행한다.
+- **error 발생 시**: `error_message`를 보고 원인을 고친 뒤 `--resume`으로 재실행한다.
+- **blocked 발생 시**: `blocked_reason`에 적힌 사유를 해결한 뒤 `--resume`으로 재실행한다.
+- `--resume`은 마지막 blocked·error step과 `phases/index.json`의 phase 상태를 `pending`으로 되돌리고(`blocked_reason`·`blocked_at`·`error_message`·`failed_at` 삭제, `started_at` 유지) 그 step부터 이어서 실행한다. 이전 시도의 변경은 작업 트리에 남아 있어 세션이 이어서 쓴다.

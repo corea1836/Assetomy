@@ -3,7 +3,7 @@
 Harness Step Executor — phase 내 step을 순차 실행하고 자가 교정한다.
 
 Usage:
-    python3 scripts/execute.py <phase-dir> [--push] [--deploy]
+    python3 scripts/execute.py <phase-dir> [--push] [--deploy] [--resume]
 """
 
 import argparse
@@ -58,7 +58,8 @@ class StepExecutor:
     CHORE_MSG = "chore({phase}): step {num} output"
     TZ = timezone(timedelta(hours=9))
 
-    def __init__(self, phase_dir_name: str, *, auto_push: bool = False, auto_deploy: bool = False):
+    def __init__(self, phase_dir_name: str, *, auto_push: bool = False, auto_deploy: bool = False,
+                 resume: bool = False):
         self._root = str(ROOT)
         self._phases_dir = ROOT / "phases"
         self._phase_dir = self._phases_dir / phase_dir_name
@@ -66,6 +67,7 @@ class StepExecutor:
         self._top_index_file = self._phases_dir / "index.json"
         self._auto_push = auto_push
         self._auto_deploy = auto_deploy
+        self._resume = resume
 
         if not self._phase_dir.is_dir():
             print(f"ERROR: {self._phase_dir} not found")
@@ -200,9 +202,6 @@ class StepExecutor:
 
     def _build_preamble(self, guardrails: str, step_context: str,
                         prev_error: Optional[str] = None) -> str:
-        commit_example = self.FEAT_MSG.format(
-            phase=self._phase_name, num="N", name="<step-name>"
-        )
         retry_section = ""
         if prev_error:
             retry_section = (
@@ -222,8 +221,8 @@ class StepExecutor:
             f"   - AC 통과 → \"completed\" + \"summary\" 필드에 이 step의 산출물을 한 줄로 요약\n"
             f"   - {self.MAX_RETRIES}회 수정 시도 후에도 실패 → \"error\" + \"error_message\" 기록\n"
             f"   - 사용자 개입이 필요한 경우 (API 키, 인증, 수동 설정 등) → \"blocked\" + \"blocked_reason\" 기록 후 즉시 중단\n"
-            f"6. 모든 변경사항을 커밋하라:\n"
-            f"   {commit_example}\n\n---\n\n"
+            f"6. 커밋하지 마라. 실행기가 step 완료 후 코드(feat)와 index.json(chore)을 나눠 커밋한다. "
+            f"blocked·error로 끝나도 작업 트리를 되돌리거나 stash하지 마라(재개할 때 이어서 쓴다).\n\n---\n\n"
         )
 
     # --- Codex 호출 ---
@@ -317,18 +316,40 @@ class StepExecutor:
     def _check_blockers(self):
         index = self._read_json(self._index_file)
         for s in reversed(index["steps"]):
+            if s["status"] in ("error", "blocked") and self._resume:
+                self._reset_step(index, s)
+                return
             if s["status"] == "error":
                 print(f"\n  ✗ Step {s['step']} ({s['name']}) failed.")
                 print(f"  Error: {s.get('error_message', 'unknown')}")
-                print(f"  Fix and reset status to 'pending' to retry.")
+                print(f"  고친 뒤 --resume으로 이어서 실행하세요.")
                 sys.exit(1)
             if s["status"] == "blocked":
                 print(f"\n  ⏸ Step {s['step']} ({s['name']}) blocked.")
                 print(f"  Reason: {s.get('blocked_reason', 'unknown')}")
-                print(f"  Resolve and reset status to 'pending' to retry.")
+                print(f"  해결한 뒤 --resume으로 이어서 실행하세요.")
                 sys.exit(2)
             if s["status"] != "pending":
                 break
+
+    def _reset_step(self, index: dict, step: dict):
+        """blocked·error step과 phase 상태를 pending으로 되돌린다. started_at은 남긴다."""
+        print(f"\n  ↻ Step {step['step']} ({step['name']}): {step['status']} → pending (--resume)")
+        step["status"] = "pending"
+        for key in ("blocked_reason", "blocked_at", "error_message", "failed_at"):
+            step.pop(key, None)
+        self._write_json(self._index_file, index)
+
+        if not self._top_index_file.exists():
+            return
+        top = self._read_json(self._top_index_file)
+        for phase in top.get("phases", []):
+            if phase.get("dir") == self._phase_dir_name:
+                phase["status"] = "pending"
+                for key in ("blocked_at", "failed_at"):
+                    phase.pop(key, None)
+                break
+        self._write_json(self._top_index_file, top)
 
     def _ensure_created_at(self):
         index = self._read_json(self._index_file)
@@ -355,7 +376,7 @@ class StepExecutor:
 
             with progress_indicator(tag) as pi:
                 self._invoke_codex(step, preamble)
-                elapsed = int(pi.elapsed)
+            elapsed = int(pi.elapsed)
 
             index = self._read_json(self._index_file)
             status = next((s.get("status", "pending") for s in index["steps"] if s["step"] == step_num), "pending")
@@ -380,6 +401,7 @@ class StepExecutor:
                 reason = next((s.get("blocked_reason", "") for s in index["steps"] if s["step"] == step_num), "")
                 print(f"  ⏸ Step {step_num}: {step_name} blocked [{elapsed}s]")
                 print(f"    Reason: {reason}")
+                print(f"    변경사항은 커밋하지 않고 작업 트리에 남겼습니다. 해결한 뒤 --resume으로 이어서 실행하세요.")
                 self._update_top_index("blocked")
                 sys.exit(2)
 
@@ -403,9 +425,9 @@ class StepExecutor:
                         s["error_message"] = f"[{self.MAX_RETRIES}회 시도 후 실패] {err_msg}"
                         s["failed_at"] = ts
                 self._write_json(self._index_file, index)
-                self._commit_step(step_num, step_name)
                 print(f"  ✗ Step {step_num}: {step_name} failed after {self.MAX_RETRIES} attempts [{elapsed}s]")
                 print(f"    Error: {err_msg}")
+                print(f"    변경사항은 커밋하지 않고 작업 트리에 남겼습니다. 고친 뒤 --resume으로 이어서 실행하세요.")
                 self._update_top_index("error")
                 sys.exit(1)
 
@@ -459,9 +481,10 @@ def main():
     parser.add_argument("phase_dir", help="Phase directory name (e.g. 0-mvp)")
     parser.add_argument("--push", action="store_true", help="Push branch after completion")
     parser.add_argument("--deploy", action="store_true", help="Deploy to Vercel preview after each completed step")
+    parser.add_argument("--resume", action="store_true", help="Reset the blocked/error step to pending and continue")
     args = parser.parse_args()
 
-    StepExecutor(args.phase_dir, auto_push=args.push, auto_deploy=args.deploy).run()
+    StepExecutor(args.phase_dir, auto_push=args.push, auto_deploy=args.deploy, resume=args.resume).run()
 
 
 if __name__ == "__main__":
