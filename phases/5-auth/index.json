@@ -31,7 +31,8 @@
       "name": "auth-pages",
       "status": "completed",
       "started_at": "2026-10-12T23:56:14+0900",
-      "summary": "src/app/login/page.tsx: '구글 계정으로 시작해요'·정보 안내·LOGIN_ERROR_MESSAGES의 취소/실패 및 재시도 alert, safeNextPath·로그인 상태 redirect·POST /auth/login(hidden next); src/app/dashboard/page.tsx: requireUser('/dashboard')·'아직 올린 이용내역이 없어요'·준비 안내·'로그아웃'(POST /auth/logout); src/components/google-sign-in-button.tsx: 'Google로 계속하기' submit·흰 버튼·18px 4색 G SVG; 두 페이지에 홈 워드마크·포커스 표시, 새 테스트 20개 및 전체 AC 통과(697개 통과·1개 건너뜀)"
+      "summary": "src/app/login/page.tsx: '구글 계정으로 시작해요'·정보 안내·LOGIN_ERROR_MESSAGES의 취소/실패 및 재시도 alert, safeNextPath·로그인 상태 redirect·POST /auth/login(hidden next); src/app/dashboard/page.tsx: requireUser('/dashboard')·'아직 올린 이용내역이 없어요'·준비 안내·'로그아웃'(POST /auth/logout); src/components/google-sign-in-button.tsx: 'Google로 계속하기' submit·흰 버튼·18px 4색 G SVG; 두 페이지에 홈 워드마크·포커스 표시, 새 테스트 20개 및 전체 AC 통과(697개 통과·1개 건너뜀)",
+      "completed_at": "2026-10-13T00:01:15+0900"
     }
   ],
   "created_at": "2026-10-12T23:22:21+0900"
