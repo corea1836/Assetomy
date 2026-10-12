@@ -14,6 +14,10 @@
       "dir": "2-landing-demo",
       "status": "completed",
       "completed_at": "2026-10-12T04:10:28+0900"
+    },
+    {
+      "dir": "3-landing-visual",
+      "status": "pending"
     }
   ]
 }

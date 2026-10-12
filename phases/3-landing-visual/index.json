@@ -1,0 +1,36 @@
+{
+  "project": "assetomy",
+  "phase": "3-landing-visual",
+  "steps": [
+    {
+      "step": 0,
+      "name": "visual-foundation",
+      "status": "pending"
+    },
+    {
+      "step": 1,
+      "name": "summary-card",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "hero-visual",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "feature-showcase",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "summary-band",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "steps-pricing",
+      "status": "pending"
+    }
+  ]
+}
