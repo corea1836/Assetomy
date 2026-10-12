@@ -13,7 +13,9 @@
     {
       "step": 1,
       "name": "hyundai-pdf",
-      "status": "pending"
+      "status": "completed",
+      "summary": "src/lib/parsing/profiles/hyundai-statement-pdf.ts의 MAX_TRANSACTIONS = 5000, detectHyundaiStatement(rows: PdfRow[]): boolean, parseHyundaiStatement(rows: PdfRow[]): ParseResult 및 hyundai-statement-pdf.test.ts(44개) 구현; fixture 78건·1,820,075원과 월별 합계 일치 검증",
+      "started_at": "2026-10-12T16:27:40+0900"
     },
     {
       "step": 2,
