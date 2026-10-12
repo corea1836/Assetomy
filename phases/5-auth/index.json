@@ -16,7 +16,7 @@
       "status": "completed",
       "started_at": "2026-10-12T23:47:28+0900",
       "summary": "src/types/auth.ts의 SessionUser = { id: string }·LoginErrorCode = 'cancelled' | 'failed'; src/lib/errors/messages.ts의 LOGIN_ERROR_MESSAGES: Record<LoginErrorCode, string>·parseLoginErrorCode(value: unknown): LoginErrorCode | null; src/lib/auth.ts('server-only')의 DEFAULT_NEXT_PATH = '/dashboard'·safeNextPath(value: unknown): string·loginPath(next: string, error?: LoginErrorCode): string·getSessionUser(): Promise<SessionUser | null>·requireUser(nextPath: string): Promise<SessionUser>; next는 문자열·단일 / 시작만 허용하고 //·역슬래시·제어 문자·/login 및 /login/ 하위·/auth/ 경로를 거절하며 쿼리·해시는 유지; getClaims 기반 세션 조회·로그인 리다이렉트 및 새 테스트 60개, 전체 AC 통과(625개 통과·1개 건너뜀)",
-      "completed_at": "2026-10-12T23:50:30+0900"
+      "completed_at": "2026-10-12T23:51:11+0900"
     },
     {
       "step": 2,
