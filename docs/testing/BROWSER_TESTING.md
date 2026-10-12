@@ -6,32 +6,32 @@
 - 기대값은 데모 fixture(`src/lib/demo/fixture.ts`)를 `buildDashboard`에 넣어 계산한 값이다. 기준일 `DEMO_TODAY = 2026-10-05`, 데이터 2026-06~09(4개월), 카드 2장(생활비 카드 · 온라인 쇼핑 카드). fixture·탐지 규칙·포맷 함수가 바뀌면 이 문서의 숫자를 먼저 갱신한다.
 
 ## 실행 환경
+작업을 마칠 때 `/browser-test`로 돌린다(`/review`가 화면 변경이 있으면 요구한다). 명령은 아래 실행기를 쓴다.
+
 ```bash
-lsof -iTCP:3100 -sTCP:LISTEN -n -P   # 비어 있어야 한다
-npm run dev -- -p 3100           # APP_MODE 미설정이면 mock(상단 배너 표시)
-dev-browser --headless --timeout 90 <<'EOF'
-const BASE = "http://localhost:3100";
-const page = await browser.getPage("s1");
-page.setDefaultTimeout(5000);
-page.setDefaultNavigationTimeout(60000);
-await page.setViewportSize({ width: 1280, height: 900 });
-const check = (name, ok, got) => console.log(`${ok ? "PASS" : "FAIL"} ${name}${ok ? "" : ` — got: ${got}`}`);
-const norm = (t) => t.replace(/\s+/g, " ").trim();
-const section = (title) => page.locator("section", { has: page.getByRole("heading", { name: title, exact: true }) }).last();
-await page.goto(`${BASE}/demo`, { waitUntil: "networkidle" });
-check("총지출", norm(await section("총지출").innerText()).includes("1,517,200원"), "");
-EOF
+scripts/browser-test/run.sh          # 전체
+scripts/browser-test/run.sh s2 s3    # 일부만
 ```
-- 도구: [dev-browser](https://github.com/sawyerhood/dev-browser) 0.2.9(`npm install -g dev-browser`). 스크립트는 QuickJS 샌드박스에서 돌고 `page`는 Playwright Page다. 스크린샷은 `await saveScreenshot(await page.screenshot({ fullPage: true }), "s1.png")` → `~/.dev-browser/tmp/`.
-- 판정은 위 `check`처럼 항목마다 `PASS`/`FAIL` 한 줄로 출력한다. 참고용 값은 `INFO`로 출력한다.
+- `run.sh`가 하는 일: 3100 포트가 비었는지 확인 → `npm run build` → `next start -p 3100` → 서버 위치가 이 저장소인지 확인 → 각 시나리오 앞에 `lib.js`를 붙여 dev-browser(`--browser assetomy-test --headless`)로 실행 → `PASS`·`FAIL` 집계 → 자기가 띄운 서버만 끈다. FAIL이나 스크립트 오류가 있으면 exit 1.
+- `scripts/browser-test/s1-*.js`~`s6-*.js`는 아래 S1~S6을 옮긴 것이다. 기대값을 바꾸면 이 문서와 스크립트를 함께 고친다. 판정은 항목마다 `PASS`/`FAIL` 한 줄로 출력한다.
+- 화면을 따로 살펴볼 때는 서버를 3100에 띄우고 도우미를 붙여 쓴다.
+  ```bash
+  cat scripts/browser-test/lib.js - <<'EOF' | dev-browser --browser assetomy-test --headless --timeout 90
+  await go("/demo");
+  check("총지출", norm(await section("총지출").innerText()).includes("1,517,200원"), "");
+  EOF
+  ```
+- 도구: [dev-browser](https://github.com/sawyerhood/dev-browser) 0.2.9(`npm install -g dev-browser`). 스크립트는 QuickJS 샌드박스에서 돌고(import 불가) `page`는 Playwright Page다. 스크린샷은 `await saveScreenshot(await page.screenshot({ fullPage: true }), "s1.png")` → `~/.dev-browser/tmp/`.
 
 ### 주의할 점
-- `page.setDefaultTimeout(5000)`과 `--timeout 90`을 쓴다. 이유: 스크립트 제한은 기본 30초이고, locator가 틀리면 Playwright 기본값(30초)만큼 기다리다 스크립트 전체가 결과 없이 끝난다. 이동은 `setDefaultNavigationTimeout(60000)`으로 따로 늘린다. 이유: dev 서버를 막 띄운 뒤 첫 이동은 컴파일 때문에 5초를 넘는다.
-- main은 3100 포트로 띄운다. 이유: `.claude/worktrees/*`의 다른 세션이 3000에 dev 서버를 띄워 두는 일이 있고, 그러면 `npm run dev`는 `EADDRINUSE`로 끝나는데 테스트는 그 worktree 화면을 상대로 통과해 버린다. 띄운 뒤 `lsof -a -p $(lsof -ti tcp:3100 -sTCP:LISTEN) -d cwd`로 서버 위치가 이 저장소인지 확인한다.
-- 테스트가 끝나면 `dev-browser stop`, `lsof -ti tcp:3100 -sTCP:LISTEN | xargs kill`로 내가 띄운 서버만 정리한다(`-sTCP:LISTEN`이 없으면 그 포트에 붙은 다른 프로세스까지 잡힌다). 다른 포트의 서버는 끄지 않는다. `pkill -f "next dev"`는 자식 `next-server`를 남길 수 있고, 남은 서버에 붙으면 `networkidle`에 도달하지 않는다.
+- 프로덕션 서버(`next start`)에서는 Playwright의 `networkidle`이 오지 않는다(남은 요청이 0건이어도). 이동은 `go()`를, 클릭 이동 뒤에는 `settle()`을 쓴다. `load` 뒤 직접 센 요청이 0.5초 동안 0건이면 안정된 것으로 본다.
+- 프로덕션에서는 링크 프리페치가 아직 없는 `/login`을 요청해 404를 내고, 그 요청이 브라우저에서 끝나지 않은 채 남는다. `lib.js`는 이 요청을 오류 집계와 안정 판정에서 뺀다. `/login`이 생기면 이 예외를 지운다.
+- `lib.js`는 요소 대기 5초, 이동 대기 60초로 둔다. 이유: locator가 틀리면 Playwright 기본값(30초)만큼 기다리다 스크립트 전체가 결과 없이 끝나고, 서버를 막 띄운 뒤 첫 이동은 5초를 넘는다.
+- 3100 포트를 쓴다. 이유: `.claude/worktrees/*`의 다른 세션이 3000에 서버를 띄워 두는 일이 있고, 그러면 내 서버는 `EADDRINUSE`로 뜨지 못하는데 테스트는 그 worktree 화면을 상대로 통과해 버린다.
+- 서버는 `lsof -ti tcp:3100 -sTCP:LISTEN | xargs kill`로 내가 띄운 것만 끈다(`-sTCP:LISTEN`이 없으면 그 포트에 붙은 다른 프로세스까지 잡힌다). `pkill -f "next dev"`는 자식 `next-server`를 남긴다. `dev-browser stop`은 다른 세션의 브라우저까지 끄므로 쓰지 않는다(`run.sh`는 `--idle-timeout 5m`으로 자기 브라우저를 닫는다).
 - 섹션은 `<h2>` 제목으로 찾는다(`section(...)`). 제목: `총지출`, `카테고리`, `가장 많이 쓴 곳`, `일별 지출`, `확인이 필요한 지출`, `월별 추세`, `이번 달 요약`, `내 카드로 확인해 보세요`. 랜딩은 `요금`.
 - 클라이언트 이동 직후 `page.title()`은 잠깐 빈 문자열이다(Next 16이 metadata를 스트리밍으로 넣음). `await page.waitForFunction(() => document.title !== "")` 뒤에 확인한다.
-- dev 모드에서는 Next.js 개발 도구(`NEXTJS-PORTAL`)가 Tab 순서 첫 번째에 끼어든다. 포커스 검사에서 제외한다.
+- dev 서버에서는 Next.js 개발 도구(`NEXTJS-PORTAL`)가 Tab 순서 첫 번째에 끼어든다. S6의 Tab 검사는 이를 건너뛴다.
 - `/login`은 아직 없다(404). CTA는 `href`만 확인하고 누르지 않는다.
 - 샌드박스의 `new URL(...).pathname`은 믿을 수 없다(맞는 URL에서도 비교가 실패했다). 경로는 `page.url().replace(BASE, "")`처럼 문자열로 비교한다.
 - `next.config.ts`의 `agentRules: false` 때문에 에이전트가 띄운 `next dev`도 `AGENTS.md`를 고치지 않는다. 테스트 뒤 `AGENTS.md`가 바뀌어 있으면 이 설정이 빠졌는지 확인한다.
@@ -130,3 +130,4 @@ EOF
 | 2026-10-12 | `c6e42d4` + 작업 트리(데모 CTA `내 이용내역으로 해보기`) | S1~S6 통과. S5의 `/login` 이동은 제외 | 탭 제목 타이밍·`NEXTJS-PORTAL`은 측정 문제로 판정. 방향키 항목은 미확인. 이후 차트가 Tab에 걸리는 문제를 찾음 |
 | 2026-10-12 | `7f6d4d0`(main, 3100 포트) | S1~S6 통과. S5의 `/login` 이동은 제외 | `e43f217`의 차트 포커스 수정 확인. fixture 변경에 맞춰 6~8월 기대값·전월 대비 갱신. 방향키 항목은 미확인 |
 | 2026-10-12 | `198faf8` + `worktree-ux-polish`(UX 가이드 반영, worktree 3000 포트) | 85개 항목 통과(S1~S6, 8월 단계·차트 포커스 포함). `/login` 이동은 제외 | 첫 실행 실패 5건은 `new URL` 비교·검사식 오류로 측정 문제였다. 방향키 항목은 미확인 |
+| 2026-10-12 | `2df29c1` + 작업 트리(`scripts/browser-test/` 추가), `run.sh` 프로덕션 빌드 | PASS 80 · FAIL 0 · 스크립트 오류 0 | 시나리오를 스크립트로 고정한 첫 실행. 프로덕션 `networkidle` 미도달·`/login` 프리페치 문제를 찾아 `settle()`로 대체. 방향키 항목은 미확인 |
