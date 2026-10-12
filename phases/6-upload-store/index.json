@@ -1,0 +1,11 @@
+{
+  "project": "assetomy",
+  "phase": "6-upload-store",
+  "steps": [
+    { "step": 0, "name": "upload-schema", "status": "pending" },
+    { "step": 1, "name": "upload-rpc", "status": "pending" },
+    { "step": 2, "name": "file-crypto", "status": "pending" },
+    { "step": 3, "name": "upload-store", "status": "pending" },
+    { "step": 4, "name": "statement-storage", "status": "pending" }
+  ]
+}
