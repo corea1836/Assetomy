@@ -41,7 +41,7 @@ MVP 한 사이클(랜딩 → 데모 → 로그인 → 대시보드 → 결제 �
 **트레이드오프**: 4MB를 넘는 파일은 기간을 나눠 받아야 한다. 키 하나가 유출되면 모든 원본이 노출되고, MVP에는 키 교체가 없다. 키를 잃으면 원본을 복구할 수 없다. 거래 데이터는 DB에 평문으로 있다(RLS와 Supabase 기본 암호화로 보호).
 
 ### ADR-008: 업로드 처리 = 원자적 claim + lease + 단일 트랜잭션 ingest, 재claim 없음
-**결정**: 업로드 행은 사용자 잠금 아래 processing(6분 lease)으로 만들고, needs_mapping→processing(매핑 확인)은 조건부 update로 claim한다. 거래 insert와 상태·결과 갱신은 `ingest_upload` 한 트랜잭션이다. RPC 응답이 불명확하면 상태를 한 번 다시 읽고, 확인할 수 없으면 행을 보존한 채 503을 돌려준다(202·상태 폴링 없음). lease가 만료된 processing은 정기 작업이 failed로 끝내고 사용자가 다시 올린다. needs_mapping은 lease를 잡지 않고, 1시간이 지나면 정기 작업이 failed로 끝낸다.
+**결정**: 업로드 행은 사용자 잠금 아래 processing(6분 lease)으로 만들고, needs_mapping→processing(매핑 확인)은 조건부 update로 claim한다. 거래 insert와 상태·결과 갱신은 `ingest_upload` 한 트랜잭션이다. RPC 응답이 불명확하면 상태를 한 번 다시 읽고, 확인할 수 없으면 행을 보존한 채 503을 돌려준다(202·상태 폴링 없음). lease가 만료된 processing은 늦게 도착한 ingest나 정기 작업이 failed로 끝내고 사용자가 다시 올린다. 동시 처리 한도는 lease가 남은 processing만 센다. needs_mapping은 lease를 잡지 않고, 1시간이 지나면 정기 작업이 failed로 끝낸다.
 **이유**: 둘 사이에서 실패하거나 동시 이중 처리가 일어나면 완료 거래가 유실될 수 있다. 자동 재claim과 세대 번호 없이도 lease 검사만으로 늦은 커밋을 막을 수 있다.
 **트레이드오프**: 함수가 강제 종료되면 사용자가 재업로드해야 한다.
 
@@ -103,7 +103,7 @@ MVP 한 사이클(랜딩 → 데모 → 로그인 → 대시보드 → 결제 �
 ### ADR-020: Supabase = 클라우드 프로젝트에 API로 연결(로컬 Docker 미사용)
 **결정**: 로컬 개발도 클라우드 dev 프로젝트(`assetomy-dev`, 서울)에 URL·키로 연결한다. Preview는 같은 dev 프로젝트, Production은 deploy phase에서 만드는 prod 프로젝트를 쓴다. 인증 설정(Google provider · Site URL · Redirect URLs · 이메일 가입 끔)은 프로젝트 대시보드에서 관리하고, `supabase/config.toml`은 마이그레이션·pgTAP용으로만 둔다.
 **이유**: Docker 없이 바로 쓸 수 있고, 구글 OAuth 리디렉션 URI를 배포 환경과 같은 형태(`https://<ref>.supabase.co/auth/v1/callback`)로 맞춘다.
-**트레이드오프**: 로컬·Preview·DB 통합 테스트가 같은 dev 데이터베이스를 쓴다. 통합 테스트·pgTAP의 격리 방법은 upload phase에서 정한다. 인증 설정이 코드에 없어 prod 프로젝트에 같은 값을 손으로 다시 넣어야 한다. 무료 프로젝트는 오래 쓰지 않으면 일시 정지된다.
+**트레이드오프**: 로컬·Preview·DB 통합 테스트가 같은 dev 데이터베이스를 쓴다. 그래서 DB 통합 테스트는 테스트마다 admin API로 임시 사용자를 만들고 끝나면 지우며, pgTAP은 트랜잭션 안에서 돌고 롤백한다. 인증 설정이 코드에 없어 prod 프로젝트에 같은 값을 손으로 다시 넣어야 한다. 무료 프로젝트는 오래 쓰지 않으면 일시 정지된다.
 
 ### ADR-021: 로그인 = 서버에서 시작하는 구글 OAuth(PKCE) + 폼 POST
 **결정**: `/login`의 폼이 `POST /auth/login`으로 `next`를 보내면, Route Handler가 Origin을 검사하고 서버 Supabase 클라이언트의 `signInWithOAuth`로 PKCE 흐름을 시작해 303으로 구글에 보낸다. 복귀 URL은 `lib/origin.ts`로 만든다. `/auth/callback`이 코드를 교환하고, 로그아웃도 `POST /auth/logout` 폼이다. 브라우저용 Supabase 클라이언트는 두지 않는다. 구글 버튼은 Google 브랜드 가이드(흰 바탕 · `#747775` 테두리 · 원래 색 G 로고, "Google로 계속하기")를 따른다.

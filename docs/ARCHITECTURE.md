@@ -85,8 +85,8 @@ types/     도메인 타입 · 에러 코드
 ## 업로드 흐름
 ```
 (1) POST /api/uploads          multipart {cardId, file}(원본 4MB)
-      사용자 잠금 → 24시간 30개·동시 2개 검사 → processing 업로드 커밋(6분 lease)
-      → AES-256-GCM 암호화 후 Storage 저장(평문은 메모리에서만) → file_hash 검사 → 형식 판정
+      사용자 잠금 → 24시간 30개·동시 2개 검사 → file_hash 검사(같은 파일이면 업로드 행·원본 없이 no_new)
+      → processing 업로드 커밋(6분 lease) → AES-256-GCM 암호화 후 Storage 저장(평문은 메모리에서만) → 형식 판정
          ├ 카드사 프로필 있음 / 저장된 폴백 매핑 있음 ─▶ (3)
          ├ PDF인데 프로필 없음 ─▶ UNSUPPORTED_FILE(PDF는 폴백 없음)
          └ 없음 → Haiku 매핑 제안(헤더 + 값 패턴) → 제안을 업로드 행에 저장
@@ -103,11 +103,12 @@ types/     도메인 타입 · 에러 코드
                      │    └──"이대로 읽기"·claim──┐
                      ├─ 처음 보는 형식 ──▶ [needs_mapping] ──취소──▶ (삭제)
                      │                                    └─1시간 경과──▶ [failed]
-                     ├─ 같은 파일·모두 중복 ──▶ [no_new]
+                     ├─ 모두 중복(같은 파일 동시 처리 포함) ──▶ [no_new]
                      └─ 확정 실패·lease 만료 ─▶ [failed]
 ```
 - 응답을 받지 못하면 같은 파일을 다시 올린다. 첫 요청이 커밋됐다면 file_hash·fingerprint 때문에 no_new가 되고, 아니면 새로 처리된다. 결과가 불명확한 행은 지우지 않는다.
-- lease가 만료된 processing은 정기 작업이 failed로 끝내며 재claim하지 않는다. ingest는 커밋 시 lease를 확인해 늦은 커밋을 거절한다. needs_mapping은 lease를 잡지 않아 동시 처리 한도에 세지 않는다.
+- 이미 done인 업로드와 file_hash가 같으면 업로드 행을 만들지 않고 시도만 기록해 no_new로 응답한다(원본을 저장하지 않음). 같은 파일이 동시에 처리되면 ingest가 다시 확인해 늦은 쪽을 no_new로 끝낸다.
+- lease가 만료된 processing은 재claim하지 않는다. ingest는 커밋 시 lease를 확인해 늦은 커밋을 거절하고 그 업로드를 failed로 끝낸다. 나머지 만료 행은 정기 작업이 failed로 끝낸다. 동시 처리 한도는 lease가 남은 processing만 세므로 정기 작업 전에도 한도가 막히지 않는다. needs_mapping은 lease를 잡지 않아 동시 처리 한도에 세지 않는다.
 - 미리보기는 사용자 본인에게만 반환하고 LLM에 보내지 않는다. 클라이언트는 매핑을 보내지 않고, 서버가 저장한 제안만 확정한다.
 - 반영 기간은 저장된 거래의 최소·최대 이용일이다. 취소·환불은 파일의 날짜로 반영되므로 형식마다 월 귀속이 다를 수 있다(화면에 안내).
 
@@ -168,4 +169,5 @@ success 페이지 · 웹훅(서명 검증) · 결제 기간이 지난 상태 ─
 - 단위 `*.test.ts`(`npm test`, Supabase 불필요), DB·Storage 통합 `*.db.test.ts`(`npm run test:db`), pgTAP `supabase/tests/`. Stop hook은 단위 테스트만 돌린다.
 - 파싱은 익명화한 실제 fixture로 카드별·월별·전체 기대 합계와 정확히 일치해야 한다. 표 형식(csv·xlsx) fixture는 프로필 없이 폴백 매핑으로 읽어도 같은 합계와 fingerprint가 나와야 한다. PDF fixture는 원본 대신 익명화한 글자 조각·좌표 JSON이고, 원본 PDF 테스트는 로컬에 파일이 있을 때만 돈다.
 - 외부 서비스는 mock으로 단위 테스트하고, 권한·잠금·경합은 DB 통합 테스트로 확인한다.
+- dev DB를 함께 쓰므로 DB 통합 테스트는 테스트마다 admin API로 임시 사용자를 만들어 그 사용자 행만 다루고 끝나면 지운다. pgTAP은 트랜잭션 안에서 돌고 롤백한다(ADR-020).
 - **[확정 필요]** 초기 프로필의 나머지 카드사 1종과 .xls 지원 여부는 실제 파일을 확인한 뒤 정한다(첫 프로필은 현대카드 명세서 PDF).
