@@ -15,7 +15,8 @@
       "name": "summary-card",
       "status": "completed",
       "started_at": "2026-10-12T09:39:42+0900",
-      "summary": "MonthlySummary(props: { summary: string; source: \"ai\" | \"example\" }): React.JSX.Element을 민트 카드와 SparklesIcon으로 변경하고 출처 문구 \"AI가 가맹점명과 집계로 쓴 요약이에요. 금액은 코드로 계산해요.\"·\"예시 요약이에요. 가입하면 AI가 내 가맹점명과 집계로 요약해요.\", DEMO_SUMMARY_MONTH(2026-09)를 추가해 데모 첫 줄 왼쪽 TotalCard→요약(다른 달은 안내)·오른쪽 CategoryList로 배치"
+      "summary": "MonthlySummary(props: { summary: string; source: \"ai\" | \"example\" }): React.JSX.Element을 민트 카드와 SparklesIcon으로 변경하고 출처 문구 \"AI가 가맹점명과 집계로 쓴 요약이에요. 금액은 코드로 계산해요.\"·\"예시 요약이에요. 가입하면 AI가 내 가맹점명과 집계로 요약해요.\", DEMO_SUMMARY_MONTH(2026-09)를 추가해 데모 첫 줄 왼쪽 TotalCard→요약(다른 달은 안내)·오른쪽 CategoryList로 배치",
+      "completed_at": "2026-10-12T09:43:56+0900"
     },
     {
       "step": 2,
