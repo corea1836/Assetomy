@@ -21,7 +21,9 @@
     {
       "step": 2,
       "name": "auth-routes",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-12T23:51:12+0900",
+      "summary": "POST /auth/login: Origin·폼 검사(403/400), Google PKCE OAuth URL로 303(실패는 loginPath failed); GET /auth/callback: 코드 교환 후 safeNextPath로 302(취소/실패는 loginPath cancelled/failed); POST /auth/logout: Origin·폼 검사(403/400), local 로그아웃 후 /로 303(실패는 /dashboard); 앱 리다이렉트는 getSiteOrigin 기준 절대 URL, 테스트 52개 추가·전체 AC 통과(677개 통과·1개 건너뜀)"
     },
     {
       "step": 3,
