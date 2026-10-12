@@ -163,3 +163,4 @@ scripts/browser-test/run.sh s2 s3    # 일부만
 | 2026-10-12 | `faf31b2`(feat-4-pdf-parsing), `run.sh` 프로덕션 빌드, Node 24.21.0 | PASS 92 · FAIL 0 · 스크립트 오류 0 | 화면 변경 없는 phase(PDF 파싱 레이어·`pdfjs-dist` 추가)의 회귀 확인. 방향키 항목은 미확인 |
 | 2026-10-13 | `f6a3596`(feat-5-auth) + 작업 트리(S5 클릭 이동·S7 추가, `run.sh` 3100 Origin), `run.sh` 프로덕션 빌드, Node 24.21.0 | PASS 124 · FAIL 0 · 스크립트 오류 0 | 로그인 화면·콜백 실패 경로·폼 POST 거절·구글 도착·PKCE 쿠키 확인. 첫 실행 실패는 Next 경로 알림의 `role="alert"`와 샌드박스에 없는 `page.request` 때문인 측정 문제였다. 실제 구글 로그인은 수동 확인 대기. 방향키 항목은 미확인 |
 | 2026-10-13 | `21f0103`(feat-5-auth) + 작업 트리(랜딩 헤더 로그인 상태 반영), `run.sh` 프로덕션 빌드, Node 24.21.0 | PASS 124 · FAIL 0 · 스크립트 오류 0 | 로그인 상태의 `대시보드` 링크는 단위 테스트와 수동 확인 2번으로 본다(실제 세션은 자동화하지 않는다) |
+| 2026-10-13 | `c2d6d03`(feat-6-upload-store), `run.sh` 프로덕션 빌드, Node 24.21.0 | PASS 124 · FAIL 0 · 스크립트 오류 0 | 화면 변경 없는 phase(업로드 DB·RPC·암호화·Storage 저장 레이어)의 회귀 확인 |
