@@ -1,9 +1,10 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { buttonClass } from "@/components/button-styles";
-import { ArrowRightIcon, CardIcon, CheckIcon, SearchIcon, ShieldCheckIcon } from "@/components/icons";
+import { ArrowRightIcon, CheckIcon } from "@/components/icons";
 import { DarkBackdrop } from "@/components/landing/dark-backdrop";
 import { DemoLink } from "@/components/landing/demo-link";
+import { FeatureShowcase } from "@/components/landing/feature-showcase";
 import { HeroVisual } from "@/components/landing/hero-visual";
 import { Wordmark } from "@/components/wordmark";
 import { buildDashboard } from "@/lib/analytics/dashboard";
@@ -11,24 +12,6 @@ import { DEMO_TODAY, DEMO_TRANSACTIONS } from "@/lib/demo/fixture";
 import { formatWon } from "@/lib/format";
 
 const PRO_PRICE_KRW = 6_900; // 임시값: PRD [확정 필요]
-
-const features = [
-  {
-    Icon: CardIcon,
-    title: "한 화면에 모든 카드",
-    description: "카드사마다 받은 이용내역 파일을 올리면 카드별로 나눠 합산해요.",
-  },
-  {
-    Icon: SearchIcon,
-    title: "확인이 필요한 지출",
-    description: "정기결제로 보이는 결제, 중복 결제 의심, 평소보다 큰 결제를 찾아드려요. 정상 지출일 수도 있어요.",
-  },
-  {
-    Icon: ShieldCheckIcon,
-    title: "연동 없이, 언제든 삭제",
-    description: "계좌나 카드사에 연동하지 않아요. 원본 파일은 암호화해 보관하고, 원할 때 바로 지울 수 있어요.",
-  },
-];
 
 const steps = [
   {
@@ -108,15 +91,13 @@ export default function Page(): React.JSX.Element {
       <section className="bg-canvas">
         <div className="mx-auto max-w-[1248px] px-6 py-24">
           <h2 className="reveal text-display-sm font-normal text-ink">파일 하나로 시작해요</h2>
-          <div className="reveal mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
-            {features.map(({ Icon, title, description }) => (
-              <article key={title} className="rounded-3xl border border-hairline bg-canvas p-6 sm:p-8">
-                <Icon size={24} className="text-primary" />
-                <h3 className="mt-5 text-lg font-semibold text-ink">{title}</h3>
-                <p className="mt-3 text-base leading-relaxed text-body">{description}</p>
-              </article>
-            ))}
-          </div>
+          <FeatureShowcase
+            month={month}
+            dataMonths={dashboard.months.map(({ month }) => month)}
+            cardLabels={cardLabels}
+            snapshot={snapshot}
+            findings={findings}
+          />
         </div>
       </section>
 

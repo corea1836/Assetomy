@@ -4,7 +4,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import Page from "@/app/page";
 import * as analytics from "@/lib/analytics/dashboard";
 import { DEMO_TODAY, DEMO_TRANSACTIONS } from "@/lib/demo/fixture";
-import { formatMonth, formatWon } from "@/lib/format";
+import { formatDate, formatMonth, formatMonthShort, formatWon } from "@/lib/format";
 import { CATEGORY_LABELS } from "@/types/category";
 
 vi.mock("@vercel/analytics", () => ({ track: vi.fn() }));
@@ -144,6 +144,34 @@ describe("landing page", () => {
     })).toBeInTheDocument();
     expect(screen.getByText("구글 계정으로 시작해요. 카드번호는 받지 않아요."))
       .toBeInTheDocument();
+  });
+
+  it("illustrates the three features using the demo dashboard without adding navigation", () => {
+    const { month, snapshot, findings } = demoDashboard();
+    render(<Page />);
+    const band = screen.getByRole("heading", { name: "파일 하나로 시작해요", level: 2 })
+      .closest("section")!;
+    const rows = within(band).getAllByRole("article");
+    expect(rows).toHaveLength(3);
+    expect(within(rows[0]).getByText(
+      `${formatMonthShort(month)} 총지출 ${formatWon(snapshot.total)} · 거래 ${snapshot.transactionCount}건`,
+    )).toBeInTheDocument();
+    for (const label of new Set(DEMO_TRANSACTIONS.map(({ cardLabel }) => cardLabel))) {
+      expect(within(rows[0]).getByText(label)).toBeInTheDocument();
+    }
+    for (const item of findings.items.filter((finding) => finding.kind === "recurring")) {
+      expect(within(rows[1]).getByText(`${item.merchant} · ${formatWon(item.amount)}`))
+        .toBeInTheDocument();
+    }
+    const large = findings.items.find(({ kind }) => kind === "large")!;
+    expect(within(rows[1]).getByText(
+      `${formatDate(large.transactions[0].date)} ${large.merchant} ${formatWon(large.amount)}`,
+    )).toBeInTheDocument();
+    expect(within(rows[1]).getByText("정상 지출일 수 있어요")).toBeInTheDocument();
+    expect(within(rows[2]).getByText("카드사 비밀번호")).toBeInTheDocument();
+    expect(within(band).queryByRole("link")).not.toBeInTheDocument();
+    expect(within(band).queryByRole("button")).not.toBeInTheDocument();
+    expect(band.querySelector("[tabindex]")).toBeNull();
   });
 
   it("shows how to start in three steps between the features and the pricing", () => {

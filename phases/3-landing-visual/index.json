@@ -29,7 +29,9 @@
     {
       "step": 3,
       "name": "feature-showcase",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-12T09:50:00+0900",
+      "summary": "FeatureShowcase(props: { month: YearMonth; dataMonths: YearMonth[]; cardLabels: string[]; snapshot: Snapshot; findings: Findings }): React.JSX.Element 서버 컴포넌트로 글·그림이 번갈아 놓이는 세 줄(카드 라벨 칩→합계, 정기결제 월별 점·중복 거래 칸·고액 일별 막대, 받는 파일·받지 않는 정보)을 구현하고 기존 문구·reveal·모바일 글→그림 순서를 유지"
     },
     {
       "step": 4,
