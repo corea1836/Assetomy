@@ -1,0 +1,9 @@
+{
+  "project": "assetomy",
+  "phase": "4-pdf-parsing",
+  "steps": [
+    { "step": 0, "name": "pdf-rows", "status": "pending" },
+    { "step": 1, "name": "hyundai-pdf", "status": "pending" },
+    { "step": 2, "name": "pdf-extract", "status": "pending" }
+  ]
+}
