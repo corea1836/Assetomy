@@ -21,7 +21,9 @@
     {
       "step": 2,
       "name": "pdf-extract",
-      "status": "pending"
+      "status": "completed",
+      "summary": "src/lib/pdf/extract.ts의 MAX_PDF_PAGES = 100·PdfExtraction·extractPdfTextItems(bytes: Uint8Array): Promise<PdfExtraction>, src/lib/pdf/read-statement.ts의 readPdfStatement(bytes: Uint8Array): Promise<ParseResult> 및 src/lib/pdf/extract.test.ts·read-statement.test.ts·test-pdf.ts 구현; pdfjs-dist 6.4.299 설치, ASSETOMY_SAMPLE_PDF 원본 PDF 선택 테스트(미설정 시 skip), 전체 AC 통과",
+      "started_at": "2026-10-12T16:35:11+0900"
     }
   ],
   "created_at": "2026-10-12T16:22:38+0900"
