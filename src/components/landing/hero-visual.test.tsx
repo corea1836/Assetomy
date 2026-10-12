@@ -108,6 +108,17 @@ describe("HeroVisual", () => {
     expect(screen.queryByText(/카드 C/)).not.toBeInTheDocument();
   });
 
+  it("draws each connector straight down from a fixed-width file chip to the front card", () => {
+    const { container } = render(<HeroVisual {...props} />);
+
+    for (const name of ["카드 A.xlsx", "카드 B.csv"]) {
+      expect(screen.getByText(name)).toHaveClass("lg:w-48");
+    }
+    const paths = [...container.querySelectorAll('svg[aria-hidden="true"] path')]
+      .map((path) => path.getAttribute("d"));
+    expect(paths).toEqual(["M96 38V208", "M300 38V208"]);
+  });
+
   it("uses the first duplicate's first transaction and count in one rendered sentence", () => {
     render(<HeroVisual {...props} />);
 

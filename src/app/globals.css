@@ -51,13 +51,13 @@
 
 @layer components {
   .landing-dots {
-    background-image: radial-gradient(circle, rgb(255 255 255 / 0.06) 0.5px, transparent 0.5px);
+    background-image: radial-gradient(circle, rgb(255 255 255 / 0.16) 1px, transparent 1px);
     background-size: 24px 24px;
-    mask-image: radial-gradient(ellipse at center, #000 20%, transparent 75%);
+    mask-image: radial-gradient(ellipse at center, #000 35%, transparent 85%);
   }
 
   .landing-light {
-    background-image: radial-gradient(ellipse at center, rgb(61 214 163 / 0.08), transparent 70%);
+    background-image: radial-gradient(ellipse at center, rgb(61 214 163 / 0.22), transparent 65%);
   }
 }
 
@@ -78,7 +78,8 @@
       animation: landing-reveal linear both;
       animation-duration: auto;
       animation-timeline: view();
-      animation-range: entry 0% entry 100%;
+      /* 끝 지점을 길이로 둔다. entry 100%는 화면보다 긴 구역(모바일 쇼케이스 줄)에서 읽는 동안에도 흐리게 남긴다. */
+      animation-range: entry 0% entry 160px;
     }
   }
 }

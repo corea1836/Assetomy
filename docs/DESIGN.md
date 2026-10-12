@@ -174,8 +174,9 @@ disabled:bg-surface-soft disabled:text-muted-soft      에러: border-danger
 
 #### 다크 밴드의 깊이 (히어로 · 9월 요약 · CTA)
 - 면은 3단계로 쌓는다(색 쓰임의 "다크 면 3단계"). 카드는 `rounded-3xl border border-hairline-dark`.
-- 밴드 바탕에 점 그리드를 깐다: 24px 간격 1px 흰 점, 불투명도 6%. 가운데는 보이고 가장자리로 갈수록 사라진다(mask). 이 레이어는 `aria-hidden`, `pointer-events-none`이다.
-- 빛은 밴드마다 하나까지, 그림이나 제목 뒤에만 둔다: `primary-on-dark` 불투명도 8% 이하에서 투명으로 사라지는 radial. 여러 개·여러 색·움직이는 빛은 쓰지 않는다.
+- 밴드 바탕에 점 그리드를 깐다: 24px 간격 2px 흰 점, 불투명도 16%. 가운데 35%까지는 보이고 85%에서 사라진다(mask). 이 레이어는 `aria-hidden`, `pointer-events-none`이다.
+- 빛은 밴드마다 하나까지, 그림이나 제목 뒤에만 둔다: `primary-on-dark` 불투명도 22% 이하에서 65% 지점까지 투명으로 사라지는 radial. 여러 개·여러 색·움직이는 빛은 쓰지 않는다.
+- 이 값은 2026-10-12에 세 강도(6%·8% / 12%·14% / 16%·22%)를 화면으로 비교해 골랐다. 더 낮은 값은 `#0A0B0D` 위에서 거의 보이지 않았다.
 - Pro 가격 카드는 `bg-surface-dark` + `shadow-float`이고 점 그리드·빛은 두지 않는다.
 
 #### 히어로
@@ -241,7 +242,7 @@ disabled:bg-surface-soft disabled:text-muted-soft      에러: border-danger
 
 ## 모션 · 아이콘 · 접근성
 - 애니메이션은 스켈레톤 `animate-pulse`, 스피너 `animate-spin`, 120~200ms `ease-standard` 색·크기·위치 전환(버튼 hover·누름, 화살표 이동)만 쓴다. 예외는 아래 랜딩 등장 모션 하나다.
-- 랜딩 등장 모션: 히어로를 뺀 밴드의 제목 묶음과 그림이 화면에 들어올 때 한 번, 불투명도 0→1과 24px 아래→제자리. CSS scroll-driven(`animation-timeline: view()`)으로만 하고 JS를 쓰지 않는다. `prefers-reduced-motion: reduce`이거나 브라우저가 지원하지 않으면 처음부터 보인다. 숫자와 막대 길이는 움직이지 않는다.
+- 랜딩 등장 모션: 히어로를 뺀 밴드의 제목 묶음과 그림이 화면에 들어올 때 한 번, 불투명도 0→1과 24px 아래→제자리. 구역 위쪽이 화면에 160px 들어오면 다 보인다(`animation-range: entry 0% entry 160px`. 화면보다 긴 구역도 같은 시점). CSS scroll-driven(`animation-timeline: view()`)으로만 하고 JS를 쓰지 않는다. `prefers-reduced-motion: reduce`이거나 브라우저가 지원하지 않으면 처음부터 보인다. 숫자와 막대 길이는 움직이지 않는다.
 - 아이콘은 `components/icons.tsx`의 인라인 SVG다(Lucide 모양을 필요한 것만 복사). `strokeWidth 2`, 20px(버튼 안 18px, 랜딩 기능 24px, 월간 요약 반짝임 20px), `currentColor`, `aria-hidden`. 아이콘 라이브러리·아이콘 폰트·원형 배경을 쓰지 않는다.
 - 색만으로 의미를 전달하지 않는다. 정보를 담은 글자는 대비 4.5:1 이상. 버튼·입력에는 보이는 포커스 표시를 둔다. 차트 수치는 카테고리 목록으로 텍스트로도 제공한다.
 

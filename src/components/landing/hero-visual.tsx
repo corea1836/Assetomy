@@ -31,27 +31,27 @@ export function HeroVisual({
         {cardLabels.slice(0, 2).map((label, index) => (
           <span
             key={`${label}-${index}`}
-            className="min-w-0 max-w-full break-words rounded-full border border-hairline-dark bg-surface-dark-elevated px-4 py-2 text-sm text-muted-soft"
+            className="min-w-0 max-w-full break-words rounded-full border border-hairline-dark bg-surface-dark-elevated px-4 py-2 text-center text-sm text-muted-soft lg:w-48"
           >
             {`${label}${extensions[index]}`}
           </span>
         ))}
       </div>
 
+      {/* lg: 칩은 192px 고정(gap 12px)이라 가운데가 96·300px다. 선은 칩 아래(38px)에서 앞 카드 위(208px)까지 곧게 내려가고, 오른쪽 선은 뒤 카드에 가려진다. */}
       <svg
         aria-hidden="true"
-        viewBox="0 0 460 208"
-        preserveAspectRatio="none"
+        viewBox="0 0 396 208"
         fill="none"
         stroke="var(--color-hairline-dark)"
         strokeWidth={1}
-        className="pointer-events-none absolute inset-x-0 top-0 hidden h-52 w-full lg:block"
+        className="pointer-events-none absolute left-0 top-0 hidden h-52 w-[396px] lg:block"
       >
-        <path d="M96 40V168Q96 192 120 192H136V208" vectorEffect="non-scaling-stroke" />
-        <path d="M310 40V48H30Q14 48 14 64V184Q14 208 38 208H64" vectorEffect="non-scaling-stroke" />
+        <path d="M96 38V208" />
+        <path d="M300 38V208" />
       </svg>
 
-      <div className="absolute right-0 top-12 hidden w-4/5 rounded-3xl border border-hairline-dark bg-surface-dark-elevated p-6 lg:block">
+      <div className="absolute right-0 top-12 hidden w-3/4 rounded-3xl border border-hairline-dark bg-surface-dark-elevated p-6 lg:block">
         <p className="text-sm tabular-nums text-muted-soft">
           {`${formatMonth(month)} 일별 지출`}
         </p>
