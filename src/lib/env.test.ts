@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getDeploymentEnv, getFileEncryptionKey, getSupabaseEnv } from "./env";
+import { getDeploymentEnv, getFileEncryptionKey, getSupabaseAdminEnv, getSupabaseEnv } from "./env";
 
 const envNames = [
   "VERCEL_ENV",
@@ -9,6 +9,7 @@ const envNames = [
   "APP_MODE",
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+  "SUPABASE_SECRET_KEY",
   "FILE_ENCRYPTION_KEY",
 ] as const;
 
@@ -129,6 +130,53 @@ describe("getSupabaseEnv", () => {
     await expect(import("./env")).resolves.toHaveProperty(
       "getSupabaseEnv",
       expect.any(Function),
+    );
+  });
+});
+
+describe("getSupabaseAdminEnv", () => {
+  it.each(["https://example.supabase.co", "http://localhost:54321"])(
+    "accepts the same HTTP(S) URLs as the session client: %s",
+    (url) => {
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", url);
+      vi.stubEnv("SUPABASE_SECRET_KEY", "sb_secret_test");
+      expect(getSupabaseAdminEnv()).toEqual({ url, secretKey: "sb_secret_test" });
+    },
+  );
+
+  it.each([undefined, "", "not-a-url", "ftp://x"])(
+    "reports only the URL variable for an invalid URL: %j",
+    (url) => {
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", url);
+      vi.stubEnv("SUPABASE_SECRET_KEY", "sb_secret_test");
+      expect(() => getSupabaseAdminEnv()).toThrowError(/^NEXT_PUBLIC_SUPABASE_URL$/);
+    },
+  );
+
+  it.each([undefined, ""])("reports only the secret variable for an absent key: %j", (key) => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("SUPABASE_SECRET_KEY", key);
+    expect(() => getSupabaseAdminEnv()).toThrowError(/^SUPABASE_SECRET_KEY$/);
+  });
+
+  it("reports both missing variable names without values", () => {
+    expect(() => getSupabaseAdminEnv()).toThrowError(
+      /^NEXT_PUBLIC_SUPABASE_URL, SUPABASE_SECRET_KEY$/,
+    );
+  });
+
+  it("reads new settings on every call", () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("SUPABASE_SECRET_KEY", "sb_secret_test");
+    expect(getSupabaseAdminEnv().secretKey).toBe("sb_secret_test");
+    vi.stubEnv("SUPABASE_SECRET_KEY", "sb_secret_other");
+    expect(getSupabaseAdminEnv().secretKey).toBe("sb_secret_other");
+  });
+
+  it("can be freshly imported without admin settings", async () => {
+    vi.resetModules();
+    await expect(import("./env")).resolves.toHaveProperty(
+      "getSupabaseAdminEnv", expect.any(Function),
     );
   });
 });

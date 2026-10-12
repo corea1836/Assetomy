@@ -29,7 +29,9 @@
     {
       "step": 3,
       "name": "upload-store",
-      "status": "pending"
+      "status": "blocked",
+      "blocked_reason": "마이그레이션 미적용: 사용자가 'supabase db push --linked' 후 'scripts/pgtap.sh'를 실행해야 함",
+      "started_at": "2026-10-13T08:29:17+0900"
     },
     {
       "step": 4,

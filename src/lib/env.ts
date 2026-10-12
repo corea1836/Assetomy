@@ -48,6 +48,11 @@ const supabaseEnvSchema = z.object({
   ),
 });
 
+const supabaseAdminEnvSchema = z.object({
+  NEXT_PUBLIC_SUPABASE_URL: supabaseEnvSchema.shape.NEXT_PUBLIC_SUPABASE_URL,
+  SUPABASE_SECRET_KEY: z.preprocess(emptyAsUndefined, z.string().min(1)),
+});
+
 const fileEncryptionKeySchema = z.string().min(1).transform((value, ctx) => {
   const key = Buffer.from(value, "base64");
   if (key.byteLength !== 32 || key.toString("base64") !== value) {
@@ -99,5 +104,21 @@ export function getSupabaseEnv(): SupabaseEnv {
   return {
     url: result.data.NEXT_PUBLIC_SUPABASE_URL,
     publishableKey: result.data.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  };
+}
+
+export function getSupabaseAdminEnv(): { url: string; secretKey: string } {
+  const result = supabaseAdminEnvSchema.safeParse({
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    SUPABASE_SECRET_KEY: process.env.SUPABASE_SECRET_KEY,
+  });
+
+  if (!result.success) {
+    throw new Error(result.error.issues.map((issue) => issue.path[0]).join(", "));
+  }
+
+  return {
+    url: result.data.NEXT_PUBLIC_SUPABASE_URL,
+    secretKey: result.data.SUPABASE_SECRET_KEY,
   };
 }
