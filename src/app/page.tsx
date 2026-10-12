@@ -6,6 +6,8 @@ import { DarkBackdrop } from "@/components/landing/dark-backdrop";
 import { DemoLink } from "@/components/landing/demo-link";
 import { FeatureShowcase } from "@/components/landing/feature-showcase";
 import { HeroVisual } from "@/components/landing/hero-visual";
+import { PlanPreview } from "@/components/landing/plan-preview";
+import { StartSteps } from "@/components/landing/start-steps";
 import { SummaryBand } from "@/components/landing/summary-band";
 import { Wordmark } from "@/components/wordmark";
 import { buildDashboard } from "@/lib/analytics/dashboard";
@@ -13,21 +15,6 @@ import { DEMO_SUMMARY, DEMO_SUMMARY_MONTH, DEMO_TODAY, DEMO_TRANSACTIONS } from 
 import { formatWon } from "@/lib/format";
 
 const PRO_PRICE_KRW = 6_900; // 임시값: PRD [확정 필요]
-
-const steps = [
-  {
-    title: "카드사에서 이용내역 받기",
-    description: "카드사 홈페이지에서 신용카드 이용내역(승인내역)을 엑셀이나 CSV 파일로 받아요. 청구서가 아니라 이용내역이에요.",
-  },
-  {
-    title: "파일마다 카드 고르기",
-    description: "‘생활비 카드’처럼 이름을 붙여 카드별로 나눠 봐요. 카드번호는 받지 않아요.",
-  },
-  {
-    title: "올리고 확인하기",
-    description: "최근 3개월치를 올리면 총지출·카테고리와 함께 정기결제까지 찾아드려요.",
-  },
-];
 
 const freeFeatures = ["월별 소비 현황", "전월 대비", "확인할 지출 건수와 합계", "월간 요약"];
 const proFeatures = ["Free의 모든 기능", "확인할 지출 상세", "최대 12개월 추세", "더 자세한 월간 요약"];
@@ -115,17 +102,7 @@ export default function Page(): React.JSX.Element {
       <section className="bg-surface-soft">
         <div className="mx-auto max-w-[1248px] px-6 py-24">
           <h2 className="reveal text-display-sm font-normal text-ink">이렇게 시작해요</h2>
-          <ol aria-label="시작하는 순서" className="reveal mt-10 grid gap-10 sm:grid-cols-3 sm:gap-6">
-            {steps.map(({ title, description }, index) => (
-              <li key={title} className="border-t border-hairline pt-6">
-                <p className="font-mono text-sm text-primary">
-                  {String(index + 1).padStart(2, "0")}
-                </p>
-                <h3 className="mt-3 text-lg font-semibold text-ink">{title}</h3>
-                <p className="mt-3 text-base leading-relaxed text-body">{description}</p>
-              </li>
-            ))}
-          </ol>
+          <StartSteps cardLabel={cardLabels[0]} />
         </div>
       </section>
 
@@ -149,6 +126,7 @@ export default function Page(): React.JSX.Element {
                   </li>
                 ))}
               </ul>
+              <PlanPreview plan="free" findings={findings} />
               <Link href="/login" className={`${buttonClass("secondary")} mt-auto w-full`}>
                 무료로 시작하기
               </Link>
@@ -167,6 +145,7 @@ export default function Page(): React.JSX.Element {
                   </li>
                 ))}
               </ul>
+              <PlanPreview plan="pro" findings={findings} />
               <Link href="/login" className={`${buttonClass("primary")} mt-auto w-full`}>
                 Pro 시작하기
               </Link>

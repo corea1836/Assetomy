@@ -2,6 +2,7 @@ import { render, screen, within } from "@testing-library/react";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Page from "@/app/page";
+import { FINDING_KIND_LABELS } from "@/components/dashboard/finding-labels";
 import * as analytics from "@/lib/analytics/dashboard";
 import { DEMO_SUMMARY, DEMO_TODAY, DEMO_TRANSACTIONS } from "@/lib/demo/fixture";
 import { formatDate, formatMonth, formatMonthShort, formatWon } from "@/lib/format";
@@ -254,6 +255,7 @@ describe("landing page", () => {
   it("uses the demo analytics result for the month, total, top three categories, and candidates", () => {
     const { month, snapshot, findings } = demoDashboard();
     render(<Page />);
+    const hero = screen.getByRole("heading", { level: 1 }).closest("section")!;
 
     expect(screen.getByText(`${formatMonth(month)} 총지출`)).toBeInTheDocument();
     expect(screen.getByText(formatWon(snapshot.total))).toBeInTheDocument();
@@ -266,10 +268,50 @@ describe("landing page", () => {
       expect(rows[index].querySelector("div.bg-primary-on-dark")).not.toBeNull();
     });
     const count = Object.values(findings.byKind).reduce((sum, kind) => sum + kind.count, 0);
-    expect(screen.getByText(
+    expect(within(hero).getByText(
       `확인이 필요한 지출 ${count}건 · 후보 합계 ${formatWon(findings.candidateTotal)}`,
     )).toHaveClass("text-amber-200");
     expect(screen.getByText("예시 데이터")).toBeInTheDocument();
+  });
+
+  it("places a DTO-based preview between each plan's feature list and signup button", () => {
+    const { findings } = demoDashboard();
+    render(<Page />);
+
+    const count = Object.values(findings.byKind).reduce((sum, { count }) => sum + count, 0);
+    const sentence = `확인이 필요한 지출 ${count}건 · 후보 합계 ${formatWon(findings.candidateTotal)}`;
+    for (const [plan, button] of [["Free", "무료로 시작하기"], ["Pro", "Pro 시작하기"]]) {
+      const card = screen.getByRole("heading", { name: plan, level: 3 }).closest("article")!;
+      const preview = within(card).getByText("이 플랜에서 보이는 것").closest("div")!;
+      expect(within(preview).getByText(sentence)).toBeInTheDocument();
+      const features = within(card).getAllByRole("list")[0];
+      const link = within(card).getByRole("link", { name: button });
+      expect(features.compareDocumentPosition(preview)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(preview.compareDocumentPosition(link)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+      expect(preview.querySelector("a, button, [tabindex]")).toBeNull();
+      if (plan === "Free") {
+        expect(preview.textContent).toBe(`이 플랜에서 보이는 것${sentence}`);
+        for (const { merchant } of findings.items) expect(preview.textContent).not.toContain(merchant);
+      } else {
+        const rows = within(preview).getAllByRole("listitem");
+        expect(rows).toHaveLength(2);
+        [...findings.items].sort((a, b) => b.amount - a.amount).slice(0, 2).forEach((item, index) => {
+          expect(within(rows[index]).getByText(`${FINDING_KIND_LABELS[item.kind]} · ${item.merchant}`))
+            .toBeInTheDocument();
+          expect(within(rows[index]).getByText(formatWon(item.amount))).toHaveClass("font-mono");
+        });
+      }
+    }
+  });
+
+  it("uses the first sorted demo card label in the starting illustration", () => {
+    render(<Page />);
+
+    const labels = [...new Set(DEMO_TRANSACTIONS.map(({ cardLabel }) => cardLabel))]
+      .sort((a, b) => a.localeCompare(b, "ko"));
+    const list = screen.getByRole("list", { name: "시작하는 순서" });
+    expect(within(list).getByText(labels[0]).closest('[aria-hidden="true"]')).not.toBeNull();
+    expect(list.querySelector("a, button, [tabindex]")).toBeNull();
   });
 
   it("shows the floating duplicate sentence and the demo card files in the hero", () => {
@@ -300,6 +342,11 @@ describe("landing page", () => {
       },
       findings: {
         ...dashboard.findings,
+        items: dashboard.findings.items.map((item, index) => ({
+          ...item,
+          merchant: `바뀐 예시 가맹점 ${index}`,
+          amount: (index + 1) * 100_000,
+        })),
         candidateTotal: 67_890,
         byKind: {
           recurring: { count: 3, amount: 40_000 },
@@ -310,6 +357,7 @@ describe("landing page", () => {
     };
     const buildDashboard = vi.spyOn(analytics, "buildDashboard").mockReturnValue(changed);
     render(<Page />);
+    const hero = screen.getByRole("heading", { level: 1 }).closest("section")!;
 
     expect(buildDashboard).toHaveBeenCalledWith({
       transactions: DEMO_TRANSACTIONS, plan: "pro", today: DEMO_TODAY,
@@ -319,8 +367,22 @@ describe("landing page", () => {
     const categories = screen.getByRole("list", { name: "예시 상위 카테고리" });
     expect(within(categories).getByText("교육")).toBeInTheDocument();
     expect(within(categories).getByText("80,000원")).toBeInTheDocument();
-    expect(screen.getByText("확인이 필요한 지출 6건 · 후보 합계 67,890원"))
+    expect(within(hero).getByText("확인이 필요한 지출 6건 · 후보 합계 67,890원"))
       .toBeInTheDocument();
+    for (const plan of ["Free", "Pro"]) {
+      const card = screen.getByRole("heading", { name: plan }).closest("article")!;
+      expect(within(card).getByText("확인이 필요한 지출 6건 · 후보 합계 67,890원"))
+        .toBeInTheDocument();
+    }
+    const proCard = screen.getByRole("heading", { name: "Pro" }).closest("article")!;
+    const preview = within(proCard).getByText("이 플랜에서 보이는 것").closest("div")!;
+    const rows = within(preview).getAllByRole("listitem");
+    expect(rows).toHaveLength(2);
+    [...changed.findings.items].sort((a, b) => b.amount - a.amount).slice(0, 2).forEach((item, index) => {
+      expect(within(rows[index]).getByText(`${FINDING_KIND_LABELS[item.kind]} · ${item.merchant}`))
+        .toBeInTheDocument();
+      expect(within(rows[index]).getByText(formatWon(item.amount))).toBeInTheDocument();
+    });
     expect(screen.queryByRole("heading", {
       name: "숫자는 코드가 계산하고, 요약은 문장으로 정리해요",
     })).not.toBeInTheDocument();

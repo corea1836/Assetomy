@@ -45,7 +45,9 @@
     {
       "step": 5,
       "name": "steps-pricing",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-12T10:00:53+0900",
+      "summary": "StartSteps(props: { cardLabel: string }): React.JSX.Element과 PlanPreview(props: { plan: Plan; findings: Findings }): React.JSX.Element 서버 컴포넌트로 시작 단계 연결선·미니 그림과 Free 건수·합계/Pro 금액순 상세 2줄을 추가하고, 최종 랜딩 밴드 순서 히어로→기능 쇼케이스→9월 요약→시작 단계→요금→CTA를 유지"
     }
   ],
   "created_at": "2026-10-12T09:32:30+0900"
