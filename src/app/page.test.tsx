@@ -48,6 +48,81 @@ describe("landing page", () => {
     for (const link of freeLinks) expect(link).toHaveAttribute("href", "/login");
   });
 
+  it("contains decorative dots and one light inside each isolated dark band", () => {
+    const { container } = render(<Page />);
+    const hero = screen.getByRole("heading", { level: 1 }).closest("section")!;
+    const cta = screen.getByRole("heading", {
+      name: "이번 달 카드 지출, 파일 하나로 확인해 보세요",
+    }).closest("section")!;
+
+    for (const band of [hero, cta]) {
+      expect(band).toHaveClass("relative", "isolate", "overflow-hidden");
+      const dots = band.querySelectorAll(".landing-dots");
+      const lights = band.querySelectorAll(".landing-light");
+      expect(dots).toHaveLength(1);
+      expect(lights).toHaveLength(1);
+      expect(dots[0].parentElement).toHaveAttribute("aria-hidden", "true");
+      expect(dots[0].parentElement).toHaveClass("pointer-events-none", "-z-10");
+      expect(lights[0].parentElement).toBe(dots[0].parentElement);
+    }
+    expect(hero.querySelector(".landing-light")).toHaveClass("left-1/2");
+    expect(cta.querySelector(".landing-light")).toHaveClass("inset-0");
+    expect(container.querySelectorAll(".landing-dots")).toHaveLength(2);
+  });
+
+  it("adds decorative 18px arrows only to the hero and closing CTA links", () => {
+    render(<Page />);
+    const cta = screen.getByRole("heading", {
+      name: "이번 달 카드 지출, 파일 하나로 확인해 보세요",
+    }).closest("section")!;
+    const demoLink = screen.getByRole("link", { name: "데모 보기" });
+    const signupLink = within(cta).getByRole("link", { name: "무료로 시작하기" });
+
+    for (const link of [demoLink, signupLink]) {
+      const arrow = link.querySelector('svg[aria-hidden="true"]');
+      expect(link).toHaveClass("group");
+      expect(arrow).toHaveAttribute("width", "18");
+      expect(arrow).toHaveAttribute("height", "18");
+      expect(arrow).toHaveClass(
+        "transition-transform", "duration-200", "ease-standard", "group-hover:translate-x-1",
+      );
+    }
+    for (const link of screen.getAllByRole("link")) {
+      if (link !== demoLink && link !== signupLink) expect(link.querySelector("svg")).toBeNull();
+    }
+  });
+
+  it("gives the Pro pricing card a floating shadow without backdrop layers", () => {
+    render(<Page />);
+    const proCard = screen.getByRole("heading", { name: "Pro" }).closest("article")!;
+
+    expect(proCard).toHaveClass("bg-surface-dark", "shadow-float");
+    expect(proCard.querySelector(".landing-dots, .landing-light")).toBeNull();
+  });
+
+  it("reveals the title and card groups of every band after the hero", () => {
+    render(<Page />);
+    const hero = screen.getByRole("heading", { level: 1 }).closest("section")!;
+    expect(hero.querySelector(".reveal")).toBeNull();
+    expect(hero).not.toHaveClass("reveal");
+
+    for (const title of [
+      "파일 하나로 시작해요", "이렇게 시작해요", "요금",
+      "이번 달 카드 지출, 파일 하나로 확인해 보세요",
+    ]) {
+      const heading = screen.getByRole("heading", { name: title, level: 2 });
+      const band = heading.closest("section")!;
+      expect(heading.closest(".reveal")).not.toBeNull();
+      expect(band.querySelectorAll(".reveal").length).toBeGreaterThanOrEqual(2);
+      const groupContent = band.querySelector("article, ol")
+        ?? within(band).getByRole("link", { name: "무료로 시작하기" });
+      expect(groupContent.closest(".reveal")).not.toBeNull();
+    }
+    expect(screen.getAllByRole("link").map((link) => link.textContent?.trim())).toEqual([
+      "로그인", "데모 보기", "무료로 시작하기", "Pro 시작하기", "무료로 시작하기",
+    ]);
+  });
+
   it("explains the three features with icons and closes with the sign-up CTA", () => {
     render(<Page />);
 

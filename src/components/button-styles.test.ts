@@ -6,7 +6,7 @@ const classes = (value: string) => value.split(" ");
 describe("buttonClass", () => {
   it("builds the shared pill with focus ring and press feedback", () => {
     expect(classes(buttonClass("primary"))).toEqual(expect.arrayContaining([
-      "inline-flex", "items-center", "justify-center", "gap-2", "rounded-full", "font-semibold",
+      "group", "inline-flex", "items-center", "justify-center", "gap-2", "rounded-full", "font-semibold",
       "duration-120", "ease-standard", "active:scale-[.98]",
       "focus-visible:outline-2", "focus-visible:outline-offset-2", "focus-visible:outline-primary",
       "disabled:cursor-not-allowed", "disabled:active:scale-100",
@@ -14,8 +14,8 @@ describe("buttonClass", () => {
   });
 
   it.each([
-    ["primary", ["bg-primary", "text-white", "active:bg-primary-active", "disabled:bg-primary-disabled"]],
-    ["secondary", ["bg-surface-strong", "text-ink", "active:bg-hairline", "disabled:text-muted-soft"]],
+    ["primary", ["bg-primary", "text-white", "hover:bg-primary-hover", "active:bg-primary-active", "disabled:bg-primary-disabled"]],
+    ["secondary", ["bg-surface-strong", "text-ink", "hover:bg-hairline", "active:bg-hairline", "disabled:bg-surface-strong", "disabled:text-muted-soft"]],
   ] as const)("applies the %s colors", (variant, expected) => {
     expect(classes(buttonClass(variant))).toEqual(expect.arrayContaining([...expected]));
   });

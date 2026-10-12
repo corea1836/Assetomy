@@ -2,15 +2,17 @@
 
 @theme {
   --color-primary: #0B7A5E;          /* 포인트는 이것 하나. 드물게 쓴다 */
+  --color-primary-hover: #096D54;    /* Primary 버튼 hover. primary와 primary-active 사이 */
   --color-primary-active: #08604A;
   --color-primary-disabled: #A9C4BC;
-  --color-primary-soft: #E7F3EE;     /* Pro 표시 바탕. 글자는 primary-active(6.6:1) */
+  --color-primary-soft: #E7F3EE;     /* Pro 표시·월간 요약 카드 바탕. Pro 글자는 primary-active(6.6:1) */
   --color-primary-on-dark: #3DD6A3;  /* 다크 면 위 막대·아이콘. surface-dark-elevated 대비 9.6:1 */
   --color-canvas: #FFFFFF;
   --color-surface-soft: #F7F7F7;
   --color-surface-strong: #EEF0F3;
   --color-surface-dark: #0A0B0D;
   --color-surface-dark-elevated: #16181C;
+  --color-surface-dark-raised: #1F2228; /* 다크 면 3단계: 겹친 카드 앞면·떠 있는 칩 */
   --color-hairline: #DEE1E6;
   --color-hairline-soft: #EEF0F3;
   --color-hairline-dark: #2A2D33;
@@ -31,6 +33,7 @@
   --text-display-xl: 4rem; --text-display-xl--line-height: 1.15; --text-display-xl--letter-spacing: -1.6px;
 
   --shadow-soft: 0 4px 12px rgb(0 0 0 / 0.04);
+  --shadow-float: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 24px 48px -12px rgb(0 0 0 / 0.6); /* 떠 있는 다크 면. 검은 그림자만 */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 }
 
@@ -43,5 +46,39 @@
   body {
     word-break: keep-all;
     overflow-wrap: break-word;
+  }
+}
+
+@layer components {
+  .landing-dots {
+    background-image: radial-gradient(circle, rgb(255 255 255 / 0.06) 0.5px, transparent 0.5px);
+    background-size: 24px 24px;
+    mask-image: radial-gradient(ellipse at center, #000 20%, transparent 75%);
+  }
+
+  .landing-light {
+    background-image: radial-gradient(ellipse at center, rgb(61 214 163 / 0.08), transparent 70%);
+  }
+}
+
+@media (prefers-reduced-motion: no-preference) {
+  @supports (animation-timeline: view()) {
+    @keyframes landing-reveal {
+      from {
+        opacity: 0;
+        translate: 0 24px;
+      }
+      to {
+        opacity: 1;
+        translate: 0 0;
+      }
+    }
+
+    .reveal {
+      animation: landing-reveal linear both;
+      animation-duration: auto;
+      animation-timeline: view();
+      animation-range: entry 0% entry 100%;
+    }
   }
 }

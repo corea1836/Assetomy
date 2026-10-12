@@ -1,7 +1,8 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { buttonClass } from "@/components/button-styles";
-import { CardIcon, CheckIcon, SearchIcon, ShieldCheckIcon } from "@/components/icons";
+import { ArrowRightIcon, CardIcon, CheckIcon, SearchIcon, ShieldCheckIcon } from "@/components/icons";
+import { DarkBackdrop } from "@/components/landing/dark-backdrop";
 import { DemoLink } from "@/components/landing/demo-link";
 import { Wordmark } from "@/components/wordmark";
 import { buildDashboard } from "@/lib/analytics/dashboard";
@@ -63,7 +64,8 @@ export default function Page(): React.JSX.Element {
 
   return (
     <main>
-      <section className="bg-surface-dark text-white">
+      <section className="relative isolate overflow-hidden bg-surface-dark text-white">
+        <DarkBackdrop light="right" />
         <div className="mx-auto max-w-[1248px] px-6 py-24">
           <header className="flex items-center justify-between gap-6">
             <Wordmark tone="onDark" />
@@ -85,6 +87,10 @@ export default function Page(): React.JSX.Element {
               </p>
               <DemoLink className={`${buttonClass("primary")} mt-8`}>
                 데모 보기
+                <ArrowRightIcon
+                  size={18}
+                  className="transition-transform duration-200 ease-standard group-hover:translate-x-1"
+                />
               </DemoLink>
               <p className="mt-3 text-caption text-muted-soft">
                 로그인 없이 바로 볼 수 있어요
@@ -128,8 +134,8 @@ export default function Page(): React.JSX.Element {
 
       <section className="bg-canvas">
         <div className="mx-auto max-w-[1248px] px-6 py-24">
-          <h2 className="text-display-sm font-normal text-ink">파일 하나로 시작해요</h2>
-          <div className="mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
+          <h2 className="reveal text-display-sm font-normal text-ink">파일 하나로 시작해요</h2>
+          <div className="reveal mt-10 grid gap-6 sm:grid-cols-2 lg:grid-cols-3">
             {features.map(({ Icon, title, description }) => (
               <article key={title} className="rounded-3xl border border-hairline bg-canvas p-6 sm:p-8">
                 <Icon size={24} className="text-primary" />
@@ -143,8 +149,8 @@ export default function Page(): React.JSX.Element {
 
       <section className="bg-surface-soft">
         <div className="mx-auto max-w-[1248px] px-6 py-24">
-          <h2 className="text-display-sm font-normal text-ink">이렇게 시작해요</h2>
-          <ol aria-label="시작하는 순서" className="mt-10 grid gap-10 sm:grid-cols-3 sm:gap-6">
+          <h2 className="reveal text-display-sm font-normal text-ink">이렇게 시작해요</h2>
+          <ol aria-label="시작하는 순서" className="reveal mt-10 grid gap-10 sm:grid-cols-3 sm:gap-6">
             {steps.map(({ title, description }, index) => (
               <li key={title} className="border-t border-hairline pt-6">
                 <p className="font-mono text-sm text-primary">
@@ -160,11 +166,13 @@ export default function Page(): React.JSX.Element {
 
       <section className="bg-canvas">
         <div className="mx-auto max-w-[1248px] px-6 py-24">
-          <h2 className="text-display-sm font-normal text-ink">요금</h2>
-          <p className="mt-4 text-lg text-body">
-            Free로 시작하고, 상세가 필요할 때 Pro로 바꿔요.
-          </p>
-          <div className="mt-10 grid gap-6 sm:grid-cols-2">
+          <div className="reveal">
+            <h2 className="text-display-sm font-normal text-ink">요금</h2>
+            <p className="mt-4 text-lg text-body">
+              Free로 시작하고, 상세가 필요할 때 Pro로 바꿔요.
+            </p>
+          </div>
+          <div className="reveal mt-10 grid gap-6 sm:grid-cols-2">
             <article className="flex flex-col rounded-3xl border border-hairline bg-canvas p-6 sm:p-8">
               <h3 className="text-lg font-semibold text-ink">Free</h3>
               <p className="mt-6 text-display-md font-normal tabular-nums text-ink">0원</p>
@@ -181,7 +189,7 @@ export default function Page(): React.JSX.Element {
               </Link>
             </article>
 
-            <article className="flex flex-col rounded-3xl bg-surface-dark p-6 text-white sm:p-8">
+            <article className="flex flex-col rounded-3xl bg-surface-dark p-6 text-white shadow-float sm:p-8">
               <h3 className="text-lg font-semibold">Pro</h3>
               <p className="mt-6 text-display-md font-normal tabular-nums">
                 {`월 ${formatWon(PRO_PRICE_KRW)}`}
@@ -205,17 +213,24 @@ export default function Page(): React.JSX.Element {
         </div>
       </section>
 
-      <section className="bg-surface-dark text-white">
+      <section className="relative isolate overflow-hidden bg-surface-dark text-white">
+        <DarkBackdrop light="center" />
         <div className="mx-auto max-w-[1248px] px-6 py-24 text-center">
-          <h2 className="text-display-sm font-normal sm:text-display-md">
+          <h2 className="reveal text-display-sm font-normal sm:text-display-md">
             이번 달 카드 지출, 파일 하나로 확인해 보세요
           </h2>
-          <Link href="/login" className={`${buttonClass("primary")} mt-8`}>
-            무료로 시작하기
-          </Link>
-          <p className="mt-6 text-caption text-muted-soft">
-            구글 계정으로 시작해요. 카드번호는 받지 않아요.
-          </p>
+          <div className="reveal">
+            <Link href="/login" className={`${buttonClass("primary")} mt-8`}>
+              무료로 시작하기
+              <ArrowRightIcon
+                size={18}
+                className="transition-transform duration-200 ease-standard group-hover:translate-x-1"
+              />
+            </Link>
+            <p className="mt-6 text-caption text-muted-soft">
+              구글 계정으로 시작해요. 카드번호는 받지 않아요.
+            </p>
+          </div>
         </div>
       </section>
     </main>
