@@ -169,5 +169,5 @@ success 페이지 · 웹훅(서명 검증) · 결제 기간이 지난 상태 ─
 - 단위 `*.test.ts`(`npm test`, Supabase 불필요), DB·Storage 통합 `*.db.test.ts`(`npm run test:db`), pgTAP `supabase/tests/`. Stop hook은 단위 테스트만 돌린다.
 - 파싱은 익명화한 실제 fixture로 카드별·월별·전체 기대 합계와 정확히 일치해야 한다. 표 형식(csv·xlsx) fixture는 프로필 없이 폴백 매핑으로 읽어도 같은 합계와 fingerprint가 나와야 한다. PDF fixture는 원본 대신 익명화한 글자 조각·좌표 JSON이고, 원본 PDF 테스트는 로컬에 파일이 있을 때만 돈다.
 - 외부 서비스는 mock으로 단위 테스트하고, 권한·잠금·경합은 DB 통합 테스트로 확인한다.
-- dev DB를 함께 쓰므로 DB 통합 테스트는 테스트마다 admin API로 임시 사용자를 만들어 그 사용자 행만 다루고 끝나면 지운다. pgTAP은 트랜잭션 안에서 돌고 롤백한다(ADR-020).
+- dev DB를 함께 쓰므로 DB 통합 테스트는 테스트마다 admin API로 임시 사용자를 만들어 그 사용자 행만 다루고 끝나면 지운다. pgTAP은 트랜잭션 안에서 돌고 롤백하며, `scripts/pgtap.sh`로 실행한다(Docker 불필요, ADR-020).
 - **[확정 필요]** 초기 프로필의 나머지 카드사 1종과 .xls 지원 여부는 실제 파일을 확인한 뒤 정한다(첫 프로필은 현대카드 명세서 PDF).

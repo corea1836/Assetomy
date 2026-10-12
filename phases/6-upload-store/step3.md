@@ -117,13 +117,13 @@ test -f src/lib/supabase/admin.ts && test -f src/lib/store/cards.ts && test -f s
    - 사용자 개입 필요 → `"status": "blocked"`, `"blocked_reason": "구체적 사유"` 후 즉시 중단
 
 ### 사용자 개입(blocked) 규칙
-- `npm run test:db`가 함수·테이블을 찾지 못해 실패하면(PostgREST `PGRST202`·`PGRST205`, Postgres `42883`·`42P01`, "Could not find the function" 등) 코드를 고치지 말고 blocked로 멈춘다. `blocked_reason`: `"마이그레이션 미적용: 사용자가 'supabase db push --linked' 후 'supabase test db --linked'를 실행해야 함"`.
+- `npm run test:db`가 함수·테이블을 찾지 못해 실패하면(PostgREST `PGRST202`·`PGRST205`, Postgres `42883`·`42P01`, "Could not find the function" 등) 코드를 고치지 말고 blocked로 멈춘다. `blocked_reason`: `"마이그레이션 미적용: 사용자가 'supabase db push --linked' 후 'scripts/pgtap.sh'를 실행해야 함"`.
 - `.env`에 `SUPABASE_SECRET_KEY`나 `NEXT_PUBLIC_SUPABASE_URL`이 없으면 blocked(`".env에 SUPABASE_SECRET_KEY 필요"`).
 - push된 SQL 자체가 틀려서 실패하면(예: RPC가 예상과 다른 kind를 돌려줌, SQL 런타임 에러) 마이그레이션 파일을 고치지 말고 blocked로 멈춘다. 사유에는 실패한 RPC 이름과 에러 코드만 적는다. 이유: 이미 적용된 마이그레이션은 사용자와 함께 새 마이그레이션으로 고친다.
 
 ## 금지사항
 
-- `supabase db push`, `supabase db reset`, `supabase link`, `supabase test db`를 실행하지 마라. 이유: dev DB 마이그레이션은 사용자가 수동으로 push한다.
+- `supabase db push`, `supabase db reset`, `supabase link`, `supabase test db`, `scripts/pgtap.sh`를 실행하지 마라. 이유: dev DB 마이그레이션과 pgTAP 검증은 사용자가 한다.
 - `supabase/migrations/`의 파일을 고치지 마라. 이유: 위 blocked 규칙대로 사용자와 함께 처리한다.
 - `.env`를 고치거나 그 값을 출력하지 마라. 이유: 실제 비밀 키가 들어 있다.
 - 단위 테스트(`*.test.ts`)에서 실제 Supabase를 부르지 마라. 이유: `npm run test`와 Stop hook은 네트워크 없이 돌아야 한다(ADR-015).

@@ -74,7 +74,7 @@
 
 ### 2. `supabase/tests/upload_rpc.test.sql` (pgTAP)
 
-형식은 `upload_schema.test.sql`과 같다(`begin` … `rollback`, `auth.users`에 `(id, email)`로 사용자 생성). 동작 검사는 `set local role service_role;`로 실행하고, 준비·확인용 직접 조작(lease를 과거로 바꾸기, 시도 행 30개 넣기)은 `reset role;` 뒤 postgres로 한다.
+형식은 `upload_schema.test.sql`과 같다(`begin` … `rollback`, 모든 단언을 임시 테이블 `_tap`에 넣고 마지막 SELECT로 `string_agg` 반환, `auth.users`에 `(id, email)`로 사용자 생성). 이유: `scripts/pgtap.sh`가 Management API로 실행해 마지막 SELECT 결과만 받는다(머리 주석 참고). `service_role`로 바꾼 뒤에도 `_tap`에 넣을 수 있게 `grant insert, select on _tap to service_role`과 시퀀스 usage를 함께 준다. 동작 검사는 `set local role service_role;`로 실행하고, 준비·확인용 직접 조작(lease를 과거로 바꾸기, 시도 행 30개 넣기)은 `reset role;` 뒤 postgres로 한다.
 
 다음을 단언한다:
 - 권한: 다섯 RPC와 `private.lock_user`는 `anon`·`authenticated`에 EXECUTE가 없고 `service_role`에는 있다(`function_privs_are` 또는 `has_function_privilege`).
@@ -108,6 +108,8 @@ test -f supabase/tests/upload_rpc.test.sql
 test "$(grep -ciE "set search_path *= *''" supabase/migrations/20261013000100_upload_rpc.sql)" -ge 6
 test "$(grep -ciE 'grant execute on function' supabase/migrations/20261013000100_upload_rpc.sql)" -ge 6
 ! grep -niE 'create (table|policy)' supabase/migrations/20261013000100_upload_rpc.sql
+grep -q 'string_agg(line' supabase/tests/upload_rpc.test.sql
+test "$(tail -n 3 supabase/tests/upload_rpc.test.sql | grep -ciE '^rollback;')" -eq 1
 ```
 
 ## 검증 절차
@@ -124,7 +126,8 @@ test "$(grep -ciE 'grant execute on function' supabase/migrations/20261013000100
 
 ## 금지사항
 
-- `supabase db push`, `supabase db reset`, `supabase link`, `supabase test db`를 실행하지 마라. 이유: dev DB 마이그레이션은 사용자가 수동으로 push한다.
+- `supabase db push`, `supabase db reset`, `supabase link`, `supabase test db`, `scripts/pgtap.sh`를 실행하지 마라. 이유: dev DB 마이그레이션은 사용자가 수동으로 push하고, push 전에는 pgTAP이 돌 수 없다.
+- `scripts/pgtap.sh`를 고치지 마라. 이유: 테스트 파일 형식이 이 실행기에 맞춰져 있다.
 - 이전 마이그레이션(`20261013000000_upload_schema.sql`)을 고치지 마라. 이유: 같은 phase 안에서도 마이그레이션을 쌓아 적용 순서를 고정한다. 스키마를 바꿔야 하면 이 마이그레이션에 `alter`를 쓴다.
 - `security definer`를 쓰지 마라. 이유: 호출자는 service_role뿐이고, 정의자 권한은 search_path·권한 상승 위험만 늘린다.
 - RPC 안에서 `auth.uid()`를 쓰지 마라. 이유: service_role 호출에는 사용자 JWT가 없다. 서버가 세션에서 꺼낸 `p_user_id`로 검증한다(ADR-002).

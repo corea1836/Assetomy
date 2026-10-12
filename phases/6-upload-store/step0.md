@@ -18,7 +18,7 @@
 
 이 phase(`6-upload-store`)는 업로드에 필요한 저장 기반(테이블·RPC·암호화·Storage)을 만든다. API·화면·분류·ingest 흐름은 다음 phase(`7-upload-flow`)에서 만든다. 이 step은 첫 마이그레이션으로 테이블·RLS·권한·Storage 버킷을 만든다. RPC는 다음 step에서 만든다.
 
-Supabase는 클라우드 dev 프로젝트를 쓴다(ADR-020). 이 세션은 마이그레이션을 DB에 push하지 않는다. 사용자가 나중에 `supabase db push --linked && supabase test db --linked`로 적용·검증한다. 그래서 이 step에서는 SQL을 실행해 볼 수 없다. Postgres 문법과 Supabase 스키마(`auth.users`, `storage.buckets`, `storage.objects`)를 정확히 따르고, 함수 본문·제약 이름을 꼼꼼히 확인하라.
+Supabase는 클라우드 dev 프로젝트를 쓴다(ADR-020). 이 세션은 마이그레이션을 DB에 push하지 않는다. 사용자가 나중에 `supabase db push --linked && scripts/pgtap.sh`로 적용·검증한다. 그래서 이 step에서는 SQL을 실행해 볼 수 없다. Postgres 문법과 Supabase 스키마(`auth.users`, `storage.buckets`, `storage.objects`)를 정확히 따르고, 함수 본문·제약 이름을 꼼꼼히 확인하라.
 
 ## 작업
 
@@ -98,7 +98,22 @@ Supabase는 클라우드 dev 프로젝트를 쓴다(ADR-020). 이 세션은 마�
 
 ### 2. `supabase/tests/upload_schema.test.sql` (pgTAP)
 
-`begin;` → `create extension if not exists pgtap with schema extensions;` → `select plan(N);` → 테스트 → `select * from finish();` → `rollback;`. 사용자 행은 postgres 권한으로 `auth.users`에 `(id, email)`만 넣어 만든다. 사용자 역할 흉내는 `set local role authenticated;`와 `select set_config('request.jwt.claims', json_build_object('sub', '<uuid>', 'role', 'authenticated')::text, true);`로 하고, 다음 검사 전에 `reset role;`로 돌아온다.
+pgTAP 파일은 `scripts/pgtap.sh`가 `supabase db query --linked -f`(Management API)로 실행한다(Docker 미사용). 이 경로는 **마지막 SELECT의 결과만** 돌려주므로, 모든 단언 결과를 임시 테이블 `_tap`에 모았다가 마지막에 한 번에 돌려준다. `scripts/pgtap.sh`의 머리 주석을 읽고 아래 형식을 그대로 따른다.
+```sql
+begin;
+create extension if not exists pgtap with schema extensions;
+set local search_path = public, extensions;
+create temp table _tap (n serial primary key, line text);
+grant insert, select on _tap to authenticated, anon;
+grant usage on sequence _tap_n_seq to authenticated, anon;
+insert into _tap(line) select plan(N);
+insert into _tap(line) select ok(..., '설명');        -- 모든 단언을 이 형태로 넣는다
+-- (역할을 바꿔 검사한 뒤에는 reset role;)
+insert into _tap(line) select * from finish();
+select string_agg(line, E'\n' order by n) as tap from _tap;
+rollback;
+```
+`select ok(...)`처럼 결과를 `_tap`에 넣지 않는 단언을 쓰지 마라. 이유: 그 결과는 실행기에 전달되지 않아 실패해도 보이지 않는다. 사용자 행은 postgres 권한으로 `auth.users`에 `(id, email)`만 넣어 만든다. 사용자 역할 흉내는 `set local role authenticated;`와 `select set_config('request.jwt.claims', json_build_object('sub', '<uuid>', 'role', 'authenticated')::text, true);`로 하고, 다음 검사 전에 `reset role;`로 돌아온다.
 
 다음을 단언한다:
 - 다섯 테이블이 있고 RLS가 켜져 있다(`pg_class.relrowsecurity`).
@@ -125,6 +140,8 @@ test "$(grep -ciE 'enable row level security' supabase/migrations/20261013000000
 ! grep -niE 'for (insert|update|delete|all)' supabase/migrations/20261013000000_upload_schema.sql
 ! grep -niE 'on storage\.objects' supabase/migrations/20261013000000_upload_schema.sql
 ! grep -niE 'create (or replace )?function' supabase/migrations/20261013000000_upload_schema.sql
+grep -q 'string_agg(line' supabase/tests/upload_schema.test.sql
+test "$(tail -n 3 supabase/tests/upload_schema.test.sql | grep -ciE '^rollback;')" -eq 1
 ```
 
 ## 검증 절차
@@ -141,7 +158,8 @@ test "$(grep -ciE 'enable row level security' supabase/migrations/20261013000000
 
 ## 금지사항
 
-- `supabase db push`, `supabase db reset`, `supabase link`, `supabase test db`를 실행하지 마라. 이유: dev DB 마이그레이션은 사용자가 수동으로 push한다(ARCHITECTURE "모드 · 환경").
+- `supabase db push`, `supabase db reset`, `supabase link`, `supabase test db`, `scripts/pgtap.sh`를 실행하지 마라. 이유: dev DB 마이그레이션은 사용자가 수동으로 push하고, push 전에는 pgTAP이 돌 수 없다(ARCHITECTURE "모드 · 환경").
+- `scripts/pgtap.sh`를 고치지 마라. 이유: 테스트 파일 형식이 이 실행기에 맞춰져 있다.
 - 이 step에서 함수·RPC를 만들지 마라. 이유: 다음 step(`upload-rpc`)이 별도 마이그레이션으로 만든다.
 - `needs_mapping` 상태, `column_mappings`·`subscriptions`·`ai_summaries`·`user_metrics` 테이블을 만들지 마라. 이유: 각각 fallback-mapping·billing·dashboard phase에서 만든다.
 - 사용자(`authenticated`·`anon`)에게 insert·update·delete 권한이나 정책을 주지 마라. 이유: 모든 쓰기는 소유권을 검증하는 service-role RPC로 한다(ADR-002).
