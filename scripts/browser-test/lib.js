@@ -10,24 +10,21 @@ page.setDefaultTimeout(5000);
 page.setDefaultNavigationTimeout(60000);
 await page.setViewportSize({ width: 1280, height: 900 });
 
-// /login은 아직 없어서 프로덕션의 링크 프리페치가 404를 내고 브라우저에서 끝나지 않은 채 남는다.
-// 그 요청은 오류 집계와 안정 판정에서 뺀다.
-const isLoginPrefetch = (url) => url.includes("/login");
 const logs = [];
 page.on("console", (m) => {
-  if ((m.type() === "error" || m.type() === "warning") && !isLoginPrefetch(m.location().url ?? "")) {
+  if (m.type() === "error" || m.type() === "warning") {
     logs.push(`${m.type()}: ${m.text().slice(0, 160)}`);
   }
 });
 page.on("pageerror", (e) => logs.push(`pageerror: ${String(e).slice(0, 160)}`));
 page.on("response", (r) => {
-  if (r.status() >= 400 && !isLoginPrefetch(r.url())) logs.push(`${r.status()} ${r.url()}`);
+  if (r.status() >= 400) logs.push(`${r.status()} ${r.url()}`);
 });
 
 // 프로덕션 서버에서는 Playwright의 networkidle이 오지 않는다(남은 요청이 0건이어도).
 // 직접 센 요청이 0.5초 동안 0건이면 안정된 것으로 본다.
 const inflight = new Set();
-page.on("request", (r) => { if (!isLoginPrefetch(r.url())) inflight.add(r); });
+page.on("request", (r) => inflight.add(r));
 page.on("requestfinished", (r) => inflight.delete(r));
 page.on("requestfailed", (r) => inflight.delete(r));
 const settle = async () => {

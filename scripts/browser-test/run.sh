@@ -7,6 +7,8 @@ cd "$(dirname "$0")/../.." || exit 1
 ROOT=$(pwd)
 DIR=scripts/browser-test
 PORT=3100
+# Origin 검사와 OAuth 복귀 주소가 이 포트를 쓰게 한다. NEXT_PUBLIC_*는 빌드 때 치환되므로 빌드 전에 둔다.
+export NEXT_PUBLIC_SITE_URL="http://localhost:$PORT"
 
 listener() { lsof -ti "tcp:$PORT" -sTCP:LISTEN | head -1; }
 cwd_of() { lsof -a -p "$1" -d cwd -Fn | sed -n 's/^n//p'; }
@@ -28,7 +30,7 @@ if [ -z "$(listener)" ] || [ "$(cwd_of "$(listener)")" != "$ROOT" ]; then
   exit 1
 fi
 
-if [ $# -gt 0 ]; then scenarios=("$@"); else scenarios=(s1 s2 s3 s4 s5 s6); fi
+if [ $# -gt 0 ]; then scenarios=("$@"); else scenarios=(s1 s2 s3 s4 s5 s6 s7); fi
 
 pass=0
 fail=0

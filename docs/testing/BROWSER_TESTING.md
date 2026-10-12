@@ -2,7 +2,7 @@
 
 실제 브라우저에서 화면·숫자·동선을 확인할 때 이 문서를 기준으로 한다. 화면과 분기는 `USER_FLOW.md`, 문구와 레이아웃은 `DESIGN.md`·`UX_GUIDE.md`를 따른다. 이 문서와 화면이 다르면 위 문서와 코드가 맞는지 먼저 확인하고, 이 문서를 고친다.
 
-- 범위: 지금 구현된 공개 화면 `/`(랜딩)·`/demo`(데모). 로그인 이후 화면은 라우트가 생기면 "추가할 시나리오"에서 옮겨 온다.
+- 범위: 공개 화면 `/`(랜딩)·`/demo`(데모)·`/login`(로그인), 로그인하지 않은 `/dashboard`, `/auth/*`의 실패·거절 경로. 실제 구글 로그인 이후는 자동화하지 않고 아래 "수동 확인"으로 본다. 로그인 이후 화면은 라우트가 생기면 "추가할 시나리오"에서 옮겨 온다.
 - 기대값은 데모 fixture(`src/lib/demo/fixture.ts`)를 `buildDashboard`에 넣어 계산한 값이다. 기준일 `DEMO_TODAY = 2026-10-05`, 데이터 2026-06~09(4개월), 카드 2장(생활비 카드 · 온라인 쇼핑 카드). fixture·탐지 규칙·포맷 함수가 바뀌면 이 문서의 숫자를 먼저 갱신한다.
 
 ## 실행 환경
@@ -12,8 +12,8 @@
 scripts/browser-test/run.sh          # 전체
 scripts/browser-test/run.sh s2 s3    # 일부만
 ```
-- `run.sh`가 하는 일: 3100 포트가 비었는지 확인 → `npm run build` → `next start -p 3100` → 서버 위치가 이 저장소인지 확인 → 각 시나리오 앞에 `lib.js`를 붙여 dev-browser(`--browser assetomy-test --headless`)로 실행 → `PASS`·`FAIL` 집계 → 자기가 띄운 서버만 끈다. FAIL이나 스크립트 오류가 있으면 exit 1.
-- `scripts/browser-test/s1-*.js`~`s6-*.js`는 아래 S1~S6을 옮긴 것이다. 기대값을 바꾸면 이 문서와 스크립트를 함께 고친다. 판정은 항목마다 `PASS`/`FAIL` 한 줄로 출력한다.
+- `run.sh`가 하는 일: 3100 포트가 비었는지 확인 → `NEXT_PUBLIC_SITE_URL=http://localhost:3100`으로 `npm run build`(Origin 검사·OAuth 복귀 주소가 3100을 쓰게 한다) → `next start -p 3100` → 서버 위치가 이 저장소인지 확인 → 각 시나리오 앞에 `lib.js`를 붙여 dev-browser(`--browser assetomy-test --headless`)로 실행 → `PASS`·`FAIL` 집계 → 자기가 띄운 서버만 끈다. FAIL이나 스크립트 오류가 있으면 exit 1.
+- `scripts/browser-test/s1-*.js`~`s7-*.js`는 아래 S1~S7을 옮긴 것이다. 기대값을 바꾸면 이 문서와 스크립트를 함께 고친다. 판정은 항목마다 `PASS`/`FAIL` 한 줄로 출력한다.
 - 화면을 따로 살펴볼 때는 서버를 3100에 띄우고 도우미를 붙여 쓴다.
   ```bash
   cat scripts/browser-test/lib.js - <<'EOF' | dev-browser --browser assetomy-test --headless --timeout 90
@@ -25,7 +25,6 @@ scripts/browser-test/run.sh s2 s3    # 일부만
 
 ### 주의할 점
 - 프로덕션 서버(`next start`)에서는 Playwright의 `networkidle`이 오지 않는다(남은 요청이 0건이어도). 이동은 `go()`를, 클릭 이동 뒤에는 `settle()`을 쓴다. `load` 뒤 직접 센 요청이 0.5초 동안 0건이면 안정된 것으로 본다.
-- 프로덕션에서는 링크 프리페치가 아직 없는 `/login`을 요청해 404를 내고, 그 요청이 브라우저에서 끝나지 않은 채 남는다. `lib.js`는 이 요청을 오류 집계와 안정 판정에서 뺀다. `/login`이 생기면 이 예외를 지운다.
 - `lib.js`는 요소 대기 5초, 이동 대기 60초로 둔다. 이유: locator가 틀리면 Playwright 기본값(30초)만큼 기다리다 스크립트 전체가 결과 없이 끝나고, 서버를 막 띄운 뒤 첫 이동은 5초를 넘는다.
 - 3100 포트를 쓴다. 이유: `.claude/worktrees/*`의 다른 세션이 3000에 서버를 띄워 두는 일이 있고, 그러면 내 서버는 `EADDRINUSE`로 뜨지 못하는데 테스트는 그 worktree 화면을 상대로 통과해 버린다.
 - 서버는 `lsof -ti tcp:3100 -sTCP:LISTEN | xargs kill`로 내가 띄운 것만 끈다(`-sTCP:LISTEN`이 없으면 그 포트에 붙은 다른 프로세스까지 잡힌다). `pkill -f "next dev"`는 자식 `next-server`를 남긴다. `dev-browser stop`은 다른 세션의 브라우저까지 끄므로 쓰지 않는다(`run.sh`는 `--idle-timeout 5m`으로 자기 브라우저를 닫는다).
@@ -33,7 +32,9 @@ scripts/browser-test/run.sh s2 s3    # 일부만
 - 랜딩은 등장 모션(`reveal`) 때문에 화면 밖 구역이 `opacity: 0`이다. 전체 페이지 스크린샷으로 배치를 볼 때는 `await page.emulateMedia({ reducedMotion: "reduce" })` 뒤에 찍는다. 모션 자체는 스크롤한 뒤 `getComputedStyle(el).opacity`로 확인한다.
 - 클라이언트 이동 직후 `page.title()`은 잠깐 빈 문자열이다(Next 16이 metadata를 스트리밍으로 넣음). `await page.waitForFunction(() => document.title !== "")` 뒤에 확인한다.
 - dev 서버에서는 Next.js 개발 도구(`NEXTJS-PORTAL`)가 Tab 순서 첫 번째에 끼어든다. S6의 Tab 검사는 이를 건너뛴다.
-- `/login`은 아직 없다(404). CTA는 `href`만 확인하고 누르지 않는다.
+- Next.js의 경로 알림(`#__next-route-announcer__`)도 `role="alert"`다. 화면의 에러 안내는 `main` 안에서만 찾는다.
+- dev-browser 샌드박스에는 `page.request`가 없다. 다른 Origin 요청은 `http://127.0.0.1:3100` 페이지에서 폼을 만들어 `localhost:3100`으로 제출해 재현하고(실제 CSRF와 같은 모양), 같은 Origin 요청은 `page.evaluate`의 `fetch`로 보낸다. 의도한 거절 응답(403·400·405)은 확인 뒤 `logs`를 비운다.
+- 구글 로그인 화면(`accounts.google.com`)에 도착한 뒤는 보지 않는다. 계정 선택·동의는 자동화하지 않는다(실제 계정이 필요하고 봇 탐지에 걸린다).
 - 샌드박스의 `new URL(...).pathname`은 믿을 수 없다(맞는 URL에서도 비교가 실패했다). 경로는 `page.url().replace(BASE, "")`처럼 문자열로 비교한다.
 - `next.config.ts`의 `agentRules: false` 때문에 에이전트가 띄운 `next dev`도 `AGENTS.md`를 고치지 않는다. 테스트 뒤 `AGENTS.md`가 바뀌어 있으면 이 설정이 빠졌는지 확인한다.
 - 설치 메모(Node 26): `dev-browser install`이 Playwright 브라우저 압축 해제 중 멈출 수 있다. 받아진 zip(`$TMPDIR/playwright-download-*/`)을 `ditto -x -k <zip> ~/Library/Caches/ms-playwright/<브라우저-버전>`으로 풀고 그 폴더에 `INSTALLATION_COMPLETE`를 만든다. `--headless`에는 `chromium-1208`과 별도로 `chromium_headless_shell-1208`이 필요하다.
@@ -101,7 +102,7 @@ scripts/browser-test/run.sh s2 s3    # 일부만
 - 가격: `월 6,900원`(임시값, PRD 확정 필요), `0원`, `해외에서는 $4.99/월로 결제돼요.`
 - 데모: `내 이용내역으로 해보기` 2개(헤더 · 맨 아래 `내 카드로 확인해 보세요` 구역)가 모두 `/login`, 안내 `예시 데이터로 만든 화면이에요. 실제 카드 내역이 아니에요.`
 - 데모의 워드마크(`assetomy` 링크)를 누르면 `/`로 간다.
-- `/login`이 생기면: 각 CTA를 눌러 로그인 화면이 열리는지 추가로 확인한다.
+- 랜딩 첫 `무료로 시작하기`, 데모 첫 `내 이용내역으로 해보기`를 누르면 URL `/login`, h1 `구글 계정으로 시작해요`.
 
 ### S6. 반응형 · 키보드 · 콘솔
 | 확인 | 기대 결과 |
@@ -119,12 +120,34 @@ scripts/browser-test/run.sh s2 s3    # 일부만
 | 차트 포커스 | 두 차트(`[role="img"][aria-label$="막대 차트"]`) 안에 `tabindex="0"`·`role="application"`이 없다. 접근성 트리에는 `img "일별 지출 막대 차트"`, `img "월별 지출 추세 막대 차트"`만 나온다 |
 | 콘솔·네트워크 | `/`, `/demo`, `/demo?month=2026-06`, 랜딩 → 데모 클릭 이동에서 콘솔 에러·경고, 4xx/5xx 응답 없음 |
 
+### S7. 로그인 (UC 02)
+| 확인 | 기대 결과 |
+|---|---|
+| `/login` | 200, 탭 제목 `로그인 · assetomy`, h1 `구글 계정으로 시작해요`, `카드번호·계좌·카드사 비밀번호는 받지 않아요`, 버튼 `Google로 계속하기` 1개, 에러 안내 없음 |
+| 구글 버튼 모양 | 배경 `rgb(255, 255, 255)`, 테두리 `rgb(116, 119, 117)`(`#747775`), 글자 `rgb(31, 31, 31)`, G 로고 `path` fill이 `#EA4335` · `#4285F4` · `#FBBC05` · `#34A853` 순서 |
+| next | 폼(`action="/auth/login"`)의 hidden `next`: 없으면 `/dashboard`, `?next=%2Fdashboard%3Fmonth%3D2026-09` → `/dashboard?month=2026-09`. `//evil.com` · `https://evil.com` · `/login` · `/auth/callback` → `/dashboard` |
+| 에러 안내(`main` 안 `role="alert"`) | `?error=cancelled` → `구글 로그인을 취소했어요. 계속하려면 다시 시도해 주세요.`, `?error=failed` → `로그인을 마치지 못했어요. 잠시 후 다시 시도해 주세요.`, `?error=zzz` → 없음 |
+| 보호 페이지 | 로그인하지 않고 `/dashboard` → `/login?next=%2Fdashboard` |
+| 콜백 실패 | `/auth/callback?error=access_denied&…` → `/login?next=%2Fdashboard&error=cancelled`. code 없음 → `…&error=failed`(next 유지). 잘못된 code + `next=//evil.com` → `/login?next=%2Fdashboard&error=failed` |
+| 폼 POST 거절 | `http://127.0.0.1:3100`에서 제출한 폼: `/auth/login`·`/auth/logout` 모두 403. 같은 Origin의 JSON `POST /auth/login` 400, `GET /auth/login` 405 |
+| 키보드 · 375px | Tab 순서 `assetomy` → `Google로 계속하기`, 포커스 표시 있음. 375×667에서 가로 스크롤 없고 버튼이 첫 화면에 보인다 |
+| 구글로 이동 | 버튼을 누르면 `https://accounts.google.com/`에 도착하고 URL에 `.supabase.co`(Supabase 콜백)가 들어 있다. `localhost:3100`에 `sb-…-auth-token-code-verifier` 쿠키가 생긴다 |
+| 콘솔·네트워크 | 구글로 이동하기 전까지 콘솔 에러·경고, 의도하지 않은 4xx/5xx 없음 |
+
+## 수동 확인: 실제 구글 로그인
+자동화하지 않는다. 로그인 흐름을 바꿨을 때 `npm run dev`(3000)에서 직접 확인한다. Supabase dev 프로젝트의 Google provider · Redirect URLs(`http://localhost:3000/auth/callback`)가 설정돼 있어야 한다.
+1. `/login` → `Google로 계속하기` → 구글 계정 선택·동의 → `/dashboard`에 `아직 올린 이용내역이 없어요`와 `로그아웃`.
+2. 로그인한 채 `/login` → 바로 `/dashboard`.
+3. `/login?next=%2Fdashboard%3Fmonth%3D2026-09`로 로그인 → `/dashboard?month=2026-09`로 돌아온다.
+4. 구글 동의 화면에서 취소 → `/login`에 취소 안내.
+5. `로그아웃` → `/`. 다시 `/dashboard` → `/login?next=%2Fdashboard`.
+6. Supabase 대시보드 Authentication → Users에 내 구글 계정이 1명 생겼다.
+
 ## 미확인 · 관찰 항목
 - 월 선택기 방향키: `onChange`에서 바로 `router.push`를 하므로, 방향키로 값이 바뀌는 환경(Windows·Linux Chrome)에서는 누를 때마다 페이지가 이동할 수 있다. macOS 헤드리스에서는 방향키로 값이 바뀌지 않아 재현하지 못했다. 해당 OS에서 수동으로 확인한다.
 
 ## 추가할 시나리오
 라우트가 생기면 아래를 시나리오로 옮긴다(UC는 `PRD.md`).
-- `/login`·`/auth/callback`: 구글 로그인 후 `next` 복귀, `?error` 안내 (UC 02)
 - `/dashboard` 온보딩·업로드: 멀티 업로드, 결과 카드, 실패 안내, 중복 업로드, "틀렸어요", 처음 보는 형식 매핑 (UC 03~07, 14)
 - `/dashboard` Free: 후보 티저·추세 잠금 카드 → 업그레이드 모달 (UC 09), 카테고리 수정 (UC 15), 월간 재방문 (UC 11)
 - `/settings`: 업로드 삭제, 전체 삭제, 탈퇴 (UC 12, 13, 16)
@@ -138,3 +161,4 @@ scripts/browser-test/run.sh s2 s3    # 일부만
 | 2026-10-12 | `2df29c1` + 작업 트리(`scripts/browser-test/` 추가), `run.sh` 프로덕션 빌드 | PASS 80 · FAIL 0 · 스크립트 오류 0 | 시나리오를 스크립트로 고정한 첫 실행. 프로덕션 `networkidle` 미도달·`/login` 프리페치 문제를 찾아 `settle()`로 대체. 방향키 항목은 미확인 |
 | 2026-10-12 | `b2d8b1c`(feat-3-landing-visual) + 작업 트리(시나리오 갱신), `run.sh` 프로덕션 빌드 | PASS 92 · FAIL 0 · 스크립트 오류 0 | 첫 실행 FAIL 4건(기능 카드 아이콘 수·시작 단계 글자·요금 li 수·랜딩 1280 열 수)은 랜딩 시각 강화로 기대값이 낡은 것. 히어로 칩·요약 밴드·요금 미리보기·데모 요약 위치·hover·모바일 등장 모션 검사를 추가. 화면을 보다 히어로 연결선과 긴 구역 등장 모션 버그를 찾아 `b2d8b1c`에서 고침. 방향키 항목은 미확인 |
 | 2026-10-12 | `faf31b2`(feat-4-pdf-parsing), `run.sh` 프로덕션 빌드, Node 24.21.0 | PASS 92 · FAIL 0 · 스크립트 오류 0 | 화면 변경 없는 phase(PDF 파싱 레이어·`pdfjs-dist` 추가)의 회귀 확인. 방향키 항목은 미확인 |
+| 2026-10-13 | `f6a3596`(feat-5-auth) + 작업 트리(S5 클릭 이동·S7 추가, `run.sh` 3100 Origin), `run.sh` 프로덕션 빌드, Node 24.21.0 | PASS 124 · FAIL 0 · 스크립트 오류 0 | 로그인 화면·콜백 실패 경로·폼 POST 거절·구글 도착·PKCE 쿠키 확인. 첫 실행 실패는 Next 경로 알림의 `role="alert"`와 샌드박스에 없는 `page.request` 때문인 측정 문제였다. 실제 구글 로그인은 수동 확인 대기. 방향키 항목은 미확인 |
