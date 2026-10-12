@@ -2,8 +2,23 @@
   "project": "assetomy",
   "phase": "4-pdf-parsing",
   "steps": [
-    { "step": 0, "name": "pdf-rows", "status": "pending" },
-    { "step": 1, "name": "hyundai-pdf", "status": "pending" },
-    { "step": 2, "name": "pdf-extract", "status": "pending" }
-  ]
+    {
+      "step": 0,
+      "name": "pdf-rows",
+      "status": "completed",
+      "summary": "src/types/parsing.ts 계약 타입, src/lib/parsing/normalize.ts의 normalizeMerchantKey(merchant: string): string, parseWonAmount(text: string): number | null, contentEventKeys(rows: { date: IsoDate; merchantKey: string; amount: number }[]): string[], src/lib/parsing/pdf-rows.ts의 ROW_Y_TOLERANCE = 4 및 groupPdfRows(items: PdfTextItem[]): PdfRow[], src/lib/parsing/normalize.test.ts·src/lib/parsing/pdf-rows.test.ts(44개) 구현",
+      "started_at": "2026-10-12T16:22:38+0900"
+    },
+    {
+      "step": 1,
+      "name": "hyundai-pdf",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "pdf-extract",
+      "status": "pending"
+    }
+  ],
+  "created_at": "2026-10-12T16:22:38+0900"
 }
