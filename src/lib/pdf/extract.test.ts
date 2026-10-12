@@ -115,12 +115,19 @@ describe("extractPdfTextItems resource and error boundaries", () => {
   it.each([
     ["PasswordException", "encrypted"],
     ["InvalidPDFException", "not_pdf"],
-    ["Error", "not_pdf"],
   ])("cleans up loading failures named %s", async (name, reason) => {
     const destroy = mockLoadingTask(Promise.reject(Object.assign(new Error("LOAD_FAILED"), { name })));
     expect(await extractPdfTextItems(makeTestPdf([""]))).toEqual({
       ok: false, code: "UNSUPPORTED_FILE", reason,
     });
+    expect(destroy).toHaveBeenCalledOnce();
+  });
+
+  it("cleans up and rethrows other loading errors such as a missing worker", async () => {
+    // 워커 파일이 번들에서 빠지면 pdfjs는 일반 Error를 던진다. 파일 문제(422)가 아니라 장애로 올려야 한다.
+    const error = new Error("Setting up fake worker failed");
+    const destroy = mockLoadingTask(Promise.reject(error));
+    await expect(extractPdfTextItems(makeTestPdf([""]))).rejects.toBe(error);
     expect(destroy).toHaveBeenCalledOnce();
   });
 

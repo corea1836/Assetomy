@@ -43,11 +43,16 @@ export async function extractPdfTextItems(bytes: Uint8Array): Promise<PdfExtract
     try {
       document = await loadingTask.promise;
     } catch (error) {
-      const encrypted = typeof error === "object" && error !== null &&
-        "name" in error && error.name === "PasswordException";
-      return {
-        ok: false, code: "UNSUPPORTED_FILE", reason: encrypted ? "encrypted" : "not_pdf",
-      };
+      const name = typeof error === "object" && error !== null && "name" in error
+        ? error.name : undefined;
+      if (name === "PasswordException") {
+        return { ok: false, code: "UNSUPPORTED_FILE", reason: "encrypted" };
+      }
+      if (name === "InvalidPDFException") {
+        return { ok: false, code: "UNSUPPORTED_FILE", reason: "not_pdf" };
+      }
+      // 워커 누락 같은 장애를 파일 문제로 바꾸지 않는다.
+      throw error;
     }
 
     if (document.numPages > MAX_PDF_PAGES) {
