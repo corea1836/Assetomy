@@ -13,7 +13,9 @@
     {
       "step": 1,
       "name": "upload-rpc",
-      "status": "pending"
+      "status": "completed",
+      "summary": "service_role 전용 잠금 헬퍼·RPC 5개와 pgTAP 단언 100개 작성(모든 RPC returns jsonb): create_card(p_user_id uuid, p_label text) kind=created/duplicate_label/invalid_label; begin_upload(p_user_id uuid, p_card_id uuid, p_file_name text, p_file_hash text, p_file_size integer) kind=card_not_found/rate_limited/busy/duplicate/started; ingest_upload(p_user_id uuid, p_upload_id uuid, p_identity_scope text, p_cancel_style text, p_rows jsonb, p_skipped integer) kind=not_found/not_processing/lease_expired/card_scope_mismatch/duplicate/done/no_new; fail_upload(p_user_id uuid, p_upload_id uuid, p_code text, p_reason text) kind=not_found/not_processing/failed; delete_upload(p_user_id uuid, p_upload_id uuid) kind=not_found/processing/deleted",
+      "started_at": "2026-10-13T08:21:35+0900"
     },
     {
       "step": 2,
