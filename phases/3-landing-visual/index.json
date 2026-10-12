@@ -7,7 +7,8 @@
       "name": "visual-foundation",
       "status": "completed",
       "started_at": "2026-10-12T09:32:30+0900",
-      "summary": "--color-primary-hover·--color-surface-dark-raised·--shadow-float 토큰, DarkBackdrop(props: { light: \"right\" | \"center\" }): React.JSX.Element, landing-dots·landing-light·reveal 클래스, ArrowRightIcon·SparklesIcon·XIcon을 추가하고 랜딩 배경·CTA·Pro 카드와 버튼 hover에 적용"
+      "summary": "--color-primary-hover·--color-surface-dark-raised·--shadow-float 토큰, DarkBackdrop(props: { light: \"right\" | \"center\" }): React.JSX.Element, landing-dots·landing-light·reveal 클래스, ArrowRightIcon·SparklesIcon·XIcon을 추가하고 랜딩 배경·CTA·Pro 카드와 버튼 hover에 적용",
+      "completed_at": "2026-10-12T09:39:42+0900"
     },
     {
       "step": 1,
