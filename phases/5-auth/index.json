@@ -2,9 +2,29 @@
   "project": "assetomy",
   "phase": "5-auth",
   "steps": [
-    { "step": 0, "name": "supabase-session", "status": "pending" },
-    { "step": 1, "name": "auth-core", "status": "pending" },
-    { "step": 2, "name": "auth-routes", "status": "pending" },
-    { "step": 3, "name": "auth-pages", "status": "pending" }
-  ]
+    {
+      "step": 0,
+      "name": "supabase-session",
+      "status": "completed",
+      "started_at": "2026-10-12T23:22:21+0900",
+      "summary": "@supabase/ssr 0.12.7·@supabase/supabase-js 2.117.3 설치; src/lib/env.ts의 SupabaseEnv·getSupabaseEnv(): SupabaseEnv(NEXT_PUBLIC_SUPABASE_URL http(s)·PUBLISHABLE_KEY 비어 있지 않음, 실패 시 변수 이름만 throw), src/lib/supabase/server.ts('server-only')의 createSupabaseServerClient(): Promise<SupabaseClient>(next/headers cookies, setAll 실패는 삼킴), src/proxy.ts의 proxy(request: NextRequest): Promise<NextResponse>(getClaims로 세션 갱신만, 리다이렉트 없음)와 matcher(_next/static·_next/image·favicon.ico·이미지 확장자 제외) 및 env·server·proxy 테스트; 전체 AC 통과",
+      "completed_at": "2026-10-12T23:47:28+0900"
+    },
+    {
+      "step": 1,
+      "name": "auth-core",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "auth-routes",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "auth-pages",
+      "status": "pending"
+    }
+  ],
+  "created_at": "2026-10-12T23:22:21+0900"
 }
