@@ -13,7 +13,8 @@ src/
 │                         # webhooks/polar · internal/maintenance
 ├── components/           # UI. DTO만 받는다
 ├── lib/
-│   ├── parsing/          # 순수: 파일 읽기·카드사 프로필·폴백 매핑 적용·값 패턴·거래 정규화 (__fixtures__/ 실제 파일)
+│   ├── parsing/          # 순수: 파일 읽기·PDF 줄 묶기·카드사 프로필·폴백 매핑 적용·값 패턴·거래 정규화 (__fixtures__/ 익명화한 실제 파일)
+│   ├── pdf/              # PDF 글자·좌표 추출(pdfjs-dist + cmaps, 'server-only')
 │   ├── analytics/        # 순수: 스냅샷·전월 대비·추세·탐지·buildDashboard
 │   ├── ingest/           # 업로드 처리(I/O, 의존성 주입)
 │   ├── billing/          # 플랜 조회·Polar 동기화
@@ -77,7 +78,7 @@ types/     도메인 타입 · 에러 코드
 - 사용자는 RLS로 본인 행만 select한다. user_metrics·upload_attempts는 사용자가 접근하지 않는다. Storage에는 사용자 정책이 없다.
 - 모든 쓰기는 service_role에만 EXECUTE를 준 RPC로 한다. RPC는 `auth.uid()` 대신 서버가 넘긴 user_id와 행 소유권·상태·lease를 검증한다. 권한은 pgTAP으로 단언한다.
 - 사용자 단위 쓰기(업로드 수신·ingest·삭제·요약 저장·탈퇴)는 사용자별 advisory lock(`pg_advisory_xact_lock`)으로 직렬화한다.
-- fingerprint = `sha256(cardId|식별 범위|거래 식별자|거래 종류)`. 식별 범위는 식별자 종류(예: 승인번호)라서 프로필 경로와 폴백 경로에서 같은 거래는 같은 값이 된다. 같은 파일(file_hash)은 사용자의 어느 카드에 올렸든 no_new다.
+- fingerprint = `sha256(cardId|식별 범위|거래 식별자|거래 종류)`. 식별 범위는 식별자 종류(예: 승인번호)라서 프로필 경로와 폴백 경로에서 같은 거래는 같은 값이 된다. 식별자가 없는 현대카드 명세서 PDF는 식별 범위가 `content`이고 거래 식별자는 `이용일|정규화 가맹점명|금액|같은 내용 안 순번`이다. 같은 파일(file_hash)은 사용자의 어느 카드에 올렸든 no_new다.
 - 카드는 첫 성공 업로드의 식별 범위·취소 표기 방식으로 고정한다. 경로(프로필·폴백)가 달라도 둘이 같으면 같은 카드에 올릴 수 있다.
 - 목록 조회는 `.range()`로 끝까지 페이지네이션한다.
 
@@ -87,6 +88,7 @@ types/     도메인 타입 · 에러 코드
       사용자 잠금 → 24시간 30개·동시 2개 검사 → processing 업로드 커밋(6분 lease)
       → AES-256-GCM 암호화 후 Storage 저장(평문은 메모리에서만) → file_hash 검사 → 형식 판정
          ├ 카드사 프로필 있음 / 저장된 폴백 매핑 있음 ─▶ (3)
+         ├ PDF인데 프로필 없음 ─▶ UNSUPPORTED_FILE(PDF는 폴백 없음)
          └ 없음 → Haiku 매핑 제안(헤더 + 값 패턴) → 제안을 업로드 행에 저장
                  → needs_mapping(1시간 만료, lease 해제) + 미리보기 응답
 (2) POST /api/uploads/:id/mapping   본문 없음("이대로 읽기")
@@ -154,13 +156,13 @@ success 페이지 · 웹훅(서명 검증) · 결제 기간이 지난 상태 ─
 - 인증: 보호 페이지·핸들러마다 `requireUser()`(`getClaims`). proxy는 세션 갱신만 한다. next는 내부 경로만 허용한다.
 - CSRF: 세션을 쓰는 POST/PUT/DELETE는 Origin 정확 일치, JSON 요청은 `application/json`만, 파일 업로드는 `multipart/form-data`만. 웹훅은 서명, Cron은 `CRON_SECRET`.
 - 격리: RLS 읽기 + 검증된 서버 쓰기 + 복합 FK. 타인 리소스는 404.
-- 파일: private 버킷에 암호화본만(AES-256-GCM, 파일마다 랜덤 IV). 평문 원본은 메모리에서만 다룬다. 확장자·용량(4MB)·행 수(5,000)·셀 길이 상한, xlsx ZIP 시그니처, 패치된 SheetJS.
+- 파일: private 버킷에 암호화본만(AES-256-GCM, 파일마다 랜덤 IV). 평문 원본은 메모리에서만 다룬다. 확장자·용량(4MB)·행 수(5,000)·셀 길이 상한, xlsx ZIP 시그니처, 패치된 SheetJS. PDF는 `%PDF-` 시그니처·100쪽 상한·암호 PDF 거절, pdfjs-dist는 `isEvalSupported: false`로 글자·좌표만 읽는다.
 - LLM: 분류에는 가맹점명, 요약에는 월 집계, 폴백 매핑에는 헤더와 값 패턴(숫자 → 9, 문자 → X)만 보낸다. 실제 셀 값과 원본은 보내지 않는다. structured outputs를 쓰고 결과는 코드로 검증한다.
 - 헤더 `X-Frame-Options: DENY` · `nosniff` · `strict-origin-when-cross-origin`. XSS는 `react/no-danger`와 텍스트 렌더링으로 막는다.
 - 로그는 코드와 id만. 비용은 24시간 30개·동시 2개를 DB에서 원자적으로 제한하고 Anthropic·Vercel 지출 한도를 건다.
 
 ## 테스트
 - 단위 `*.test.ts`(`npm test`, Docker 불필요), DB·Storage 통합 `*.db.test.ts`(`npm run test:db`), pgTAP `supabase/tests/`. Stop hook은 단위 테스트만 돌린다.
-- 파싱은 익명화한 실제 fixture로 카드별·월별·전체 기대 합계와 정확히 일치해야 한다. 같은 fixture를 프로필 없이 폴백 매핑으로 읽어도 같은 합계와 fingerprint가 나와야 한다.
+- 파싱은 익명화한 실제 fixture로 카드별·월별·전체 기대 합계와 정확히 일치해야 한다. 표 형식(csv·xlsx) fixture는 프로필 없이 폴백 매핑으로 읽어도 같은 합계와 fingerprint가 나와야 한다. PDF fixture는 원본 대신 익명화한 글자 조각·좌표 JSON이고, 원본 PDF 테스트는 로컬에 파일이 있을 때만 돈다.
 - 외부 서비스는 mock으로 단위 테스트하고, 권한·잠금·경합은 DB 통합 테스트로 확인한다.
-- **[확정 필요]** 초기 프로필 카드사 2종과 .xls 지원 여부는 실제 파일을 확인한 뒤 정한다.
+- **[확정 필요]** 초기 프로필의 나머지 카드사 1종과 .xls 지원 여부는 실제 파일을 확인한 뒤 정한다(첫 프로필은 현대카드 명세서 PDF).

@@ -10,7 +10,7 @@
 - Supabase (Auth·Postgres·Storage, Seoul 리전): `@supabase/ssr`, `@supabase/supabase-js`, Supabase CLI
 - Anthropic `@anthropic-ai/sdk`: `claude-haiku-5-5`(가맹점 분류·폴백 컬럼 매핑 제안), `claude-sonnet-5-5`(Free 월 요약), `claude-opus-5-5`(Pro 월 요약)에만 사용
 - Polar: `@polar-sh/nextjs`, `@polar-sh/sdk`
-- 파싱: `papaparse`, SheetJS(CDN tarball)
+- 파싱: `papaparse`, SheetJS(CDN tarball), `pdfjs-dist`(PDF 글자·좌표 추출, cmaps 포함)
 - 검증·테스트: zod, Vitest, Testing Library, pgTAP
 - 배포: Vercel (함수 리전 `icn1`), `@vercel/analytics`
 
