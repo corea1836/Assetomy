@@ -48,6 +48,23 @@ const supabaseEnvSchema = z.object({
   ),
 });
 
+const fileEncryptionKeySchema = z.string().min(1).transform((value, ctx) => {
+  const key = Buffer.from(value, "base64");
+  if (key.byteLength !== 32 || key.toString("base64") !== value) {
+    ctx.addIssue({ code: "custom" });
+    return z.NEVER;
+  }
+  return new Uint8Array(key);
+});
+
+export function getFileEncryptionKey(): Uint8Array {
+  const result = fileEncryptionKeySchema.safeParse(process.env.FILE_ENCRYPTION_KEY);
+  if (!result.success) {
+    throw new Error("FILE_ENCRYPTION_KEY");
+  }
+  return result.data;
+}
+
 export function getDeploymentEnv(): DeploymentEnv {
   const result = deploymentEnvSchema.safeParse({
     VERCEL_ENV: process.env.VERCEL_ENV,

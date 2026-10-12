@@ -1,5 +1,6 @@
+import { randomBytes } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getDeploymentEnv, getSupabaseEnv } from "./env";
+import { getDeploymentEnv, getFileEncryptionKey, getSupabaseEnv } from "./env";
 
 const envNames = [
   "VERCEL_ENV",
@@ -8,6 +9,7 @@ const envNames = [
   "APP_MODE",
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
+  "FILE_ENCRYPTION_KEY",
 ] as const;
 
 beforeEach(() => {
@@ -15,6 +17,53 @@ beforeEach(() => {
 });
 
 afterEach(() => vi.unstubAllEnvs());
+
+describe("getFileEncryptionKey", () => {
+  it("decodes a canonical 32-byte base64 key", () => {
+    const key = randomBytes(32);
+    vi.stubEnv("FILE_ENCRYPTION_KEY", key.toString("base64"));
+
+    const decoded = getFileEncryptionKey();
+    expect(decoded).toBeInstanceOf(Uint8Array);
+    expect(Buffer.from(decoded)).toEqual(key);
+  });
+
+  it.each([
+    { name: "unset", value: undefined },
+    { name: "empty", value: "" },
+    { name: "invalid base64", value: "not-base64!" },
+    { name: "16 bytes", value: randomBytes(16).toString("base64") },
+    { name: "33 bytes", value: randomBytes(33).toString("base64") },
+    { name: "missing padding", value: randomBytes(32).toString("base64").slice(0, -1) },
+    { name: "extra padding", value: `${randomBytes(32).toString("base64")}=` },
+    { name: "whitespace", value: ` ${randomBytes(32).toString("base64")}` },
+  ])("reports only the variable name for $name", ({ value }) => {
+    vi.stubEnv("FILE_ENCRYPTION_KEY", value);
+
+    expect(() => getFileEncryptionKey()).toThrowError(/^FILE_ENCRYPTION_KEY$/);
+    if (value) {
+      expect(() => getFileEncryptionKey()).not.toThrowError(value);
+    }
+  });
+
+  it("reads the current key on every call", () => {
+    const first = randomBytes(32);
+    const second = randomBytes(32);
+
+    vi.stubEnv("FILE_ENCRYPTION_KEY", first.toString("base64"));
+    expect(Buffer.from(getFileEncryptionKey())).toEqual(first);
+    vi.stubEnv("FILE_ENCRYPTION_KEY", second.toString("base64"));
+    expect(Buffer.from(getFileEncryptionKey())).toEqual(second);
+  });
+
+  it("can be freshly imported without an encryption key", async () => {
+    vi.resetModules();
+    await expect(import("./env")).resolves.toHaveProperty(
+      "getFileEncryptionKey",
+      expect.any(Function),
+    );
+  });
+});
 
 describe("getSupabaseEnv", () => {
   it.each(["https://example.supabase.co", "http://localhost:54321"])(
