@@ -23,7 +23,8 @@
       "name": "file-crypto",
       "status": "completed",
       "summary": "getFileEncryptionKey(): Uint8Array의 lazy·정규 base64 32바이트 검증과 sha256Hex(bytes: Uint8Array): string, encryptStatement(plaintext: Uint8Array, key: Uint8Array, aad: string): Uint8Array, decryptStatement(payload: Uint8Array, key: Uint8Array, aad: string): Uint8Array 구현; AES-256-GCM 암호문은 [0x01 1바이트][랜덤 IV 12바이트][인증 태그 16바이트][암호문]이고 UTF-8 AAD로 경로를 인증하며, env 오류는 FILE_ENCRYPTION_KEY, 잘못된 암호화 키는 invalid_key, 모든 복호화 오류는 decrypt_failed만 반환; .env.example 키 블록·TDD 테스트 추가 및 전체 AC 통과",
-      "started_at": "2026-10-13T08:26:36+0900"
+      "started_at": "2026-10-13T08:26:36+0900",
+      "completed_at": "2026-10-13T08:29:17+0900"
     },
     {
       "step": 3,
