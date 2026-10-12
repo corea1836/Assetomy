@@ -1,12 +1,7 @@
+import { FINDING_KIND_LABELS } from "@/components/dashboard/finding-labels";
 import { formatDate, formatMonthShort, formatWon } from "@/lib/format";
 import { CATEGORY_LABELS } from "@/types/category";
 import type { FindingKind, Findings } from "@/types/dashboard";
-
-const KIND_LABELS: Record<FindingKind, string> = {
-  recurring: "정기결제로 보여요",
-  duplicate: "중복 결제 의심",
-  large: "고액 결제",
-};
 
 const FINDING_KINDS: FindingKind[] = ["recurring", "duplicate", "large"];
 
@@ -33,7 +28,7 @@ export function FindingsList({
                   key={kind}
                   className="flex flex-wrap items-baseline justify-between gap-2 text-sm"
                 >
-                  <span>{KIND_LABELS[kind]}</span>
+                  <span>{FINDING_KIND_LABELS[kind]}</span>
                   <span className="text-right font-mono">
                     {findings.byKind[kind].count}건 ·{" "}
                     {formatWon(findings.byKind[kind].amount)}
@@ -56,7 +51,7 @@ export function FindingsList({
                   key={`${finding.kind}-${finding.merchantKey}-${index}`}
                   className="border-b border-hairline-soft px-2 py-3"
                 >
-                  <p className="text-sm text-body">{KIND_LABELS[finding.kind]}</p>
+                  <p className="text-sm text-body">{FINDING_KIND_LABELS[finding.kind]}</p>
                   <div className="mt-2 flex items-baseline justify-between gap-4">
                     <div className="min-w-0">
                       <h3 className="break-words text-base font-semibold text-ink">

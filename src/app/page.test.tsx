@@ -219,6 +219,18 @@ describe("landing page", () => {
     expect(screen.getByText("예시 데이터")).toBeInTheDocument();
   });
 
+  it("shows the floating duplicate sentence and the demo card files in the hero", () => {
+    render(<Page />);
+    const hero = screen.getByRole("heading", { level: 1 }).closest("section")!;
+
+    expect(within(hero).getByText("중복 결제 의심 · 9월 18일 32,000원 × 2"))
+      .toHaveClass("text-amber-200");
+    expect(within(hero).getByText("생활비 카드.xlsx")).toBeInTheDocument();
+    expect(within(hero).getByText("온라인 쇼핑 카드.csv")).toBeInTheDocument();
+    expect(renderToStaticMarkup(<Page />))
+      .toContain("중복 결제 의심 · 9월 18일 32,000원 × 2");
+  });
+
   it("keeps mockup numbers tied to buildDashboard when its result changes", () => {
     const dashboard = demoDashboard();
     const changed = {

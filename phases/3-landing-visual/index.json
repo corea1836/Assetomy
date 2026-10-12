@@ -21,7 +21,9 @@
     {
       "step": 2,
       "name": "hero-visual",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-12T09:43:56+0900",
+      "summary": "HeroVisual(props: { month: YearMonth; cardLabels: string[]; snapshot: Snapshot; findings: Findings }): React.JSX.Element 서버 컴포넌트로 파일 칩·일별 뒤 카드·총지출 앞 카드·중복 결제 의심 칩을 구현하고, src/components/dashboard/finding-labels.ts의 FINDING_KIND_LABELS를 공유하며 페이지에서 [...new Set(DEMO_TRANSACTIONS.map(({ cardLabel }) => cardLabel))]로 cardLabels를 계산해 가나다순으로 표시"
     },
     {
       "step": 3,

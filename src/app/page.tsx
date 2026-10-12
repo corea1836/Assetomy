@@ -4,11 +4,11 @@ import { buttonClass } from "@/components/button-styles";
 import { ArrowRightIcon, CardIcon, CheckIcon, SearchIcon, ShieldCheckIcon } from "@/components/icons";
 import { DarkBackdrop } from "@/components/landing/dark-backdrop";
 import { DemoLink } from "@/components/landing/demo-link";
+import { HeroVisual } from "@/components/landing/hero-visual";
 import { Wordmark } from "@/components/wordmark";
 import { buildDashboard } from "@/lib/analytics/dashboard";
 import { DEMO_TODAY, DEMO_TRANSACTIONS } from "@/lib/demo/fixture";
-import { formatMonth, formatWon } from "@/lib/format";
-import { CATEGORY_LABELS } from "@/types/category";
+import { formatWon } from "@/lib/format";
 
 const PRO_PRICE_KRW = 6_900; // 임시값: PRD [확정 필요]
 
@@ -57,10 +57,8 @@ export default function Page(): React.JSX.Element {
   if (dashboard === null || dashboard.plan !== "pro") notFound();
 
   const { month, snapshot, findings } = dashboard;
-  const categories = snapshot.categories.slice(0, 3);
-  const maxCategoryAmount = Math.max(0, ...categories.map(({ amount }) => amount));
-  const candidateCount = Object.values(findings.byKind)
-    .reduce((sum, { count }) => sum + count, 0);
+  const cardLabels = [...new Set(DEMO_TRANSACTIONS.map(({ cardLabel }) => cardLabel))];
+  cardLabels.sort((a, b) => a.localeCompare(b, "ko"));
 
   return (
     <main>
@@ -97,37 +95,12 @@ export default function Page(): React.JSX.Element {
               </p>
             </div>
 
-            <div className="min-w-0 rounded-3xl border border-hairline-dark bg-surface-dark-elevated p-8">
-              <p className="text-sm tabular-nums text-muted-soft">
-                {`${formatMonth(month)} 총지출`}
-              </p>
-              <p className="mt-3 font-mono text-3xl font-medium text-white">
-                {formatWon(snapshot.total)}
-              </p>
-              <ul aria-label="예시 상위 카테고리" className="mt-6">
-                {categories.map(({ category, amount }) => (
-                  <li key={category} className="border-b border-hairline-dark py-3">
-                    <div className="flex flex-wrap items-baseline justify-between gap-2 text-sm">
-                      <span>{CATEGORY_LABELS[category]}</span>
-                      <span className="text-right font-mono">{formatWon(amount)}</span>
-                    </div>
-                    {amount > 0 && (
-                      <div
-                        aria-hidden="true"
-                        className="mt-2 h-2 rounded-r-[4px] bg-primary-on-dark"
-                        style={{ width: `${(amount / maxCategoryAmount) * 100}%` }}
-                      />
-                    )}
-                  </li>
-                ))}
-              </ul>
-              <div className="mt-6 rounded-2xl border border-hairline-dark bg-surface-dark px-4 py-3">
-                <p className="text-sm tabular-nums text-amber-200">
-                  {`확인이 필요한 지출 ${candidateCount}건 · 후보 합계 ${formatWon(findings.candidateTotal)}`}
-                </p>
-              </div>
-              <p className="mt-3 text-caption text-muted-soft">예시 데이터</p>
-            </div>
+            <HeroVisual
+              month={month}
+              cardLabels={cardLabels}
+              snapshot={snapshot}
+              findings={findings}
+            />
           </div>
         </div>
       </section>
