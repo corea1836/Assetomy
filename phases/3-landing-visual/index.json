@@ -37,7 +37,9 @@
     {
       "step": 4,
       "name": "summary-band",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-12T09:55:25+0900",
+      "summary": "SummaryBand(props: { month: YearMonth; summary: string; findings: Findings; trend: Trend | null; mom: MonthOverMonth | null }): React.JSX.Element 서버 컴포넌트로 예시 월간 요약·고액 결제→정기결제→중복 결제 의심 근거·월별 막대·전월 대비를 구현하고, DEMO_SUMMARY_MONTH에만 히어로→기능 쇼케이스→요약→시작 단계→요금→CTA 순서로 표시"
     },
     {
       "step": 5,

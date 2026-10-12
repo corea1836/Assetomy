@@ -3,7 +3,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import Page from "@/app/page";
 import * as analytics from "@/lib/analytics/dashboard";
-import { DEMO_TODAY, DEMO_TRANSACTIONS } from "@/lib/demo/fixture";
+import { DEMO_SUMMARY, DEMO_TODAY, DEMO_TRANSACTIONS } from "@/lib/demo/fixture";
 import { formatDate, formatMonth, formatMonthShort, formatWon } from "@/lib/format";
 import { CATEGORY_LABELS } from "@/types/category";
 
@@ -51,11 +51,14 @@ describe("landing page", () => {
   it("contains decorative dots and one light inside each isolated dark band", () => {
     const { container } = render(<Page />);
     const hero = screen.getByRole("heading", { level: 1 }).closest("section")!;
+    const summary = screen.getByRole("heading", {
+      name: "숫자는 코드가 계산하고, 요약은 문장으로 정리해요",
+    }).closest("section")!;
     const cta = screen.getByRole("heading", {
       name: "이번 달 카드 지출, 파일 하나로 확인해 보세요",
     }).closest("section")!;
 
-    for (const band of [hero, cta]) {
+    for (const band of [hero, summary, cta]) {
       expect(band).toHaveClass("relative", "isolate", "overflow-hidden");
       const dots = band.querySelectorAll(".landing-dots");
       const lights = band.querySelectorAll(".landing-light");
@@ -66,8 +69,9 @@ describe("landing page", () => {
       expect(lights[0].parentElement).toBe(dots[0].parentElement);
     }
     expect(hero.querySelector(".landing-light")).toHaveClass("left-1/2");
+    expect(summary.querySelector(".landing-light")).toHaveClass("left-1/2");
     expect(cta.querySelector(".landing-light")).toHaveClass("inset-0");
-    expect(container.querySelectorAll(".landing-dots")).toHaveLength(2);
+    expect(container.querySelectorAll(".landing-dots")).toHaveLength(3);
   });
 
   it("adds decorative 18px arrows only to the hero and closing CTA links", () => {
@@ -107,7 +111,7 @@ describe("landing page", () => {
     expect(hero).not.toHaveClass("reveal");
 
     for (const title of [
-      "파일 하나로 시작해요", "이렇게 시작해요", "요금",
+      "파일 하나로 시작해요", "숫자는 코드가 계산하고, 요약은 문장으로 정리해요", "이렇게 시작해요", "요금",
       "이번 달 카드 지출, 파일 하나로 확인해 보세요",
     ]) {
       const heading = screen.getByRole("heading", { name: title, level: 2 });
@@ -174,13 +178,17 @@ describe("landing page", () => {
     expect(band.querySelector("[tabindex]")).toBeNull();
   });
 
-  it("shows how to start in three steps between the features and the pricing", () => {
+  it("orders the bands as features, summary, three starting steps, and pricing", () => {
     render(<Page />);
 
     const features = screen.getByRole("heading", { name: "파일 하나로 시작해요" });
+    const summary = screen.getByRole("heading", {
+      name: "숫자는 코드가 계산하고, 요약은 문장으로 정리해요", level: 2,
+    });
     const steps = screen.getByRole("heading", { name: "이렇게 시작해요", level: 2 });
     const pricing = screen.getByRole("heading", { name: "요금" });
-    expect(features.compareDocumentPosition(steps)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(features.compareDocumentPosition(summary)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
+    expect(summary.compareDocumentPosition(steps)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
     expect(steps.compareDocumentPosition(pricing)).toBe(Node.DOCUMENT_POSITION_FOLLOWING);
 
     const list = screen.getByRole("list", { name: "시작하는 순서" });
@@ -199,6 +207,23 @@ describe("landing page", () => {
         .toBeInTheDocument();
       expect(within(items[index]).getByText(description)).toBeInTheDocument();
     });
+  });
+
+  it("shows the fixture summary beside analytics evidence, trend, and month-over-month figures", () => {
+    render(<Page />);
+
+    const band = screen.getByRole("heading", {
+      name: "숫자는 코드가 계산하고, 요약은 문장으로 정리해요",
+    }).closest("section")!;
+    expect(within(band).getByText(DEMO_SUMMARY)).toBeInTheDocument();
+    expect(within(band).getByText("예시 요약이에요. 가입하면 AI가 내 가맹점명과 집계로 요약해요."))
+      .toBeInTheDocument();
+    const evidence = within(band).getByRole("list", { name: "요약의 근거" });
+    expect(within(evidence).getByText("2건 · 69,900원")).toBeInTheDocument();
+    expect(within(evidence).getByText("32,000원 × 2")).toBeInTheDocument();
+    expect(within(band).getByRole("img", { name: "월별 지출 추세 막대(예시)" }))
+      .toBeInTheDocument();
+    expect(within(band).getByText("8월보다 +909,200원 늘었어요")).toBeInTheDocument();
   });
 
   it("shows both plans, the temporary KRW price, and the overseas currency notice", () => {
@@ -296,5 +321,9 @@ describe("landing page", () => {
     expect(within(categories).getByText("80,000원")).toBeInTheDocument();
     expect(screen.getByText("확인이 필요한 지출 6건 · 후보 합계 67,890원"))
       .toBeInTheDocument();
+    expect(screen.queryByRole("heading", {
+      name: "숫자는 코드가 계산하고, 요약은 문장으로 정리해요",
+    })).not.toBeInTheDocument();
+    expect(screen.queryByText(DEMO_SUMMARY)).not.toBeInTheDocument();
   });
 });

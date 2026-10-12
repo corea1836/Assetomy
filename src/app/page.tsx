@@ -6,9 +6,10 @@ import { DarkBackdrop } from "@/components/landing/dark-backdrop";
 import { DemoLink } from "@/components/landing/demo-link";
 import { FeatureShowcase } from "@/components/landing/feature-showcase";
 import { HeroVisual } from "@/components/landing/hero-visual";
+import { SummaryBand } from "@/components/landing/summary-band";
 import { Wordmark } from "@/components/wordmark";
 import { buildDashboard } from "@/lib/analytics/dashboard";
-import { DEMO_TODAY, DEMO_TRANSACTIONS } from "@/lib/demo/fixture";
+import { DEMO_SUMMARY, DEMO_SUMMARY_MONTH, DEMO_TODAY, DEMO_TRANSACTIONS } from "@/lib/demo/fixture";
 import { formatWon } from "@/lib/format";
 
 const PRO_PRICE_KRW = 6_900; // 임시값: PRD [확정 필요]
@@ -100,6 +101,16 @@ export default function Page(): React.JSX.Element {
           />
         </div>
       </section>
+
+      {month === DEMO_SUMMARY_MONTH && (
+        <SummaryBand
+          month={month}
+          summary={DEMO_SUMMARY}
+          findings={findings}
+          trend={dashboard.trend}
+          mom={dashboard.mom}
+        />
+      )}
 
       <section className="bg-surface-soft">
         <div className="mx-auto max-w-[1248px] px-6 py-24">
