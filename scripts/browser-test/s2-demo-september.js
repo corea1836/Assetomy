@@ -67,5 +67,22 @@ check("S2 달라진 카테고리", same(changes, ["쇼핑 +872,000원 늘었어�
 
 const summary = norm(await section("이번 달 요약").innerText()).replace("이번 달 요약", "").trim();
 check("S2 요약 문단·숫자 없음", summary.length > 20 && !/[0-9]/.test(summary), summary);
+const summaryPos = await page.evaluate(() => {
+  const card = (title) => [...document.querySelectorAll("h2")].find((h) => h.textContent === title)?.closest("section");
+  const [total, summaryCard, category] = ["총지출", "이번 달 요약", "카테고리"].map((t) => card(t)?.getBoundingClientRect());
+  if (!total || !summaryCard || !category) return null;
+  return {
+    totalLeft: Math.round(total.left), summaryLeft: Math.round(summaryCard.left), categoryLeft: Math.round(category.left),
+    totalBottom: Math.round(total.bottom), summaryTop: Math.round(summaryCard.top),
+    background: getComputedStyle(card("이번 달 요약")).backgroundColor,
+  };
+});
+check(
+  "S2 요약은 총지출 바로 아래 왼쪽 열·민트 바탕",
+  summaryPos !== null && summaryPos.summaryLeft === summaryPos.totalLeft && summaryPos.summaryTop > summaryPos.totalBottom &&
+    summaryPos.categoryLeft > summaryPos.totalLeft && summaryPos.background === "rgb(231, 243, 238)",
+  JSON.stringify(summaryPos),
+);
+check("S2 요약 예시 출처", summary.includes("예시 요약이에요. 가입하면 AI가 내 가맹점명과 집계로 요약해요."), summary);
 check("S2 금지어 없음", !/절약|낭비|부정 결제|명세서/.test(await bodyText()), "");
 checkNoLogs("S2 콘솔·네트워크 오류 없음");
