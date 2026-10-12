@@ -29,9 +29,10 @@
     {
       "step": 3,
       "name": "upload-store",
-      "status": "blocked",
-      "blocked_reason": "마이그레이션 미적용: 사용자가 'supabase db push --linked' 후 'scripts/pgtap.sh'를 실행해야 함",
-      "started_at": "2026-10-13T08:29:17+0900"
+      "status": "completed",
+      "summary": "getSupabaseAdminEnv(): {url, secretKey}와 createSupabaseAdminClient(): SupabaseClient; createCard(userId, label): Promise<CreateCardResult>, beginUpload(input: BeginUploadInput): Promise<BeginUploadResult>, ingestUpload(input: IngestUploadInput): Promise<IngestUploadResult>, failUpload(userId, uploadId, code, reason?): Promise<FailUploadResult>, deleteUpload(userId, uploadId): Promise<DeleteUploadResult>를 Zod 검증·snake_case 변환으로 구현; src/lib/store/store-error.ts의 StoreError는 operation·code만 보존하며 message는 store:<operation>:<code>; src/lib/supabase/db-test-helpers.ts로 임시 사용자 생성·삭제, vitest.db.setup.ts의 .env.local→.env 로딩과 db 전용 setupFiles·testTimeout 30000·fileParallelism false 설정; 전체 AC 통과(단위 809개 통과·1개 건너뜀, DB 통합 6개 통과)",
+      "started_at": "2026-10-13T08:29:17+0900",
+      "completed_at": "2026-10-13T08:41:15+0900"
     },
     {
       "step": 4,
