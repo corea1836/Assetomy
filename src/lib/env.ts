@@ -8,6 +8,11 @@ export type DeploymentEnv = {
   appMode: "mock" | "live" | undefined;
 };
 
+export type SupabaseEnv = {
+  url: string;
+  publishableKey: string;
+};
+
 const emptyAsUndefined = (value: unknown) => (value === "" ? undefined : value);
 
 const deploymentEnvSchema = z.object({
@@ -32,6 +37,17 @@ const deploymentEnvSchema = z.object({
   APP_MODE: z.preprocess(emptyAsUndefined, z.enum(["mock", "live"]).optional()),
 });
 
+const supabaseEnvSchema = z.object({
+  NEXT_PUBLIC_SUPABASE_URL: z.preprocess(
+    emptyAsUndefined,
+    z.url({ protocol: /^https?$/ }),
+  ),
+  NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY: z.preprocess(
+    emptyAsUndefined,
+    z.string().min(1),
+  ),
+});
+
 export function getDeploymentEnv(): DeploymentEnv {
   const result = deploymentEnvSchema.safeParse({
     VERCEL_ENV: process.env.VERCEL_ENV,
@@ -49,5 +65,22 @@ export function getDeploymentEnv(): DeploymentEnv {
     vercelUrl: result.data.VERCEL_URL,
     siteUrl: result.data.NEXT_PUBLIC_SITE_URL,
     appMode: result.data.APP_MODE,
+  };
+}
+
+export function getSupabaseEnv(): SupabaseEnv {
+  const result = supabaseEnvSchema.safeParse({
+    NEXT_PUBLIC_SUPABASE_URL: process.env.NEXT_PUBLIC_SUPABASE_URL,
+    NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY:
+      process.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
+  });
+
+  if (!result.success) {
+    throw new Error(result.error.issues.map((issue) => issue.path[0]).join(", "));
+  }
+
+  return {
+    url: result.data.NEXT_PUBLIC_SUPABASE_URL,
+    publishableKey: result.data.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY,
   };
 }

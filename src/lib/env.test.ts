@@ -1,11 +1,13 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getDeploymentEnv } from "./env";
+import { getDeploymentEnv, getSupabaseEnv } from "./env";
 
 const envNames = [
   "VERCEL_ENV",
   "VERCEL_URL",
   "NEXT_PUBLIC_SITE_URL",
   "APP_MODE",
+  "NEXT_PUBLIC_SUPABASE_URL",
+  "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
 ] as const;
 
 beforeEach(() => {
@@ -13,6 +15,74 @@ beforeEach(() => {
 });
 
 afterEach(() => vi.unstubAllEnvs());
+
+describe("getSupabaseEnv", () => {
+  it.each(["https://example.supabase.co", "http://localhost:54321"])(
+    "accepts an HTTP(S) URL: %s",
+    (url) => {
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", url);
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
+
+      expect(getSupabaseEnv()).toEqual({
+        url,
+        publishableKey: "sb_publishable_test",
+      });
+    },
+  );
+
+  it.each([undefined, ""])(
+    "reports both variable names for absent settings: %j",
+    (value) => {
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", value);
+      vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", value);
+
+      expect(() => getSupabaseEnv()).toThrowError(
+        /^NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY$/,
+      );
+    },
+  );
+
+  it.each(["not-a-url", "ftp://x"])("rejects an invalid URL: %s", (url) => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", url);
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
+
+    expect(() => getSupabaseEnv()).toThrowError(/^NEXT_PUBLIC_SUPABASE_URL$/);
+    expect(() => getSupabaseEnv()).not.toThrowError(/sb_publishable_test/);
+  });
+
+  it.each([undefined, ""])("rejects an absent key: %j", (key) => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", key);
+
+    expect(() => getSupabaseEnv()).toThrowError(
+      /^NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY$/,
+    );
+  });
+
+  it("reads new settings on every call", () => {
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://example.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_test");
+    expect(getSupabaseEnv()).toEqual({
+      url: "https://example.supabase.co",
+      publishableKey: "sb_publishable_test",
+    });
+
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_URL", "https://other.supabase.co");
+    vi.stubEnv("NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY", "sb_publishable_other");
+    expect(getSupabaseEnv()).toEqual({
+      url: "https://other.supabase.co",
+      publishableKey: "sb_publishable_other",
+    });
+  });
+
+  it("can be freshly imported without Supabase settings", async () => {
+    vi.resetModules();
+    await expect(import("./env")).resolves.toHaveProperty(
+      "getSupabaseEnv",
+      expect.any(Function),
+    );
+  });
+});
 
 describe("getDeploymentEnv", () => {
   it("returns undefined for unset variables", () => {
