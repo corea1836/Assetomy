@@ -388,6 +388,53 @@ class TestCheckoutBranch:
 
 
 # ---------------------------------------------------------------------------
+# _check_node_version
+# ---------------------------------------------------------------------------
+
+class TestCheckNodeVersion:
+    def _node(self, stdout):
+        return MagicMock(returncode=0, stdout=stdout, stderr="")
+
+    def test_matching_major_passes(self, executor, tmp_project):
+        (tmp_project / ".nvmrc").write_text("24\n")
+        with patch.object(ex, "ROOT", tmp_project), \
+             patch.object(ex.subprocess, "run", return_value=self._node("v24.11.0\n")) as mock_run:
+            executor._check_node_version()
+        assert mock_run.call_args[0][0] == ["node", "-v"]
+
+    def test_mismatched_major_exits(self, executor, tmp_project):
+        (tmp_project / ".nvmrc").write_text("24\n")
+        with patch.object(ex, "ROOT", tmp_project), \
+             patch.object(ex.subprocess, "run", return_value=self._node("v26.10.0\n")):
+            with pytest.raises(SystemExit) as exc_info:
+                executor._check_node_version()
+        assert exc_info.value.code == 1
+
+    def test_missing_node_exits(self, executor, tmp_project):
+        (tmp_project / ".nvmrc").write_text("24\n")
+        with patch.object(ex, "ROOT", tmp_project), \
+             patch.object(ex.subprocess, "run", side_effect=FileNotFoundError):
+            with pytest.raises(SystemExit) as exc_info:
+                executor._check_node_version()
+        assert exc_info.value.code == 1
+
+    def test_no_nvmrc_skips(self, executor, tmp_project):
+        with patch.object(ex, "ROOT", tmp_project), \
+             patch.object(ex.subprocess, "run") as mock_run:
+            executor._check_node_version()
+        mock_run.assert_not_called()
+
+    def test_run_checks_node_before_branch(self, executor):
+        calls = []
+        for name in ["_print_header", "_check_node_version", "_check_blockers",
+                     "_checkout_branch", "_ensure_created_at", "_execute_all_steps", "_finalize"]:
+            setattr(executor, name, lambda *a, n=name: calls.append(n))
+        executor._load_guardrails = lambda: ""
+        executor.run()
+        assert calls.index("_check_node_version") < calls.index("_checkout_branch")
+
+
+# ---------------------------------------------------------------------------
 # _commit_step (mocked)
 # ---------------------------------------------------------------------------
 

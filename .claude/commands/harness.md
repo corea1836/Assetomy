@@ -139,6 +139,7 @@ python3 scripts/execute.py {task-name} --deploy  # step 완료마다 Vercel prev
 
 execute.py가 자동으로 처리하는 것:
 
+- Node 버전 점검 — `.nvmrc`의 메이저 버전과 `node -v`가 다르면 실행하지 않음
 - `feat-{task-name}` 브랜치 생성/checkout
 - 가드레일 주입 — CLAUDE.md + docs/*.md 내용을 매 step 프롬프트에 포함(하위 폴더 `docs/testing/` 등은 제외)
 - 컨텍스트 누적 — 완료된 step의 summary를 다음 step 프롬프트에 전달

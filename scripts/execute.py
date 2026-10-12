@@ -83,6 +83,7 @@ class StepExecutor:
 
     def run(self):
         self._print_header()
+        self._check_node_version()
         self._check_blockers()
         self._checkout_branch()
         guardrails = self._load_guardrails()
@@ -296,6 +297,22 @@ class StepExecutor:
         if self._auto_deploy:
             print(f"  Auto-deploy: Vercel preview")
         print(f"{'='*60}")
+
+    def _check_node_version(self):
+        nvmrc = ROOT / ".nvmrc"
+        if not nvmrc.exists():
+            return
+        required = nvmrc.read_text().strip().lstrip("v").split(".")[0]
+
+        try:
+            current = subprocess.run(["node", "-v"], capture_output=True, text=True).stdout.strip()
+        except FileNotFoundError:
+            current = ""
+
+        if current.lstrip("v").split(".")[0] != required:
+            print(f"\n  ✗ Node {required} 버전이 필요합니다(현재: {current or '설치되지 않음'}).")
+            print(f"  .nvmrc 버전으로 바꾼 뒤 다시 실행하세요.")
+            sys.exit(1)
 
     def _check_blockers(self):
         index = self._read_json(self._index_file)
