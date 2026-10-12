@@ -2,10 +2,33 @@
   "project": "assetomy",
   "phase": "6-upload-store",
   "steps": [
-    { "step": 0, "name": "upload-schema", "status": "pending" },
-    { "step": 1, "name": "upload-rpc", "status": "pending" },
-    { "step": 2, "name": "file-crypto", "status": "pending" },
-    { "step": 3, "name": "upload-store", "status": "pending" },
-    { "step": 4, "name": "statement-storage", "status": "pending" }
-  ]
+    {
+      "step": 0,
+      "name": "upload-schema",
+      "status": "completed",
+      "summary": "supabase/migrations/20261013000000_upload_schema.sql에 cards·uploads·transactions·upload_attempts·merchant_category_overrides, unique·사용자 복합 FK·업로드 거래 cascade·RLS SELECT 전용 권한과 private statements 버킷을 정의하고 pgTAP 단언 63개를 작성",
+      "started_at": "2026-10-13T08:16:34+0900"
+    },
+    {
+      "step": 1,
+      "name": "upload-rpc",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "file-crypto",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "upload-store",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "statement-storage",
+      "status": "pending"
+    }
+  ],
+  "created_at": "2026-10-13T08:16:34+0900"
 }
