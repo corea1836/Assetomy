@@ -12,7 +12,12 @@ import { TrendChart } from "@/components/dashboard/trend-chart";
 import { Wordmark } from "@/components/wordmark";
 import { buildDashboard } from "@/lib/analytics/dashboard";
 import { monthOf } from "@/lib/analytics/dates";
-import { DEMO_SUMMARY, DEMO_TODAY, DEMO_TRANSACTIONS } from "@/lib/demo/fixture";
+import {
+  DEMO_SUMMARY,
+  DEMO_SUMMARY_MONTH,
+  DEMO_TODAY,
+  DEMO_TRANSACTIONS,
+} from "@/lib/demo/fixture";
 import { formatMonth } from "@/lib/format";
 
 export const metadata = { title: "데모 · assetomy" };
@@ -66,7 +71,16 @@ export default async function DemoPage({
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
-          <TotalCard snapshot={snapshot} mom={mom} />
+          <div className="flex flex-col gap-6">
+            <TotalCard snapshot={snapshot} mom={mom} />
+            {month === DEMO_SUMMARY_MONTH ? (
+              <MonthlySummary summary={DEMO_SUMMARY} source="example" />
+            ) : (
+              <p className="text-caption text-body">
+                데모 요약은 2026년 9월에만 있어요
+              </p>
+            )}
+          </div>
           <CategoryList categories={snapshot.categories} />
         </div>
 
@@ -87,14 +101,6 @@ export default async function DemoPage({
 
         <FindingsList findings={findings} dataMonthCount={months.length} />
         {trend !== null && <TrendChart trend={trend} />}
-        {month === "2026-09" ? (
-          <MonthlySummary summary={DEMO_SUMMARY} />
-        ) : (
-          <p className="text-caption text-body">
-            데모 요약은 2026년 9월에만 있어요
-          </p>
-        )}
-
         <section className="rounded-3xl bg-surface-soft p-6 sm:p-8">
           <h2 className="text-lg font-semibold text-ink">내 카드로 확인해 보세요</h2>
           <p className="mt-3 max-w-2xl text-base leading-relaxed text-body">

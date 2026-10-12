@@ -1,5 +1,6 @@
 import { render, screen, within } from "@testing-library/react";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
+import { DEMO_SUMMARY_MONTH } from "@/lib/demo/fixture";
 import DemoPage from "./page";
 
 vi.mock("next/navigation", async (importOriginal) => ({
@@ -8,8 +9,8 @@ vi.mock("next/navigation", async (importOriginal) => ({
   usePathname: () => "/demo",
 }));
 
-async function renderDemo() {
-  render(await DemoPage({ searchParams: Promise.resolve({}) }));
+async function renderDemo(month?: string) {
+  render(await DemoPage({ searchParams: Promise.resolve({ month }) }));
 }
 
 const follows = (first: Element, second: Element) =>
@@ -25,7 +26,7 @@ describe("demo page", () => {
 
   afterEach(() => vi.restoreAllMocks());
 
-  it("offers the sign-up CTA in the header and again after the summary", async () => {
+  it("offers the sign-up CTA in the header and again after the trend", async () => {
     await renderDemo();
 
     const links = screen.getAllByRole("link", { name: "내 이용내역으로 해보기" });
@@ -41,7 +42,40 @@ describe("demo page", () => {
     expect(within(cta as HTMLElement).getByText(
       "카드사에서 받은 이용내역 파일을 올리면 이 화면이 내 숫자로 바뀌어요. 최근 3개월치를 올리면 정기결제까지 찾아드려요.",
     )).toBeInTheDocument();
-    expect(follows(screen.getByRole("heading", { name: "이번 달 요약" }), heading)).toBe(true);
+    expect(follows(screen.getByRole("heading", { name: "월별 추세" }), heading)).toBe(true);
+  });
+
+  it("places the example summary after the total and before categories in the first grid", async () => {
+    await renderDemo(DEMO_SUMMARY_MONTH);
+
+    const total = screen.getByRole("heading", { name: "총지출" });
+    const summary = screen.getByRole("heading", { name: "이번 달 요약" });
+    const categories = screen.getByRole("heading", { name: "카테고리" });
+    expect(follows(total, summary)).toBe(true);
+    expect(follows(summary, categories)).toBe(true);
+
+    const column = total.closest("section")?.parentElement;
+    expect(column).toHaveClass("flex", "flex-col", "gap-6");
+    expect(summary.closest("section")?.parentElement).toBe(column);
+    expect(column?.parentElement).toHaveClass("grid", "gap-6", "md:grid-cols-2");
+    expect(categories.closest("section")?.parentElement).toBe(column?.parentElement);
+    expect(within(summary.closest("section") as HTMLElement).getByText(
+      "예시 요약이에요. 가입하면 AI가 내 가맹점명과 집계로 요약해요.",
+    )).toBeInTheDocument();
+    expect(screen.queryByText("AI가 가맹점명과 집계로 쓴 요약이에요. 금액은 코드로 계산해요."))
+      .not.toBeInTheDocument();
+  });
+
+  it("keeps the summary-month notice below the total for June without a summary heading", async () => {
+    await renderDemo("2026-06");
+
+    const total = screen.getByRole("heading", { name: "총지출" });
+    const notice = screen.getByText("데모 요약은 2026년 9월에만 있어요");
+    expect(notice).toHaveClass("text-caption", "text-body");
+    expect(follows(total, notice)).toBe(true);
+    expect(follows(notice, screen.getByRole("heading", { name: "카테고리" }))).toBe(true);
+    expect(notice.parentElement).toBe(total.closest("section")?.parentElement);
+    expect(screen.queryByRole("heading", { name: "이번 달 요약" })).not.toBeInTheDocument();
   });
 
   it("marks where the Pro-only part starts, between the daily chart and the findings", async () => {

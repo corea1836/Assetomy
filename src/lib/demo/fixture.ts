@@ -98,6 +98,8 @@ export const DEMO_TRANSACTIONS: Transaction[] = Object.entries(extraRows).flatMa
   ([month, rows]) => transactionsForMonth(month, [...monthlyRows, ...rows]),
 );
 
+export const DEMO_SUMMARY_MONTH: YearMonth = "2026-09";
+
 export const DEMO_SUMMARY: string =
   "이번 달에는 가구 구매가 더해져 지난달보다 지출이 늘었어요. "
   + "음악 구독과 통신 요금은 정기결제로 보이고, 공방에서 같은 날 같은 금액이 반복된 결제도 확인이 필요해요. "
