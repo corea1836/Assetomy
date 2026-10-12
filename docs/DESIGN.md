@@ -86,6 +86,7 @@ Assetomy Design System을 이 제품(한국어 대시보드 MVP)에 맞게 줄�
 - `maxBarSize={24}`, 값 쪽 끝만 4px 둥글게(`radius={[4, 4, 0, 0]}`, 가로는 `[0, 4, 4, 0]`). `isAnimationActive={false}`.
 - 축은 "120만"처럼 만 단위로 쓰고, 12px `body` 색 `font-mono`. 툴팁은 원 단위 전체 금액을 `rounded-lg border border-hairline bg-canvas px-3 py-2 shadow-soft`에 보여준다.
 - 그리드는 가로선만 1px `hairline-soft`. 글자는 막대 색이 아니라 `ink`·`body`.
+- 차트는 `<div role="img" aria-label="… 막대 차트">`로 감싸고 차트에 `accessibilityLayer={false}`를 준다. 이유: Recharts 3 기본값은 안쪽 `svg`를 이름 없는 `role="application"` 포커스 요소로 만들어, Tab이 차트에 멈추고 화면낭독기가 축 숫자를 나열한다.
 
 ## 컴포넌트
 모서리: 버튼 `rounded-full` · 카드·모달 `rounded-3xl` · 입력·select `rounded-xl` · 툴팁·행 안 select `rounded-lg`. 각진 모서리는 쓰지 않고, 표·목록 행은 구분선으로 나눈다.

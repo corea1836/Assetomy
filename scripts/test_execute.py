@@ -166,6 +166,15 @@ class TestLoadGuardrails:
         guide_pos = result.index("guide")
         assert arch_pos < guide_pos
 
+    def test_excludes_docs_subdirectories(self, executor, tmp_project):
+        testing_dir = tmp_project / "docs" / "testing"
+        testing_dir.mkdir()
+        (testing_dir / "browser.md").write_text("# Browser Testing\nscenario")
+        with patch.object(ex, "ROOT", tmp_project):
+            result = executor._load_guardrails()
+        assert "# Architecture" in result
+        assert "Browser Testing" not in result
+
     def test_no_agents_md(self, executor, tmp_project):
         (tmp_project / "AGENTS.md").unlink()
         with patch.object(ex, "ROOT", tmp_project):
