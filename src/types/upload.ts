@@ -1,5 +1,5 @@
 import type { CategoryId } from "./category";
-import type { CancelStyle, EventKind, IdentityScope } from "./parsing";
+import type { CancelStyle, EventKind, IdentityScope, UnreadableReason, UnsupportedFileReason } from "./parsing";
 import type { IsoDate } from "./transaction";
 
 export type UploadStatus = "processing" | "done" | "no_new" | "failed";
@@ -57,6 +57,24 @@ export type TransactionCoverage = { count: number; from: IsoDate | null; to: Iso
 export type UploadOutcomeRecord =
   | ({ status: "done" | "no_new" } & UploadSummary)
   | { status: "processing" | "failed" };
+
+export type ProcessUploadInput = {
+  userId: string;
+  cardId: string;
+  fileName: string;
+  bytes: Uint8Array;
+};
+
+export type ProcessUploadOutcome =
+  | ({ kind: "done" | "no_new"; uploadId: string } & UploadSummary)
+  | { kind: "duplicate"; existingCardId: string }
+  | { kind: "rejected"; uploadId: string; code: "UNSUPPORTED_FILE"; reason: UnsupportedFileReason }
+  | { kind: "rejected"; uploadId: string; code: "UNREADABLE"; reason: UnreadableReason }
+  | { kind: "card_not_found" }
+  | { kind: "rate_limited" }
+  | { kind: "busy" }
+  | { kind: "card_scope_mismatch"; uploadId: string }
+  | { kind: "temporary_failure"; uploadId: string | null };
 
 export type IngestUploadResult =
   | ({ kind: "done" | "no_new" } & UploadSummary)
