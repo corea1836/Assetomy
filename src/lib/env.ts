@@ -53,6 +53,16 @@ const supabaseAdminEnvSchema = z.object({
   SUPABASE_SECRET_KEY: z.preprocess(emptyAsUndefined, z.string().min(1)),
 });
 
+const anthropicApiKeySchema = z.string().min(1);
+
+export function getAnthropicApiKey(): string {
+  const result = anthropicApiKeySchema.safeParse(process.env.ANTHROPIC_API_KEY);
+  if (!result.success) {
+    throw new Error("ANTHROPIC_API_KEY");
+  }
+  return result.data;
+}
+
 const fileEncryptionKeySchema = z.string().min(1).transform((value, ctx) => {
   const key = Buffer.from(value, "base64");
   if (key.byteLength !== 32 || key.toString("base64") !== value) {

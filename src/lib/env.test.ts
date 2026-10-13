@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getDeploymentEnv, getFileEncryptionKey, getSupabaseAdminEnv, getSupabaseEnv } from "./env";
+import { getAnthropicApiKey, getDeploymentEnv, getFileEncryptionKey, getSupabaseAdminEnv, getSupabaseEnv } from "./env";
 
 const envNames = [
   "VERCEL_ENV",
@@ -11,6 +11,7 @@ const envNames = [
   "NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY",
   "SUPABASE_SECRET_KEY",
   "FILE_ENCRYPTION_KEY",
+  "ANTHROPIC_API_KEY",
 ] as const;
 
 beforeEach(() => {
@@ -18,6 +19,34 @@ beforeEach(() => {
 });
 
 afterEach(() => vi.unstubAllEnvs());
+
+describe("getAnthropicApiKey", () => {
+  it("returns a non-empty key", () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "test-anthropic-key");
+    expect(getAnthropicApiKey()).toBe("test-anthropic-key");
+  });
+
+  it.each([undefined, ""])("reports only the variable name for %j", (key) => {
+    vi.stubEnv("ANTHROPIC_API_KEY", key);
+    expect(() => getAnthropicApiKey()).toThrowError(/^ANTHROPIC_API_KEY$/);
+  });
+
+  it("reads the current key on every call", () => {
+    vi.stubEnv("ANTHROPIC_API_KEY", "first-test-key");
+    expect(getAnthropicApiKey()).toBe("first-test-key");
+    vi.stubEnv("ANTHROPIC_API_KEY", "second-test-key");
+    expect(getAnthropicApiKey()).toBe("second-test-key");
+    vi.stubEnv("ANTHROPIC_API_KEY", undefined);
+    expect(() => getAnthropicApiKey()).toThrowError(/^ANTHROPIC_API_KEY$/);
+  });
+
+  it("can be freshly imported without an API key", async () => {
+    vi.resetModules();
+    await expect(import("./env")).resolves.toHaveProperty(
+      "getAnthropicApiKey", expect.any(Function),
+    );
+  });
+});
 
 describe("getFileEncryptionKey", () => {
   it("decodes a canonical 32-byte base64 key", () => {
