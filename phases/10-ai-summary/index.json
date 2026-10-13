@@ -23,7 +23,10 @@
     {
       "step": 1,
       "name": "summary-input",
-      "status": "pending"
+      "status": "completed",
+      "summary": "buildSummaryInput(dashboard: Dashboard): SummaryInput과 SummaryCategory·SummaryMerchant·SummaryMonthOverMonth·SummaryCandidates·FreeSummaryInput·SummaryFinding·SummaryTrend·ProSummaryInput 타입을 추가했다. Free 키 순서는 plan→month→inProgress→period→total→transactionCount→categories→topMerchants→monthOverMonth→candidates, Pro는 findings→trend가 뒤따른다. 거래 id·cardLabel·개별 날짜·merchantKey·otherMerchants·daily·월 선택 목록·lastDate는 제외했다. 단위 테스트 7개를 추가했다.",
+      "started_at": "2026-10-13T22:35:52+0900",
+      "completed_at": "2026-10-13T22:39:03+0900"
     },
     {
       "step": 2,
