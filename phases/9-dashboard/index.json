@@ -47,7 +47,10 @@
     {
       "step": 4,
       "name": "dashboard-page",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-13T20:54:35+0900",
+      "summary": "세션·RLS로 카드/업로드/구독·전체 거래를 병렬 조회하고 seoulToday 기준 buildDashboard DTO로 월 제목·월 선택·최종 반영 월→총지출/카테고리→가맹점/일별→후보/추세→#upload(가이드·패널·올린 파일) 순서 구성; 공통 TopMerchants에 otherMerchants·editable, Free TeaserCard에 teaser·dataMonthCount만, TrendLockCard에 실제 데이터 props 없이, PricingUpgrade에 teaser|null, Pro FindingsList에 findings·dataMonthCount와 TrendChart에 trend만 전달; 로그인 복귀는 유효한 YYYY-MM(01~12)·upgrade=pricing만 유지하고 checkout·기타 파라미터 제외, 데이터 없는 월은 최신 월로 대체; getTransactionCoverage·TransactionCoverage와 관련 테스트 제거, 조회 오류 테스트는 listTransactions로 전환; 업로드 완료 문서 갱신 및 대시보드 수동 확인 6항목(375×667·합계/월 선택·Free RSC 경계/모달·카테고리 수정·mock Pro 전환·측정) 추가; 테스트 선작성 실패→페이지 40개 통과, lint·build·전체 단위 1740개 통과(1개 skipped)·DB 통합 30개·정적 AC 통과, 브라우저 실행 없음",
+      "completed_at": "2026-10-13T21:02:46+0900"
     }
   ],
   "created_at": "2026-10-13T18:42:33+0900"
