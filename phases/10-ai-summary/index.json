@@ -12,10 +12,34 @@
     }
   ],
   "steps": [
-    { "step": 0, "name": "summary-schema", "status": "pending" },
-    { "step": 1, "name": "summary-input", "status": "pending" },
-    { "step": 2, "name": "summarizer-service", "status": "pending" },
-    { "step": 3, "name": "summary-data", "status": "pending" },
-    { "step": 4, "name": "summary-ui", "status": "pending" }
-  ]
+    {
+      "step": 0,
+      "name": "summary-schema",
+      "status": "completed",
+      "summary": "supabase/migrations/20261016000000_ai_summaries.sql에 8개 컬럼·월/플랜/모델/해시/본문 제약과 본인 SELECT RLS, save_ai_summary(uuid,text,text,text,text,text)의 saved/no_transactions, delete_upload의 거래 월 요약 삭제를 추가하고 supabase/tests/ai_summaries.test.sql에 55개 pgTAP 단언을 작성했다. dev DB 미적용(사용자 쪽에서 push·pgtap.sh 필요).",
+      "started_at": "2026-10-13T22:29:49+0900",
+      "completed_at": "2026-10-13T22:35:52+0900"
+    },
+    {
+      "step": 1,
+      "name": "summary-input",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "summarizer-service",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "summary-data",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "summary-ui",
+      "status": "pending"
+    }
+  ],
+  "created_at": "2026-10-13T22:29:49+0900"
 }
