@@ -2,7 +2,7 @@ import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
 import { listCards } from "./cards";
 import { findMerchantCategories } from "./merchant-categories";
-import { getTransactionCoverage } from "./transactions";
+import { listTransactions } from "./transactions";
 import { getUploadOutcome } from "./uploads";
 import { QueryError } from "./query-error";
 
@@ -10,7 +10,7 @@ const operations = [
   { operation: "listCards", call: (client: SupabaseClient) => listCards(client, "user-a") },
   { operation: "findMerchantCategories", call: (client: SupabaseClient) => findMerchantCategories(client, "user-a", ["X"]) },
   { operation: "getUploadOutcome", call: (client: SupabaseClient) => getUploadOutcome(client, "user-a", "22222222-2222-4222-8222-222222222222") },
-  { operation: "getTransactionCoverage", call: (client: SupabaseClient) => getTransactionCoverage(client, "user-a") },
+  { operation: "listTransactions", call: (client: SupabaseClient) => listTransactions(client, "user-a", new Map()) },
 ];
 
 function failingClient(error: unknown, reject = false): SupabaseClient {

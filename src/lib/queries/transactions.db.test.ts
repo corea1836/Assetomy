@@ -4,7 +4,7 @@ import { beginUpload, ingestUpload } from "@/lib/store/uploads";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createTestUser, deleteTestUser } from "@/lib/supabase/db-test-helpers";
 import type { IngestRow } from "@/types/upload";
-import { getTransactionCoverage, listTransactions } from "./transactions";
+import { listTransactions } from "./transactions";
 
 let userIds: string[] = [];
 let userA: string;
@@ -34,25 +34,11 @@ async function saveRows(userId: string, rows: IngestRow[]) {
   return card.cardId;
 }
 
-describe("getTransactionCoverage against the dev DB", () => {
-  it("returns an exact count and bounds for 1001 distinct dates while excluding B", async () => {
-    const admin = createSupabaseAdminClient();
-    expect(await getTransactionCoverage(admin, userA)).toEqual({ count: 0, from: null, to: null });
-    // 28일씩 잡아 날짜 파싱 없이 서로 다른 유효한 거래일 1001개를 만든다.
-    const rows: IngestRow[] = Array.from({ length: 1001 }, (_, index) => ({
-      usedOn: `${2023 + Math.floor(index / 336)}-${String(Math.floor((index % 336) / 28) + 1).padStart(2, "0")}-${String(index % 28 + 1).padStart(2, "0")}`,
-      merchant: "예시 가맹점", merchantKey: "예시가맹점", amount: 1000, eventKind: "purchase", category: "food",
-      fingerprint: index.toString(16).padStart(64, "0"),
-    }));
-    await saveRows(userA, rows);
-    await saveRows(userB, [{ ...rows[0], usedOn: "2022-01-01" }, { ...rows[1], usedOn: "2026-10-13" }]);
-    expect(await getTransactionCoverage(admin, userA))
-      .toEqual({ count: 1001, from: "2023-01-01", to: "2025-12-21" });
-  });
-});
-
 describe("listTransactions against the dev DB", () => {
   it("reads all 1001 A rows with card labels and ascending dates while excluding B", async () => {
+    const admin = createSupabaseAdminClient();
+    expect(await listTransactions(admin, userA, new Map())).toEqual([]);
+    // 28일씩 잡아 날짜 파싱 없이 서로 다른 유효한 거래일 1001개를 만든다.
     const rows: IngestRow[] = Array.from({ length: 1001 }, (_, index) => ({
       usedOn: `${2023 + Math.floor(index / 336)}-${String(Math.floor((index % 336) / 28) + 1).padStart(2, "0")}-${String(index % 28 + 1).padStart(2, "0")}`,
       merchant: "예시 가맹점", merchantKey: "예시가맹점", amount: 1000, eventKind: "purchase", category: "food",
@@ -60,7 +46,7 @@ describe("listTransactions against the dev DB", () => {
     }));
     const cardA = await saveRows(userA, [...rows].reverse());
     await saveRows(userB, [{ ...rows[0], usedOn: "2022-01-01" }, { ...rows[1], usedOn: "2026-10-13" }]);
-    const transactions = await listTransactions(createSupabaseAdminClient(), userA, new Map([[cardA, "생활비 카드"]]));
+    const transactions = await listTransactions(admin, userA, new Map([[cardA, "생활비 카드"]]));
     expect(transactions).toHaveLength(1001);
     expect(new Set(transactions.map((transaction) => transaction.id)).size).toBe(1001);
     expect(transactions.map((transaction) => transaction.date)).toEqual(rows.map((row) => row.usedOn));
