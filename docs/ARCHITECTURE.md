@@ -22,7 +22,7 @@ src/
 │   ├── store/            # 서버 쓰기(service-role로 RPC 호출, 'server-only')
 │   ├── supabase/         # server · admin 클라이언트(브라우저용 클라이언트는 두지 않는다)
 │   ├── errors/           # 에러 코드 → 사용자 문구(messages.ts)
-│   └── auth.ts · origin.ts · env.ts · mode.ts · crypto.ts(원본 AES-256-GCM)
+│   └── auth.ts · origin.ts · env.ts · mode.ts · crypto.ts(원본 AES-256-GCM) · http.ts(API 에러·Origin 검사) · clock.ts(서울 기준 오늘) · retention.ts(12개월 기준일)
 ├── services/             # llm · polar 래퍼와 mock ('server-only')
 ├── types/                # 도메인 타입 · 에러 코드
 └── proxy.ts              # 세션 갱신만
