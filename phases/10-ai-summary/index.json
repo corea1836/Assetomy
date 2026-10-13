@@ -39,7 +39,10 @@
     {
       "step": 3,
       "name": "summary-data",
-      "status": "pending"
+      "status": "completed",
+      "summary": "src/lib/summary/monthly-summary.ts에 prepareSummary(dashboard: Dashboard, summarizer: Pick<MonthlySummarizer, \"modelFor\">): PreparedSummary와 resolveMonthlySummary(userId: string, prepared: PreparedSummary, deps: SummaryDeps): Promise<MonthlySummaryView>를 구현하고, src/types/summary.ts에 StoredSummary·SaveSummaryInput·SaveSummaryResult·MonthlySummaryView를 추가했다. 해시는 sha256(JSON.stringify({ model, input }))이며 저장 해시 일치 시 재사용, 불일치 시 생성·저장한다. load/generate/save 실패는 summary:load:<code>, summary:generate:<reason|unexpected_error>, summary:save:no_transactions|<code>와 userId만 로그에 남긴다. getStoredSummary·saveSummary·defaultSummaryDeps도 추가했다. 단위 33개와 DB 통합 2개를 추가했고 전체 단위 1,818개 및 DB 32개가 통과했다.",
+      "started_at": "2026-10-13T22:43:51+0900",
+      "completed_at": "2026-10-13T22:48:44+0900"
     },
     {
       "step": 4,
