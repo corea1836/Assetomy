@@ -52,6 +52,12 @@ export type UploadSummary = {
   netAmount: number;
 };
 
+export type CardOption = { id: string; label: string };
+export type TransactionCoverage = { count: number; from: IsoDate | null; to: IsoDate | null };
+export type UploadOutcomeRecord =
+  | ({ status: "done" | "no_new" } & UploadSummary)
+  | { status: "processing" | "failed" };
+
 export type IngestUploadResult =
   | ({ kind: "done" | "no_new" } & UploadSummary)
   | { kind: "duplicate"; existingCardId: string }
