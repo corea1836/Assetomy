@@ -8,7 +8,7 @@
 | `/login` | 구글 로그인. `?error` 시 안내 | 공개 |
 | `/auth/callback` | OAuth 코드 교환 후 `next`로 302 | 공개(Route Handler) |
 | `/auth/login` · `/auth/logout` | 구글 로그인 시작(폼 POST → 구글로 303) · 로그아웃(폼 POST → `/`로 303) | 공개(Route Handler) |
-| `/dashboard` | 온보딩(거래 없음) 또는 월별 대시보드, 가맹점 카테고리 수정, 헤더의 로그아웃. `?month=YYYY-MM`, `?checkout=success` | 로그인 |
+| `/dashboard` | 온보딩(거래 없음) 또는 월별 대시보드, 가맹점 카테고리 수정, 헤더의 설정·로그아웃. `?month=YYYY-MM`, `?checkout=success`, `?upgrade=pricing`(Free면 업그레이드 모달을 연다) | 로그인 |
 | `/settings` | 플랜·구독 관리, 업로드 내역·삭제, 전체 삭제, 탈퇴 | 로그인 |
 | `/privacy`, `/terms` | 개인정보 처리방침(국외 이전·보관 기간·탈퇴 방법 포함), 약관 | 공개 |
 
@@ -34,6 +34,7 @@
   │           └─▶ "내 이용내역으로 해보기" ─▶ (A)
   ├─▶ "무료로 시작하기" ─▶ (A)
   └─▶ 가격 섹션 "Pro 시작하기" ─▶ (A) ─▶ ③
+        · next = /dashboard?upgrade=pricing. 대시보드가 업그레이드 모달을 연다(이미 Pro면 열지 않음)
 
 (A) 인증 게이트
   <로그인 되어 있나?>
@@ -127,7 +128,7 @@
         │
         ▼
      [Polar Checkout]
-        ├─ 취소 ─▶ 원래 화면
+        ├─ 취소 ─▶ 원래 화면(source가 settings면 /settings, 나머지는 /dashboard)
         └─ 결제 완료 ─▶ [/dashboard?checkout=success]
               · syncFromPolar(user.id): 조회 시작 시각 기록 → Polar 상태 조회 → 더 늦게 시작한 조회 결과가 없을 때만 저장
               ├─ Pro 확인 ─▶ "Pro가 활성화됐어요"
@@ -161,7 +162,7 @@
   ├─ 플랜
   │     ├─ Free ─▶ "업그레이드" ─▶ ③
   │     └─ Pro ─▶ "구독 관리" ─▶ Polar 포털 (해지 예약 시 "YYYY-MM-DD까지 Pro")
-  ├─ 업로드 내역(done만)  · /settings가 생기기 전까지는 대시보드 "올린 파일"에서 같은 삭제를 한다
+  ├─ 업로드 내역(done만)  · 설정에 업로드 내역이 생기기 전까지는 대시보드 "올린 파일"에서 같은 삭제를 한다(설정에는 플랜부터 만든다)
   │     └─ "삭제" ─▶ 확인(최초 저장한 거래와 겹침 파일의 영향 고지)
   │                   └─▶ 업로드·거래 즉시 삭제 ─▶ 원본 삭제 시도 ─▶ "삭제 완료"
   ├─ "내 데이터 전체 삭제" ─▶ 확인 문구 입력
