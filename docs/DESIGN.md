@@ -81,14 +81,19 @@ Assetomy Design System을 이 제품(한국어 대시보드 MVP)에 맞게 줄�
 | 다크 밴드 위 | `text-white`, 보조 `text-muted-soft`, 막대·아이콘 `primary-on-dark`. 증감은 색 없이 흰 글자 + 부호 + "늘었어요/줄었어요"(`increase`는 다크 면 대비 3.7:1) |
 | 다크 면 3단계 | 밴드 `surface-dark` → 카드 `surface-dark-elevated` → 겹친 앞면·떠 있는 칩 `surface-dark-raised` + `shadow-float` |
 | Pro 표시 | `rounded-full bg-primary-soft px-2.5 py-0.5 text-caption font-semibold text-primary-active` |
+| 카테고리 도넛 | 금액 1~5위 `category-1`~`category-5`(초록 = `primary` 값 · 주황 · 파랑 · 노랑 · 분홍), 그 밖 `category-other`(회색). 이 카드에서만 쓴다 |
 | 월간 요약 카드 | `border border-primary/25 bg-primary-soft bg-linear-to-br from-primary/15 via-primary-soft to-canvas shadow-glow`, 반짝임 아이콘 `text-primary` |
 
 - 증가=빨강·감소=파랑은 국내 관례다. 색만으로 구분하지 않고 부호와 "늘었어요/줄었어요"를 함께 쓴다.
 - 포인트 색은 한 화면 구역에 한두 곳만 쓴다.
 
 ## 차트 (Recharts)
-- 카테고리는 금액순 가로 막대 목록(이름 · 금액 · 비율), 일별은 세로 막대다. 추세(Pro)는 월별 세로 막대로 그리고, 진행 중인 달은 `var(--color-muted-soft)` + "진행 중"으로 표시한다.
-- 막대는 `var(--color-primary)` 단색. 원형·도넛, 카테고리별 색, 범례를 쓰지 않는다.
+- 카테고리는 도넛 + 범례 목록, 일별은 세로 막대다. 추세(Pro)는 월별 세로 막대로 그리고, 진행 중인 달은 `var(--color-muted-soft)` + "진행 중"으로 표시한다.
+- 막대는 `var(--color-primary)` 단색. 원형·도넛, 카테고리별 색, 범례를 쓰지 않는다. 예외는 카테고리 도넛 하나다(비중을 한눈에, 사용자 결정):
+  - 조각은 금액 1~5위 + "그 밖"(6위 이하 합계) 최대 6개다. 색은 순위로 정한다(1위는 늘 `category-1`). 카테고리마다 고정 색을 두지 않는 이유는 14색이면 비슷한 색이 이웃하기 때문이다. 그래서 달마다 같은 카테고리의 색이 바뀔 수 있다.
+  - 색은 dataviz 검증기(`validate_palette.js --mode light --surface "#ffffff"`)로 이웃 쌍 색약 구분(ΔE ≥ 8)과 일반 시각 구분(≥ 15)을 통과한 값이다. 도넛은 한 바퀴 돌아 5위·그 밖·1위가 이웃하므로 그 쌍도 확인했다. 노랑·분홍은 흰 바탕 대비가 3:1 미만이라 범례 글자(이름 · 금액 · 비율)를 늘 함께 둔다. 색을 바꾸면 검증기를 다시 돌린다.
+  - 서버 컴포넌트의 인라인 SVG로 그린다(Recharts·클라이언트 JS 없음). 지름 `size-44`, 두께 24(viewBox 200 기준 반지름 84), 12시에서 시계 방향, 조각 사이 흰 틈 2. 금액이 양수인 조각만 그리고, 그 달 총지출이 0 이하면 도넛 없이 목록만 둔다. 가운데에 "총지출"(`text-caption text-body`)과 금액(`font-mono font-semibold text-ink`). 조각마다 `<title>`(이름 · 금액 · 비율)로 마우스 툴팁을 준다.
+  - `<div role="img" aria-label="카테고리 비중 도넛 차트">`로 감싸고, 수치는 범례 목록이 글자로 제공한다.
 - `maxBarSize={24}`, 값 쪽 끝만 4px 둥글게(`radius={[4, 4, 0, 0]}`, 가로는 `[0, 4, 4, 0]`). `isAnimationActive={false}`.
 - 축은 "120만"처럼 만 단위로 쓰고, 12px `body` 색 `font-mono`. 툴팁은 원 단위 전체 금액을 `rounded-lg border border-hairline bg-canvas px-3 py-2 shadow-soft`에 보여준다.
 - 그리드는 가로선만 1px `hairline-soft`. 글자는 막대 색이 아니라 `ink`·`body`.
@@ -148,7 +153,7 @@ disabled:bg-surface-soft disabled:text-muted-soft      에러: border-danger
 ### 화면별 요소
 - **총지출 카드**: 큰 숫자 바로 아래 전월 대비 문장. 카드 내역이 일부만 있어 비교하지 않은 달이면 그 자리에 "N월 내역이 일부만 있어 지난달과 비교하지 않았어요"(`mt-3 text-sm text-body`). 거래 건수·반영 기간·취소·환불 기준은 카드 아래쪽에 `border-t border-hairline-soft`로 나눠 둔다(카드가 늘어나면 아래에 붙는다).
 - **월간 요약 카드**: 실제 대시보드는 제목 줄 바로 아래 전체 폭 첫 줄, 데모는 총지출 카드 바로 아래(`md:` 이상에서는 왼쪽 열에 총지출과 함께 쌓고, 오른쪽 열은 카테고리. 데모 요약은 짧은 고정 문장이다). `rounded-3xl p-6 sm:p-8`에 위 색 표의 그라데이션·테두리·글로우(데모·랜딩도 같은 카드). 제목 줄은 `SparklesIcon`(20px `text-primary`) + "이번 달 요약"(`text-lg font-semibold text-ink`), 본문 `text-lg leading-relaxed text-ink whitespace-pre-line`. 요약·팁 안의 숫자(`1,234원`·`3건`·`24%`·`3개월`·`9월 1일~9월 30일`)는 `strong.font-semibold.tabular-nums`로 강조한다. 실제 대시보드는 팁 목록을 둔다: `md:` 이상에서는 본문 왼쪽·팁 오른쪽 2열(`grid md:grid-cols-2 gap-6 md:gap-8`), 그 아래는 본문 아래에 쌓는다. 소제목 `h3` "이렇게 절약해 보세요"(`text-base font-semibold text-ink`) + `ul.mt-2.list-disc.space-y-2.pl-5.text-base.leading-relaxed.text-ink`(팁 1~5개). 데모·랜딩은 팁 없이 본문만 둔다. 그 아래 출처 한 줄 `text-caption text-body`. 출처는 실제 대시보드 "AI가 가맹점명과 집계로 쓴 요약이에요. 금액은 코드로 계산해요.", 데모·랜딩 "예시 요약이에요. 가입하면 AI가 내 가맹점명과 집계로 요약해요."(데모 요약은 fixture의 고정 문장이다). 실제 대시보드에서 요약을 만드는 동안은 같은 카드의 본문 자리에 스피너(`LoaderCircleIcon` 20px `text-primary motion-safe:animate-spin`) + "이번 달 요약을 만들고 있어요"(`text-base text-body`)를 한 줄로 두고, 그 아래 완성된 카드의 2열(요약·팁)을 흉내 낸 스켈레톤 막대(`bg-primary/10 rounded-full`, 묶음에 `aria-hidden` · `motion-safe:animate-pulse`)를 둔다(카드에 `aria-busy="true"`). 실제 진행률을 알 수 없으므로 진행 막대는 쓰지 않는다. 만들지 못하면 "요약을 만들지 못했어요. 새로고침하면 다시 만들어요."(`text-base text-body`)를 쓴다. 두 상태에는 출처 줄이 없다. 문구는 `lib/errors/messages.ts`에 둔다.
-- **카테고리 목록**: 금액순 5개까지 보이고, 나머지는 `<details>`로 접어 Text 스타일 summary "나머지 N개 카테고리 보기"를 둔다. 막대는 전체 최댓값 기준이다.
+- **카테고리 목록**: 도넛 아래 범례 목록이다. 금액순 5개까지 보이고, 6개 이상이면 여섯째 행에 "그 밖"(나머지 합계·비율)을 둔다. 나머지는 `<details>`로 접어 Text 스타일 summary "나머지 N개 카테고리 보기"를 둔다. 금액이 양수인 행은 이름 앞에 조각 색 점(`size-2.5 rounded-full`, `aria-hidden`)을 두고, 접힌 행은 "그 밖"과 같은 회색 점이다.
 - **데모 Pro 구분선**: 탐지 영역 앞에 `border-t border-hairline pt-8` + Pro 표시 + "여기부터 Pro 화면이에요. Free에서는 확인할 지출의 건수와 합계만 보여요."
 - **데모 하단 CTA**: 보조 카드에 "내 카드로 확인해 보세요" + 한 문장 + Primary "내 이용내역으로 해보기".
 - **월 요약(Free)**: 본문 아래 "Pro에서는 확인할 지출 상세와 여러 달 추세까지 요약해요" + Text "Pro로 보기"(upgrade source `summary`). 만드는 중·실패 상태에도 둔다.

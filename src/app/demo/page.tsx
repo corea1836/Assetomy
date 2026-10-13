@@ -81,7 +81,7 @@ export default async function DemoPage({
               </p>
             )}
           </div>
-          <CategoryList categories={snapshot.categories} />
+          <CategoryList categories={snapshot.categories} total={snapshot.total} />
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">

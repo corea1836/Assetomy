@@ -23,6 +23,13 @@
   --color-increase: #CF202F;         /* 증감·위험 색은 글자에만 칠한다 */
   --color-decrease: #1B64DA;
   --color-danger: #CF202F;
+  /* 카테고리 도넛에만. 금액 순위 1~5위 + 그 밖(dataviz 검증기로 이웃 쌍 색약 구분 통과, 4·5위는 흰 바탕 3:1 미만이라 범례 글자를 늘 함께 둔다) */
+  --color-category-1: #0B7A5E;
+  --color-category-2: #EB6834;
+  --color-category-3: #2A78D6;
+  --color-category-4: #EDA100;
+  --color-category-5: #E87BA4;
+  --color-category-other: #D5D9DF;
 
   --font-sans: "Pretendard Variable", Pretendard, -apple-system, BlinkMacSystemFont, system-ui, sans-serif;
 

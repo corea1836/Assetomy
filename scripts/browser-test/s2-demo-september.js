@@ -12,12 +12,16 @@ check("S2 반영 기간 줄", s2Body.includes("2026년 9월까지 반영됨"), "
 
 const categories = section("카테고리");
 const shownCategories = await texts(categories.locator(":scope > ul > li"));
-check("S2 카테고리 5개 표시", shownCategories.length === 5 && shownCategories[0] === "쇼핑 989,000원 65%" && shownCategories[4].startsWith("주거·통신"), JSON.stringify(shownCategories));
+check("S2 카테고리 5개 + 그 밖", shownCategories.length === 6 && shownCategories[0] === "쇼핑 989,000원 65%" && shownCategories[4].startsWith("주거·통신") && shownCategories[5] === "그 밖 131,200원 9%", JSON.stringify(shownCategories));
+const donut = categories.getByRole("img", { name: "카테고리 비중 도넛 차트" });
+const arcs = await donut.locator("circle").evaluateAll((els) => els.map((el) => getComputedStyle(el).stroke));
+check("S2 카테고리 도넛 6조각·순위 색", arcs.length === 6 && arcs[0] === "rgb(11, 122, 94)" && arcs[5] === "rgb(213, 217, 223)" && new Set(arcs).size === 6, JSON.stringify(arcs));
+check("S2 도넛 가운데 총지출", norm(await donut.innerText()) === "총지출 1,517,200원", norm(await donut.innerText()));
 const fold = categories.locator("details");
 check("S2 나머지 카테고리 접힘", norm(await fold.locator("summary").innerText()) === "나머지 5개 카테고리 보기" && (await fold.getAttribute("open")) === null, "");
 await fold.locator("summary").click();
 const allCategories = await texts(categories.locator("li"));
-check("S2 펼치면 10개·마지막 교통", allCategories.length === 10 && allCategories[9] === "교통 9,300원 1%", JSON.stringify(allCategories.slice(-1)));
+check("S2 펼치면 5개 더·마지막 교통", allCategories.length === 11 && allCategories[10] === "교통 9,300원 1%", JSON.stringify(allCategories.slice(-1)));
 
 const merchantSection = section("가장 많이 쓴 곳");
 const merchants = await texts(merchantSection.locator(":scope > ul > li"));
