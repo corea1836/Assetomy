@@ -31,7 +31,10 @@
     {
       "step": 2,
       "name": "billing-core",
-      "status": "pending"
+      "status": "completed",
+      "summary": "src/types/billing.ts에 StoredSubscription={plan:Plan,currentPeriodEnd:string|null,cancelAtPeriodEnd:boolean}·SaveSubscriptionInput={userId,syncedFrom,plan,subscriptionId,currentPeriodEnd,cancelAtPeriodEnd}·SaveSubscriptionResult={kind:saved|stale,subscription:StoredSubscription}|{kind:user_not_found}·PlanState={plan:free}|{plan:pro,periodEnd:IsoDate|null,cancelAtPeriodEnd:boolean} 추가; saveSubscription(input:SaveSubscriptionInput):Promise<SaveSubscriptionResult>는 service-role save_subscription RPC·zod 응답 검증·snake_case→camelCase 변환·Free 필드 초기화, getSubscription(supabase:SupabaseClient,userId:string):Promise<StoredSubscription|null>는 세션 클라이언트 인자·user_id 필터·maybeSingle·readQuery 검증; BillingDeps={mode:Mode,now:()=>Date,origin:string,gateway:()=>PolarGateway,saveSubscription:(input:SaveSubscriptionInput)=>Promise<SaveSubscriptionResult>}, defaultBillingDeps():BillingDeps는 getMode·getSiteOrigin·지연 Polar gateway·서버 저장 함수 연결; syncFromPolar(userId:string,deps:BillingDeps):Promise<SyncResult>의 SyncResult={kind:synced,subscription:StoredSubscription}|{kind:skipped|failed|user_not_found}는 Polar 호출 전 시작 시각 저장·고객 없음/active Pro 없음만 Free·stale 최신 DB 상태 반영·실패 시 기존 상태 유지·코드와 id만 로깅; toPlanState(subscription:StoredSubscription|null):PlanState는 서울 날짜 변환, getPlanState(userId:string,stored:StoredSubscription|null,deps:BillingDeps,options?:{sync?:boolean}):Promise<PlanState>는 만료 Pro 또는 강제 sync만 동기화; startCheckout(input:{userId:string,source:UpgradeSource,customerIp:string|null,stored:StoredSubscription|null},deps:BillingDeps):Promise<string>는 source별 복귀 URL·IP 전달·Pro 포털·고객 없음 시 checkout, openPortal(userId:string,deps:BillingDeps):Promise<string|null>는 settings 복귀·고객 없음 null; mock은 gateway 미호출·sync skipped·checkout 즉시 Pro 저장(기존 Pro는 settings 이동)·portal 즉시 Free 저장·탈퇴 사용자 throw; TDD 새 단위 92개 및 전체 단위 1384개 통과(1개 skip), DB 통합 새 8개(store 5·queries 3) 포함 전체 25개 통과, lint·build·파일/금지 패턴 AC 통과",
+      "started_at": "2026-10-13T15:03:23+0900",
+      "completed_at": "2026-10-13T15:10:44+0900"
     },
     {
       "step": 3,
