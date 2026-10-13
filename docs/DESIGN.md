@@ -146,11 +146,11 @@ disabled:bg-surface-soft disabled:text-muted-soft      에러: border-danger
 
 ### 화면별 요소
 - **총지출 카드**: 큰 숫자 바로 아래 전월 대비 문장. 거래 건수·반영 기간·취소·환불 기준은 카드 아래쪽에 `border-t border-hairline-soft`로 나눠 둔다(카드가 늘어나면 아래에 붙는다).
-- **월간 요약 카드**: 총지출 카드 바로 아래(`md:` 이상에서는 왼쪽 열에 총지출과 함께 쌓고, 오른쪽 열은 카테고리). `rounded-3xl bg-primary-soft p-6 sm:p-8`. 제목 줄은 `SparklesIcon`(20px `text-primary`) + "이번 달 요약"(`text-lg font-semibold text-ink`), 본문 `text-lg leading-relaxed text-ink whitespace-pre-line`, 그 아래 출처 한 줄 `text-caption text-body`. 출처는 실제 대시보드 "AI가 가맹점명과 집계로 쓴 요약이에요. 금액은 코드로 계산해요.", 데모·랜딩 "예시 요약이에요. 가입하면 AI가 내 가맹점명과 집계로 요약해요."(데모 요약은 fixture의 고정 문장이다).
+- **월간 요약 카드**: 총지출 카드 바로 아래(`md:` 이상에서는 왼쪽 열에 총지출과 함께 쌓고, 오른쪽 열은 카테고리). `rounded-3xl bg-primary-soft p-6 sm:p-8`. 제목 줄은 `SparklesIcon`(20px `text-primary`) + "이번 달 요약"(`text-lg font-semibold text-ink`), 본문 `text-lg leading-relaxed text-ink whitespace-pre-line`, 그 아래 출처 한 줄 `text-caption text-body`. 출처는 실제 대시보드 "AI가 가맹점명과 집계로 쓴 요약이에요. 금액은 코드로 계산해요.", 데모·랜딩 "예시 요약이에요. 가입하면 AI가 내 가맹점명과 집계로 요약해요."(데모 요약은 fixture의 고정 문장이다). 실제 대시보드에서 요약을 만드는 동안은 같은 카드의 본문 자리에 "이번 달 요약을 만들고 있어요"(`text-base text-body`, 카드에 `aria-busy="true"`), 만들지 못하면 "요약을 만들지 못했어요. 새로고침하면 다시 만들어요."(`text-base text-body`)를 쓴다. 두 상태에는 출처 줄이 없다. 문구는 `lib/errors/messages.ts`에 둔다.
 - **카테고리 목록**: 금액순 5개까지 보이고, 나머지는 `<details>`로 접어 Text 스타일 summary "나머지 N개 카테고리 보기"를 둔다. 막대는 전체 최댓값 기준이다.
 - **데모 Pro 구분선**: 탐지 영역 앞에 `border-t border-hairline pt-8` + Pro 표시 + "여기부터 Pro 화면이에요. Free에서는 확인할 지출의 건수와 합계만 보여요."
 - **데모 하단 CTA**: 보조 카드에 "내 카드로 확인해 보세요" + 한 문장 + Primary "내 이용내역으로 해보기".
-- **월 요약(Free)**: 본문 아래 "Pro에서는 확인할 지출 상세와 여러 달 추세까지 요약해요" + Text "Pro로 보기"(upgrade source `summary`).
+- **월 요약(Free)**: 본문 아래 "Pro에서는 확인할 지출 상세와 여러 달 추세까지 요약해요" + Text "Pro로 보기"(upgrade source `summary`). 만드는 중·실패 상태에도 둔다.
 - **잠금 카드(Free 추세)**: 보조 카드에 정적 예시(가짜 수치임을 밝힘) + 한 줄 설명 + Primary "Pro로 보기". 실제 데이터를 가리지 않는다.
 - **후보 지출 티저(Free)**: amber 박스(`rounded-3xl border p-6 sm:p-8`)에 종류별 건수·금액과 `candidateTotal`. "정상 지출일 수 있어요. 상세에서 확인해 보세요."
 - **업로드 상태 행**: 파일명(말줄임) · 카드 라벨 · 상태(대기 / 올리는 중 / 분석 중 / 확인 필요 / 완료 / 실패) · 결과 한 줄. 완료는 `text-primary`. 실패는 `text-danger`로 쓰고 원인과 다음 행동 버튼을 붙인다. 확인 필요 행에는 작은 Primary "열 확인하기"를 둔다.

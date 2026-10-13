@@ -18,6 +18,7 @@ src/
 │   ├── analytics/        # 순수: 스냅샷·전월 대비·추세·탐지·buildDashboard
 │   ├── ingest/           # 업로드 처리(I/O, 의존성 주입)
 │   ├── billing/          # 플랜 조회·Polar 동기화
+│   ├── summary/          # 월 요약: 입력 해시·생성·저장 조율(I/O, 의존성 주입)
 │   ├── queries/          # 읽기(사용자 세션 + RLS)
 │   ├── store/            # 서버 쓰기(service-role로 RPC 호출, 'server-only')
 │   ├── supabase/         # server · admin 클라이언트(브라우저용 클라이언트는 두지 않는다)
@@ -49,7 +50,7 @@ supabase/
 ## 레이어 규칙
 ```
 app/       requireUser → Origin·입력 검증 → lib 호출 → HTTP 매핑
-lib/       parsing · analytics(순수) / ingest · billing · queries · store(I/O)
+lib/       parsing · analytics(순수) / ingest · billing · summary · queries · store(I/O)
 services/  llm · polar ('server-only')
 types/     도메인 타입 · 에러 코드
 ```
@@ -114,10 +115,24 @@ types/     도메인 타입 · 에러 코드
 - 반영 기간은 저장된 거래의 최소·최대 이용일이다. 취소·환불은 파일의 날짜로 반영되므로 형식마다 월 귀속이 다를 수 있다(화면에 안내).
 
 ## 삭제와 정리
-- 업로드 삭제와 전체 삭제는 DB 한 트랜잭션으로 즉시 끝내고, 커밋 후 원본 삭제를 시도한다. 삭제 뒤 늦게 도착한 ingest는 업로드 행이 없어서, 요약 저장은 그 달 거래가 없어서 거절된다. 전체 삭제는 계정·구독을 유지한다(24시간 업로드 한도는 upload_attempts와 함께 초기화된다).
+- 업로드 삭제와 전체 삭제는 DB 한 트랜잭션으로 즉시 끝내고, 커밋 후 원본 삭제를 시도한다. 업로드 삭제는 그 업로드 거래가 있던 달의 요약도 같은 트랜잭션에서 지운다(지운 거래의 가맹점명이 요약에 남지 않게). 삭제 뒤 늦게 도착한 ingest는 업로드 행이 없어서, 요약 저장은 그 달 거래가 없어서 거절된다. 전체 삭제는 계정·구독을 유지한다(24시간 업로드 한도는 upload_attempts와 함께 초기화된다).
 - 탈퇴는 전체 삭제와 같은 트랜잭션에서 운영 기록까지 지우고, 커밋 후 Auth 사용자를 삭제한다. 자동 갱신 예정인 구독이 있으면 409로 거절한다. 탈퇴 뒤 도착한 웹훅은 사용자가 없어 200으로 무시한다.
 - 5분 주기 정기 작업은 만료된 processing(lease)·needs_mapping(1시간)을 failed로 종료하고, 업로드 행이 없거나 no_new·failed인 원본을 지운다. 업로드 행은 파일 저장 전에 커밋되므로 행이 없는 파일은 언제 지워도 안전하다. DB 조회가 실패하면 지우지 않는다.
 - 보관 기한: 같은 정기 작업이 이용일 기준 12개월이 지난 거래·요약을 지우고, 거래가 모두 사라진 업로드의 행과 원본을 지운다. ingest는 보관 기한 밖의 거래를 저장하지 않는다(skipped).
+
+## 월 요약
+```
+대시보드 렌더 → buildDashboard(플랜별 DTO) → buildSummaryInput(DTO) → 입력 해시 = sha256(모델 ID + 입력)
+  ├ 저장된 요약의 해시가 같음 ─▶ 그대로 표시
+  └ 다르거나 없음 ─▶ Sonnet(Free)·Opus(Pro)·mock 고정 문구 → 코드 검증
+        ├ 통과 ─▶ save_ai_summary(사용자 잠금, 그 달 거래가 있을 때만 upsert) → 표시
+        └ 실패(오류·시간 초과·거절·검증 탈락) ─▶ 실패 안내, 저장하지 않음, 다음 조회 때 다시
+```
+- 입력은 DTO에서 허용한 필드만 고른다. 거래 id·카드 라벨·개별 거래 날짜는 넣지 않는다. Free 입력에는 탐지 상세·추세가 없다.
+- 해시가 다르면 저장된 요약을 보여주지 않는다. 플랜이 바뀐 사용자에게 이전 플랜의 요약이 보이지 않게 하기 위해서다.
+- 요약은 대시보드 Server Component의 Suspense 안에서 만들고, 경계의 `key`를 입력 해시로 둔다. 이유: `router.refresh()`(카테고리 수정·업로드 완료) 때 이미 보이던 경계가 새 요약을 기다리면 화면 전체 갱신이 LLM 응답만큼 늦어진다. key가 바뀌면 그 경계만 "만드는 중"으로 바뀐다.
+- API 키는 요약을 만들 때 읽는다. 키가 없거나 호출이 실패해도 대시보드는 그려지고 요약 카드만 실패로 보인다.
+- 같은 달을 동시에 조회하면 요약을 두 번 만들 수 있다. 저장은 (user, month) 하나로 수렴한다(ADR-001).
 
 ## 결제 동기화
 ```
@@ -166,7 +181,7 @@ success 페이지 · 웹훅(서명 검증) · 결제 기간이 지난 상태 · 
 - CSRF: 세션을 쓰는 POST/PUT/DELETE는 Origin 정확 일치, JSON 요청은 `application/json`만, 파일 업로드는 `multipart/form-data`만. 로그인·로그아웃 폼(`/auth/login`·`/auth/logout`)은 `application/x-www-form-urlencoded`만 받고 Origin을 검사한다. 웹훅은 서명, Cron은 `CRON_SECRET`.
 - 격리: RLS 읽기 + 검증된 서버 쓰기 + 복합 FK. 타인 리소스는 404.
 - 파일: private 버킷에 암호화본만(AES-256-GCM, 파일마다 랜덤 IV). 평문 원본은 메모리에서만 다룬다. 확장자·용량(4MB)·행 수(5,000)·셀 길이 상한, xlsx ZIP 시그니처, 패치된 SheetJS. PDF는 `%PDF-` 시그니처·100쪽 상한·암호 PDF 거절, pdfjs-dist는 `isEvalSupported: false`로 글자·좌표만 읽는다.
-- LLM: 분류에는 가맹점명, 요약에는 월 집계, 폴백 매핑에는 헤더와 값 패턴(숫자 → 9, 문자 → X)만 보낸다. 실제 셀 값과 원본은 보내지 않는다. structured outputs를 쓰고 결과는 코드로 검증한다.
+- LLM: 분류에는 가맹점명, 요약에는 월 집계, 폴백 매핑에는 헤더와 값 패턴(숫자 → 9, 문자 → X)만 보낸다. 실제 셀 값과 원본은 보내지 않는다. structured outputs를 쓰고 결과는 코드로 검증한다. 요약 결과에 숫자·금지 표현이 있으면 버린다(ADR-005). Sonnet·Opus 요청은 안전 분류기 거절에 대비해 서버 쪽 대체(`fallbacks: "default"`)를 켠다. LLM 응답 본문은 로그에 남기지 않는다.
 - 헤더 `X-Frame-Options: DENY` · `nosniff` · `strict-origin-when-cross-origin`. XSS는 `react/no-danger`와 텍스트 렌더링으로 막는다.
 - 로그는 코드와 id만. 비용은 24시간 30개·동시 2개를 DB에서 원자적으로 제한하고 Anthropic·Vercel 지출 한도를 건다.
 
