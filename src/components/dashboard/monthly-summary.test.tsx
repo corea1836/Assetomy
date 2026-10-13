@@ -136,14 +136,32 @@ describe("MonthlySummary", () => {
     const pending = screen.getByText("이번 달 요약을 만들고 있어요");
     expect(pending.closest("section")).toHaveAttribute("aria-busy", "true");
     expect(pending.closest("section")).toHaveClass(...CARD_CLASSES);
-    expect(pending).toHaveClass("mt-4", "text-base", "text-body");
+    expect(pending).toHaveClass("text-base", "text-body");
     expect(screen.queryByText("AI가 가맹점명과 집계로 쓴 요약이에요. 금액은 코드로 계산해요.")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Pro로 보기" })).toBeInTheDocument();
 
     rerender(<MonthlySummaryStatus state="failed" />);
     expect(screen.getByText("요약을 만들지 못했어요. 새로고침하면 다시 만들어요.")).toBeInTheDocument();
+    expect(document.querySelector(".motion-safe\\:animate-spin")).toBeNull();
+    expect(document.querySelector(".motion-safe\\:animate-pulse")).toBeNull();
     expect(screen.getByRole("heading", { name: "이번 달 요약" })).toBeInTheDocument();
     expect(screen.queryByText("AI가 가맹점명과 집계로 쓴 요약이에요. 금액은 코드로 계산해요.")).not.toBeInTheDocument();
+  });
+
+  it("shows a decorative spinner and a two-column skeleton while pending", () => {
+    render(<MonthlySummaryStatus state="pending" />);
+
+    const pending = screen.getByText("이번 달 요약을 만들고 있어요");
+    const spinner = pending.parentElement!.querySelector("svg")!;
+    expect(pending.parentElement).toHaveClass("mt-4", "flex", "items-center", "gap-2");
+    expect(spinner).toHaveAttribute("aria-hidden", "true");
+    expect(spinner).toHaveAttribute("width", "20");
+    expect(spinner).toHaveClass("shrink-0", "text-primary", "motion-safe:animate-spin");
+    const skeleton = pending.closest("section")!.querySelector(".motion-safe\\:animate-pulse")!;
+    expect(skeleton).toHaveAttribute("aria-hidden", "true");
+    expect(skeleton).toHaveClass("mt-6", "grid", "gap-6", "md:grid-cols-2", "md:gap-8");
+    expect(skeleton.querySelectorAll(".bg-primary\\/10").length).toBeGreaterThan(0);
+    expect(skeleton.textContent).toBe("");
   });
 
   it("renders markup-looking summary text literally", () => {

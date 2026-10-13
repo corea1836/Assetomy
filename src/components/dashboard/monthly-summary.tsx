@@ -1,4 +1,4 @@
-import { SparklesIcon } from "@/components/icons";
+import { LoaderCircleIcon, SparklesIcon } from "@/components/icons";
 import { UpgradeButton } from "@/components/billing/upgrade-button";
 import { SUMMARY_STATUS_MESSAGES } from "@/lib/errors/messages";
 
@@ -24,6 +24,26 @@ function EmphasizedNumbers({ text }: { text: string }): React.JSX.Element {
           : part
       ))}
     </>
+  );
+}
+
+// 만드는 동안 완성된 카드처럼 요약(왼쪽)·팁(오른쪽) 자리를 잡아 둔다
+const SKELETON_COLUMNS = [
+  { height: "h-5", widths: ["w-full", "w-11/12", "w-4/5", "w-2/3"] },
+  { height: "h-4", widths: ["w-1/3", "w-full", "w-5/6", "w-full", "w-3/4"] },
+];
+
+function SummarySkeleton(): React.JSX.Element {
+  return (
+    <div aria-hidden="true" className="mt-6 grid gap-6 motion-safe:animate-pulse md:grid-cols-2 md:gap-8">
+      {SKELETON_COLUMNS.map(({ height, widths }, column) => (
+        <div key={column} className="space-y-3">
+          {widths.map((width, line) => (
+            <div key={line} className={`${height} ${width} rounded-full bg-primary/10`} />
+          ))}
+        </div>
+      ))}
+    </div>
   );
 }
 
@@ -80,7 +100,17 @@ export function MonthlySummaryStatus({ state, upgrade }: {
       {...(state === "pending" ? { "aria-busy": true } : {})}
     >
       <SummaryHeading />
-      <p className="mt-4 text-base text-body">{SUMMARY_STATUS_MESSAGES[state]}</p>
+      {state === "pending" ? (
+        <>
+          <div className="mt-4 flex items-center gap-2">
+            <LoaderCircleIcon size={20} className="shrink-0 text-primary motion-safe:animate-spin" />
+            <p className="text-base text-body">{SUMMARY_STATUS_MESSAGES.pending}</p>
+          </div>
+          <SummarySkeleton />
+        </>
+      ) : (
+        <p className="mt-4 text-base text-body">{SUMMARY_STATUS_MESSAGES.failed}</p>
+      )}
       {upgrade && <FreeUpgradePrompt />}
     </section>
   );

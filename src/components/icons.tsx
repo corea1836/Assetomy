@@ -68,6 +68,14 @@ export function CheckIcon(props: IconProps): React.JSX.Element {
   );
 }
 
+export function LoaderCircleIcon(props: IconProps): React.JSX.Element {
+  return (
+    <Svg {...props}>
+      <path d="M21 12a9 9 0 1 1-6.219-8.56" />
+    </Svg>
+  );
+}
+
 export function SparklesIcon(props: IconProps): React.JSX.Element {
   return (
     <Svg {...props}>

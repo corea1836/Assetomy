@@ -147,7 +147,7 @@ disabled:bg-surface-soft disabled:text-muted-soft      에러: border-danger
 
 ### 화면별 요소
 - **총지출 카드**: 큰 숫자 바로 아래 전월 대비 문장. 거래 건수·반영 기간·취소·환불 기준은 카드 아래쪽에 `border-t border-hairline-soft`로 나눠 둔다(카드가 늘어나면 아래에 붙는다).
-- **월간 요약 카드**: 실제 대시보드는 제목 줄 바로 아래 전체 폭 첫 줄, 데모는 총지출 카드 바로 아래(`md:` 이상에서는 왼쪽 열에 총지출과 함께 쌓고, 오른쪽 열은 카테고리. 데모 요약은 짧은 고정 문장이다). `rounded-3xl p-6 sm:p-8`에 위 색 표의 그라데이션·테두리·글로우(데모·랜딩도 같은 카드). 제목 줄은 `SparklesIcon`(20px `text-primary`) + "이번 달 요약"(`text-lg font-semibold text-ink`), 본문 `text-lg leading-relaxed text-ink whitespace-pre-line`. 요약·팁 안의 숫자(`1,234원`·`3건`·`24%`·`3개월`·`9월 1일~9월 30일`)는 `strong.font-semibold.tabular-nums`로 강조한다. 실제 대시보드는 팁 목록을 둔다: `md:` 이상에서는 본문 왼쪽·팁 오른쪽 2열(`grid md:grid-cols-2 gap-6 md:gap-8`), 그 아래는 본문 아래에 쌓는다. 소제목 `h3` "이렇게 절약해 보세요"(`text-base font-semibold text-ink`) + `ul.mt-2.list-disc.space-y-2.pl-5.text-base.leading-relaxed.text-ink`(팁 1~5개). 데모·랜딩은 팁 없이 본문만 둔다. 그 아래 출처 한 줄 `text-caption text-body`. 출처는 실제 대시보드 "AI가 가맹점명과 집계로 쓴 요약이에요. 금액은 코드로 계산해요.", 데모·랜딩 "예시 요약이에요. 가입하면 AI가 내 가맹점명과 집계로 요약해요."(데모 요약은 fixture의 고정 문장이다). 실제 대시보드에서 요약을 만드는 동안은 같은 카드의 본문 자리에 "이번 달 요약을 만들고 있어요"(`text-base text-body`, 카드에 `aria-busy="true"`), 만들지 못하면 "요약을 만들지 못했어요. 새로고침하면 다시 만들어요."(`text-base text-body`)를 쓴다. 두 상태에는 출처 줄이 없다. 문구는 `lib/errors/messages.ts`에 둔다.
+- **월간 요약 카드**: 실제 대시보드는 제목 줄 바로 아래 전체 폭 첫 줄, 데모는 총지출 카드 바로 아래(`md:` 이상에서는 왼쪽 열에 총지출과 함께 쌓고, 오른쪽 열은 카테고리. 데모 요약은 짧은 고정 문장이다). `rounded-3xl p-6 sm:p-8`에 위 색 표의 그라데이션·테두리·글로우(데모·랜딩도 같은 카드). 제목 줄은 `SparklesIcon`(20px `text-primary`) + "이번 달 요약"(`text-lg font-semibold text-ink`), 본문 `text-lg leading-relaxed text-ink whitespace-pre-line`. 요약·팁 안의 숫자(`1,234원`·`3건`·`24%`·`3개월`·`9월 1일~9월 30일`)는 `strong.font-semibold.tabular-nums`로 강조한다. 실제 대시보드는 팁 목록을 둔다: `md:` 이상에서는 본문 왼쪽·팁 오른쪽 2열(`grid md:grid-cols-2 gap-6 md:gap-8`), 그 아래는 본문 아래에 쌓는다. 소제목 `h3` "이렇게 절약해 보세요"(`text-base font-semibold text-ink`) + `ul.mt-2.list-disc.space-y-2.pl-5.text-base.leading-relaxed.text-ink`(팁 1~5개). 데모·랜딩은 팁 없이 본문만 둔다. 그 아래 출처 한 줄 `text-caption text-body`. 출처는 실제 대시보드 "AI가 가맹점명과 집계로 쓴 요약이에요. 금액은 코드로 계산해요.", 데모·랜딩 "예시 요약이에요. 가입하면 AI가 내 가맹점명과 집계로 요약해요."(데모 요약은 fixture의 고정 문장이다). 실제 대시보드에서 요약을 만드는 동안은 같은 카드의 본문 자리에 스피너(`LoaderCircleIcon` 20px `text-primary motion-safe:animate-spin`) + "이번 달 요약을 만들고 있어요"(`text-base text-body`)를 한 줄로 두고, 그 아래 완성된 카드의 2열(요약·팁)을 흉내 낸 스켈레톤 막대(`bg-primary/10 rounded-full`, 묶음에 `aria-hidden` · `motion-safe:animate-pulse`)를 둔다(카드에 `aria-busy="true"`). 실제 진행률을 알 수 없으므로 진행 막대는 쓰지 않는다. 만들지 못하면 "요약을 만들지 못했어요. 새로고침하면 다시 만들어요."(`text-base text-body`)를 쓴다. 두 상태에는 출처 줄이 없다. 문구는 `lib/errors/messages.ts`에 둔다.
 - **카테고리 목록**: 금액순 5개까지 보이고, 나머지는 `<details>`로 접어 Text 스타일 summary "나머지 N개 카테고리 보기"를 둔다. 막대는 전체 최댓값 기준이다.
 - **데모 Pro 구분선**: 탐지 영역 앞에 `border-t border-hairline pt-8` + Pro 표시 + "여기부터 Pro 화면이에요. Free에서는 확인할 지출의 건수와 합계만 보여요."
 - **데모 하단 CTA**: 보조 카드에 "내 카드로 확인해 보세요" + 한 문장 + Primary "내 이용내역으로 해보기".
@@ -246,9 +246,9 @@ disabled:bg-surface-soft disabled:text-muted-soft      에러: border-danger
 - 빈 상태는 한 문장과 버튼 하나.
 
 ## 모션 · 아이콘 · 접근성
-- 애니메이션은 스켈레톤 `animate-pulse`, 스피너 `animate-spin`, 120~200ms `ease-standard` 색·크기·위치 전환(버튼 hover·누름, 화살표 이동)만 쓴다. 예외는 아래 랜딩 등장 모션 하나다.
+- 애니메이션은 스켈레톤 `animate-pulse`, 스피너 `animate-spin`(둘 다 `motion-safe:`를 붙여 동작 줄이기 설정이면 멈춘다), 120~200ms `ease-standard` 색·크기·위치 전환(버튼 hover·누름, 화살표 이동)만 쓴다. 예외는 아래 랜딩 등장 모션 하나다.
 - 랜딩 등장 모션: 히어로를 뺀 밴드의 제목 묶음과 그림이 화면에 들어올 때 한 번, 불투명도 0→1과 24px 아래→제자리. 구역 위쪽이 화면에 160px 들어오면 다 보인다(`animation-range: entry 0% entry 160px`. 화면보다 긴 구역도 같은 시점). CSS scroll-driven(`animation-timeline: view()`)으로만 하고 JS를 쓰지 않는다. `prefers-reduced-motion: reduce`이거나 브라우저가 지원하지 않으면 처음부터 보인다. 숫자와 막대 길이는 움직이지 않는다.
-- 아이콘은 `components/icons.tsx`의 인라인 SVG다(Lucide 모양을 필요한 것만 복사). `strokeWidth 2`, 20px(버튼 안 18px, 랜딩 기능 24px, 월간 요약 반짝임 20px), `currentColor`, `aria-hidden`. 아이콘 라이브러리·아이콘 폰트·원형 배경을 쓰지 않는다.
+- 아이콘은 `components/icons.tsx`의 인라인 SVG다(Lucide 모양을 필요한 것만 복사). `strokeWidth 2`, 20px(버튼 안 18px, 랜딩 기능 24px, 월간 요약 반짝임·스피너 20px), `currentColor`, `aria-hidden`. 아이콘 라이브러리·아이콘 폰트·원형 배경을 쓰지 않는다.
 - 색만으로 의미를 전달하지 않는다. 정보를 담은 글자는 대비 4.5:1 이상. 버튼·입력에는 보이는 포커스 표시를 둔다. 차트 수치는 카테고리 목록으로 텍스트로도 제공한다.
 
 ## 디자인 시스템과 다르게 정한 것
