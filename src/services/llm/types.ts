@@ -12,7 +12,7 @@ export interface MerchantClassifier {
 
 export type SummaryFailureReason =
   | "request_failed" | "refusal" | "max_tokens" | "invalid_output"
-  | "length" | "number" | "forbidden_phrase" | "markup";
+  | "length" | "number" | "forbidden_phrase" | "markup" | "placeholder";
 
 export type SummaryResult = ({ ok: true } & SummaryContent)
   | { ok: false; reason: SummaryFailureReason };

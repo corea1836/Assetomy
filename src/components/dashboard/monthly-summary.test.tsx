@@ -5,6 +5,11 @@ import { MonthlySummary, MonthlySummaryStatus } from "./monthly-summary";
 
 vi.mock("@/components/send-metric", () => ({ sendMetric: vi.fn() }));
 
+const CARD_CLASSES = [
+  "rounded-3xl", "border", "border-primary/25", "bg-primary-soft",
+  "bg-linear-to-br", "from-primary/15", "via-primary-soft", "to-canvas", "shadow-glow", "p-6", "sm:p-8",
+];
+
 describe("MonthlySummary", () => {
   it("shows the supplied summary with the title and preserves line breaks", () => {
     const summary = "이번 달에는 식비 지출이 늘었어요.\n확인이 필요한 지출을 살펴보세요.";
@@ -12,7 +17,7 @@ describe("MonthlySummary", () => {
 
     const heading = screen.getByRole("heading", { name: "이번 달 요약", level: 2 });
     expect(heading).toHaveClass("text-lg", "font-semibold", "text-ink");
-    expect(heading.closest("section")).toHaveClass("rounded-3xl", "bg-primary-soft", "p-6", "sm:p-8");
+    expect(heading.closest("section")).toHaveClass(...CARD_CLASSES);
     const body = screen.getByText(/이번 달에는 식비 지출이 늘었어요/);
     expect(body.textContent).toBe(summary);
     expect(body).toHaveClass("text-lg", "text-ink", "leading-relaxed", "whitespace-pre-line");
@@ -68,8 +73,8 @@ describe("MonthlySummary", () => {
     const tips = ["카드사 앱에서 같은 결제가 두 번 청구됐는지 확인해 보세요.", "다음 달 식비 예산을 먼저 정해 보세요."];
     render(<MonthlySummary summary="이번 달은 식비 비중이 가장 커요." source="ai" tips={tips} />);
 
-    const heading = screen.getByRole("heading", { name: "이렇게 해 보세요", level: 3 });
-    expect(heading).toHaveClass("mt-6", "text-base", "font-semibold", "text-ink");
+    const heading = screen.getByRole("heading", { name: "이렇게 절약해 보세요", level: 3 });
+    expect(heading).toHaveClass("text-base", "font-semibold", "text-ink");
     const list = screen.getByRole("list");
     expect(list).toHaveClass("mt-2", "list-disc", "space-y-2", "pl-5", "text-base", "leading-relaxed", "text-ink");
     expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual(tips);
@@ -79,12 +84,35 @@ describe("MonthlySummary", () => {
     expect(list.compareDocumentPosition(source) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
 
+  it("places the summary and tips in two columns from md only when there are tips", () => {
+    const { rerender } = render(<MonthlySummary summary="이번 달은 식비 비중이 가장 커요." source="ai" tips={["다음 달 식비 예산을 먼저 정해 보세요."]} />);
+    const columns = screen.getByText("이번 달은 식비 비중이 가장 커요.").parentElement!;
+    expect(columns).toHaveClass("grid", "gap-6", "md:grid-cols-2", "md:gap-8");
+    expect(columns).toContainElement(screen.getByRole("list"));
+
+    rerender(<MonthlySummary summary="이번 달은 식비 비중이 가장 커요." source="example" />);
+    expect(screen.getByText("이번 달은 식비 비중이 가장 커요.").parentElement).not.toHaveClass("md:grid-cols-2");
+  });
+
+  it("emphasizes filled amounts, counts, ratios, month counts and the period", () => {
+    const summary = "9월 1일~9월 30일 동안 78건, 1,820,075원을 썼어요. 8월보다 −3,000원 줄었고 식비가 24%로 가장 컸어요.";
+    const tip = "GS25 역삼점 정기결제가 3개월 이어졌어요. 아직 쓰는지 점검해 보세요.";
+    const { container } = render(<MonthlySummary summary={summary} source="ai" tips={[tip]} />);
+
+    const strong = Array.from(container.querySelectorAll("strong"));
+    expect(strong.map((element) => element.textContent))
+      .toEqual(["9월 1일~9월 30일", "78건", "1,820,075원", "−3,000원", "24%", "3개월"]);
+    strong.forEach((element) => expect(element).toHaveClass("font-semibold", "tabular-nums"));
+    expect(container.querySelector("p")?.textContent).toBe(summary);
+    expect(screen.getByRole("listitem").textContent).toBe(tip);
+  });
+
   it("renders no tip heading without tips, as on the demo and landing", () => {
     const { rerender } = render(<MonthlySummary summary="예시 요약 문장이에요." source="example" />);
-    expect(screen.queryByRole("heading", { name: "이렇게 해 보세요" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "이렇게 절약해 보세요" })).not.toBeInTheDocument();
     expect(screen.queryByRole("list")).not.toBeInTheDocument();
     rerender(<MonthlySummary summary="예시 요약 문장이에요." source="ai" tips={[]} />);
-    expect(screen.queryByRole("heading", { name: "이렇게 해 보세요" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "이렇게 절약해 보세요" })).not.toBeInTheDocument();
   });
 
   it("renders markup-looking tips literally", () => {
@@ -107,6 +135,7 @@ describe("MonthlySummary", () => {
     const { rerender } = render(<MonthlySummaryStatus state="pending" upgrade />);
     const pending = screen.getByText("이번 달 요약을 만들고 있어요");
     expect(pending.closest("section")).toHaveAttribute("aria-busy", "true");
+    expect(pending.closest("section")).toHaveClass(...CARD_CLASSES);
     expect(pending).toHaveClass("mt-4", "text-base", "text-body");
     expect(screen.queryByText("AI가 가맹점명과 집계로 쓴 요약이에요. 금액은 코드로 계산해요.")).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Pro로 보기" })).toBeInTheDocument();

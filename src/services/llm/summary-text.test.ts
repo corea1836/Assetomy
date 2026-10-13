@@ -111,30 +111,155 @@ describe("checkSummaryContent", () => {
       .toMatchObject({ ok: true });
   });
 
-  it.each(["절감", "절약", "아낄", "부정 결제", "부정결제", "도용"])("rejects a forbidden phrase in the summary or a tip: %s", (phrase) => {
+  it.each(["절감", "아낄", "부정 결제", "부정결제", "도용"])("rejects a forbidden phrase in the summary or a tip: %s", (phrase) => {
     expect(check(`이번 달에는 ${phrase} 수 있는 소비가 보여요.`)).toEqual({ ok: false, reason: "forbidden_phrase" });
     expect(check(SUMMARY, [`식비에서 ${phrase} 수 있는지 살펴보세요.`])).toEqual({ ok: false, reason: "forbidden_phrase" });
   });
 
-  it("rejects summaries shorter than 20 or longer than 300 characters", () => {
+  it("allows saving advice without an amount", () => {
+    expect(check(SUMMARY, ["식비 예산을 먼저 정해 두면 절약하기 쉬워요."])).toMatchObject({ ok: true });
+  });
+
+  it("rejects summaries shorter than 20 or longer than 500 characters", () => {
     expect(check("가".repeat(19))).toEqual({ ok: false, reason: "length" });
-    expect(check("가".repeat(301))).toEqual({ ok: false, reason: "length" });
+    expect(check("가".repeat(501))).toEqual({ ok: false, reason: "length" });
     expect(check("가".repeat(20))).toMatchObject({ ok: true });
   });
 
-  it("rejects tips shorter than 10 or longer than 200 characters", () => {
+  it("rejects tips shorter than 10 or longer than 300 characters", () => {
     expect(check(SUMMARY, ["가".repeat(9)])).toEqual({ ok: false, reason: "length" });
-    expect(check(SUMMARY, ["가".repeat(201)])).toEqual({ ok: false, reason: "length" });
+    expect(check(SUMMARY, ["가".repeat(301)])).toEqual({ ok: false, reason: "length" });
     expect(check(SUMMARY, ["가".repeat(10)])).toMatchObject({ ok: true });
   });
 
-  it("requires one to three tips", () => {
+  it("measures length after filling placeholders", () => {
+    const input = freeInput({ total: 1_820_075 });
+    expect(check(`${"가".repeat(490)}{total}`, [TIP], input)).toMatchObject({ ok: true });
+    expect(check(`${"가".repeat(491)}{total}`, [TIP], input)).toEqual({ ok: false, reason: "length" });
+  });
+
+  it("requires one to five tips", () => {
     expect(check(SUMMARY, [])).toEqual({ ok: false, reason: "length" });
-    expect(check(SUMMARY, [TIP, TIP, TIP, TIP])).toEqual({ ok: false, reason: "length" });
-    expect(check(SUMMARY, [TIP, TIP, TIP])).toMatchObject({ ok: true });
+    expect(check(SUMMARY, [TIP, TIP, TIP, TIP, TIP, TIP])).toEqual({ ok: false, reason: "length" });
+    expect(check(SUMMARY, [TIP, TIP, TIP, TIP, TIP])).toMatchObject({ ok: true });
   });
 
   it("accepts the SummaryInput union", () => {
     expect(check(SUMMARY, [TIP], proInput())).toMatchObject({ ok: true });
+  });
+});
+
+describe("checkSummaryContent placeholders", () => {
+  const input = freeInput({
+    total: 1_820_075,
+    transactionCount: 78,
+    categories: [
+      { category: "문화·여가", amount: 691_600, ratio: 0.38 },
+      { category: "식비", amount: 436_800, ratio: 0.24 },
+      { category: "기타", amount: 0, ratio: null },
+    ],
+    topMerchants: [{ merchant: "스타벅스 강남점", category: "카페·간식", amount: 52_000, count: 9 }],
+    monthOverMonth: { previousMonth: "2026-08", previousTotal: 1_605_775, diff: 214_300, direction: "up" },
+    candidates: {
+      recurring: { count: 2, amount: 31_000 },
+      duplicate: { count: 1, amount: 12_000 },
+      large: { count: 0, amount: 0 },
+      candidateTotal: 43_000,
+    },
+  });
+
+  it("fills placeholders with code-formatted input values", () => {
+    expect(check(
+      "{period} 동안 {transactionCount}, {total}을 썼어요. 문화·여가가 {categories[0].ratio}({categories[0].amount})로 가장 컸어요.",
+      [
+        "스타벅스 강남점에서 {topMerchants[0].count}, {topMerchants[0].amount}을 결제했어요. 한 주에 몇 번까지 갈지 정해 보세요.",
+        "8월보다 {monthOverMonth.diff} 늘었어요. 지난달 {monthOverMonth.previousTotal}과 비교해 늘어난 카테고리를 살펴보세요.",
+        "확인이 필요한 정기결제 {candidates.recurring.count}, 후보 합계 {candidates.candidateTotal}을 카드사 앱에서 확인해 보세요.",
+      ],
+      input,
+    )).toEqual({
+      ok: true,
+      summary: "9월 1일~9월 30일 동안 78건, 1,820,075원을 썼어요. 문화·여가가 38%(691,600원)로 가장 컸어요.",
+      tips: [
+        "스타벅스 강남점에서 9건, 52,000원을 결제했어요. 한 주에 몇 번까지 갈지 정해 보세요.",
+        "8월보다 214,300원 늘었어요. 지난달 1,605,775원과 비교해 늘어난 카테고리를 살펴보세요.",
+        "확인이 필요한 정기결제 2건, 후보 합계 43,000원을 카드사 앱에서 확인해 보세요.",
+      ],
+    });
+  });
+
+  it("fills the month-over-month difference without a sign", () => {
+    const down = freeInput({
+      monthOverMonth: { previousMonth: "2026-08", previousTotal: 3000, diff: -2000, direction: "down" },
+    });
+    expect(check("8월보다 {monthOverMonth.diff} 줄었어요. 좋은 흐름이에요.", [TIP], down))
+      .toMatchObject({ ok: true, summary: "8월보다 2,000원 줄었어요. 좋은 흐름이에요." });
+  });
+
+  it("fills Pro finding and trend placeholders", () => {
+    const pro = proInput({
+      findings: [{ kind: "recurring", merchant: "넷플릭스", category: "구독·정기결제", amount: 17_000, transactionCount: 1, seriesMonthCount: 3 }],
+      trend: {
+        months: [
+          { month: "2026-07", total: 900_000, inProgress: false },
+          { month: "2026-08", total: 1_000_000, inProgress: false },
+        ],
+        categoryChanges: [{ category: "식비", current: 400_000, previous: 300_000, diff: 100_000 }],
+      },
+    });
+    expect(check(
+      "8월에는 {trend.months[1].total}을 썼고, 식비는 {trend.categoryChanges[0].diff} 늘었어요.",
+      ["넷플릭스 {findings[0].amount} 결제가 {findings[0].seriesMonthCount} 이어졌어요. 아직 보는 서비스인지 점검해 보세요."],
+      pro,
+    )).toEqual({
+      ok: true,
+      summary: "8월에는 1,000,000원을 썼고, 식비는 100,000원 늘었어요.",
+      tips: ["넷플릭스 17,000원 결제가 3개월 이어졌어요. 아직 보는 서비스인지 점검해 보세요."],
+    });
+  });
+
+  it.each([
+    "{unknown}",
+    "{categories[3].amount}",
+    "{categories[0].category}",
+    "{categories[2].ratio}",
+    "{categories.0.amount}",
+    "{ total }",
+    "{constructor}",
+    "{month}",
+    "{inProgress}",
+    "{period.from}",
+    "{monthOverMonth.direction}",
+    "{monthOverMonth.previousMonth}",
+    "{findings[0].amount}",
+    "{}",
+  ])("rejects a placeholder that is not a numeric input field: %s", (placeholder) => {
+    expect(check(`문화·여가 식비 기타 스타벅스 강남점 지출은 ${placeholder}이에요.`, [TIP], input))
+      .toEqual({ ok: false, reason: "placeholder" });
+    expect(check(SUMMARY, [`문화·여가 식비 기타 지출은 ${placeholder}이에요. 살펴보세요.`], input))
+      .toEqual({ ok: false, reason: "placeholder" });
+  });
+
+  it("rejects month-over-month placeholders when there is no previous month", () => {
+    expect(check("지난달보다 {monthOverMonth.diff} 늘었어요.", [TIP], freeInput()))
+      .toEqual({ ok: false, reason: "placeholder" });
+  });
+
+  it("rejects an array placeholder when its item name is not in the same text", () => {
+    expect(check("문화·여가가 {categories[1].ratio}로 가장 컸어요.", [TIP], input))
+      .toEqual({ ok: false, reason: "placeholder" });
+    expect(check(SUMMARY, ["{categories[1].amount}을 쓴 카테고리의 예산을 정해 보세요."], input))
+      .toEqual({ ok: false, reason: "placeholder" });
+    expect(check(SUMMARY, ["7월에는 {trend.months[1].total}을 썼어요. 살펴보세요."], proInput({
+      trend: { months: [{ month: "2026-07", total: 1, inProgress: false }, { month: "2026-08", total: 2, inProgress: false }], categoryChanges: null },
+    }))).toEqual({ ok: false, reason: "placeholder" });
+  });
+
+  it.each(["{total", "total}", "{{total}}"])("rejects unbalanced braces: %s", (text) => {
+    expect(check(`이번 달 총지출은 ${text}이에요.`, [TIP], input)).toEqual({ ok: false, reason: "placeholder" });
+  });
+
+  it("still rejects digits written outside placeholders", () => {
+    expect(check("{period} 동안 78건, {total}을 썼어요.", [TIP], input)).toEqual({ ok: false, reason: "number" });
   });
 });

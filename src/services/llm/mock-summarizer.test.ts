@@ -28,39 +28,38 @@ describe("createMockSummarizer", () => {
     expect(summarizer.modelFor("pro")).toBe("mock");
   });
 
-  it("returns fixed plan-specific content that passes validation", async () => {
+  it("returns fixed plan-specific content with placeholders filled from the input", async () => {
     const summarizer = createMockSummarizer();
     const input = inputs();
     const free = await summarizer.summarize(input.free);
     const pro = await summarizer.summarize(input.pro);
     expect(free).toEqual({
       ok: true,
-      summary: "이번 달 지출을 카테고리와 가맹점 기준으로 정리했어요. 가장 많이 쓴 곳과 카테고리 비중을 함께 보면 흐름을 파악하기 쉬워요.",
+      summary: "9월 1일~9월 30일 동안 1건, 1,000원을 썼어요. 가장 많이 쓴 곳과 카테고리 비중을 함께 보면 지출 흐름을 파악하기 쉬워요.",
       tips: [
+        "비중이 가장 큰 카테고리는 다음 달 예산을 먼저 정해 두세요. 지출이 한꺼번에 몰리는 걸 막을 수 있어요.",
+        "자주 결제한 가맹점은 한 주에 몇 번까지 쓸지 정해 보세요. 작은 결제도 쌓이면 커져요.",
         "확인이 필요한 지출 후보가 있다면 카드사 앱 승인 내역에서 같은 결제가 두 번 청구되지 않았는지 확인해 보세요. 정상 지출일 수도 있어요.",
-        "비중이 가장 큰 카테고리는 다음 달 예산을 먼저 정해 보세요.",
       ],
     });
     expect(pro).toEqual({
       ok: true,
-      summary: "이번 달 지출과 확인이 필요한 지출 후보, 여러 달의 흐름을 함께 정리했어요.",
+      summary: "9월 1일~9월 30일 동안 1건, 1,000원을 썼어요. 확인이 필요한 지출 후보와 여러 달의 흐름을 함께 정리했어요.",
       tips: [
-        "후보 상세의 정기결제가 아직 쓰는 서비스인지 하나씩 점검해 보세요.",
+        "후보 상세의 정기결제가 아직 쓰는 서비스인지 하나씩 점검해 보세요. 쓰지 않는 구독은 해지하면 다음 달부터 결제되지 않아요.",
         "중복 결제 의심은 카드사 앱 승인 내역에서 같은 결제가 두 번 청구됐는지 확인해 보세요. 정상 지출일 수도 있어요.",
+        "비중이 가장 큰 카테고리는 다음 달 예산을 먼저 정해 두세요.",
       ],
     });
-    if (!free.ok || !pro.ok) throw new Error("Expected fixed summaries");
-    expect(checkSummaryContent(free, input.free)).toEqual(free);
-    expect(checkSummaryContent(pro, input.pro)).toEqual(pro);
   });
 
-  it("uses the fixed content as the prompt so changing it regenerates stored summaries", async () => {
+  it("uses the fixed template as the prompt so changing it regenerates stored summaries", () => {
     const summarizer = createMockSummarizer();
-    const input = inputs();
-    const free = await summarizer.summarize(input.free);
-    const pro = await summarizer.summarize(input.pro);
-    if (!free.ok || !pro.ok) throw new Error("Expected fixed summaries");
-    expect(summarizer.promptFor("free")).toBe(JSON.stringify({ summary: free.summary, tips: free.tips }));
-    expect(summarizer.promptFor("pro")).toBe(JSON.stringify({ summary: pro.summary, tips: pro.tips }));
+    for (const plan of ["free", "pro"] as const) {
+      const template = JSON.parse(summarizer.promptFor(plan)) as { summary: string; tips: string[] };
+      expect(template.summary).toContain("{total}");
+      expect(checkSummaryContent(template, inputs()[plan])).toMatchObject({ ok: true });
+    }
+    expect(summarizer.promptFor("free")).not.toBe(summarizer.promptFor("pro"));
   });
 });

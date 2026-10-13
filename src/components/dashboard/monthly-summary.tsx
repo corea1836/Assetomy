@@ -2,12 +2,28 @@ import { SparklesIcon } from "@/components/icons";
 import { UpgradeButton } from "@/components/billing/upgrade-button";
 import { SUMMARY_STATUS_MESSAGES } from "@/lib/errors/messages";
 
+const CARD_CLASS = "rounded-3xl border border-primary/25 bg-primary-soft bg-linear-to-br from-primary/15 via-primary-soft to-canvas p-6 shadow-glow sm:p-8";
+// 코드가 자리표시자로 채운 숫자(기간·금액·건수·비율·개월)
+const FILLED_NUMBER = /((?:1[0-2]|[1-9])월 [0-9]{1,2}일~(?:1[0-2]|[1-9])월 [0-9]{1,2}일|[−+]?[0-9][0-9,]*(?:원|건|%|개월))/;
+
 function SummaryHeading(): React.JSX.Element {
   return (
     <div className="flex items-center gap-2">
       <SparklesIcon size={20} className="shrink-0 text-primary" />
       <h2 className="text-lg font-semibold text-ink">이번 달 요약</h2>
     </div>
+  );
+}
+
+function EmphasizedNumbers({ text }: { text: string }): React.JSX.Element {
+  return (
+    <>
+      {text.split(FILLED_NUMBER).map((part, index) => (
+        index % 2 === 1
+          ? <strong key={index} className="font-semibold tabular-nums">{part}</strong>
+          : part
+      ))}
+    </>
   );
 }
 
@@ -29,19 +45,21 @@ export function MonthlySummary({ summary, source, tips = [], upgrade }: {
   upgrade?: boolean;
 }): React.JSX.Element {
   return (
-    <section className="rounded-3xl bg-primary-soft p-6 sm:p-8">
+    <section className={CARD_CLASS}>
       <SummaryHeading />
-      <p className="mt-4 whitespace-pre-line text-lg leading-relaxed text-ink">
-        {summary}
-      </p>
-      {tips.length > 0 && (
-        <>
-          <h3 className="mt-6 text-base font-semibold text-ink">이렇게 해 보세요</h3>
-          <ul className="mt-2 list-disc space-y-2 pl-5 text-base leading-relaxed text-ink">
-            {tips.map((tip, index) => <li key={index}>{tip}</li>)}
-          </ul>
-        </>
-      )}
+      <div className={tips.length > 0 ? "mt-4 grid gap-6 md:grid-cols-2 md:gap-8" : "mt-4"}>
+        <p className="whitespace-pre-line text-lg leading-relaxed text-ink">
+          <EmphasizedNumbers text={summary} />
+        </p>
+        {tips.length > 0 && (
+          <div>
+            <h3 className="text-base font-semibold text-ink">이렇게 절약해 보세요</h3>
+            <ul className="mt-2 list-disc space-y-2 pl-5 text-base leading-relaxed text-ink">
+              {tips.map((tip, index) => <li key={index}><EmphasizedNumbers text={tip} /></li>)}
+            </ul>
+          </div>
+        )}
+      </div>
       <p className="mt-3 text-caption text-body">
         {source === "ai"
           ? "AI가 가맹점명과 집계로 쓴 요약이에요. 금액은 코드로 계산해요."
@@ -58,7 +76,7 @@ export function MonthlySummaryStatus({ state, upgrade }: {
 }): React.JSX.Element {
   return (
     <section
-      className="rounded-3xl bg-primary-soft p-6 sm:p-8"
+      className={CARD_CLASS}
       {...(state === "pending" ? { "aria-busy": true } : {})}
     >
       <SummaryHeading />

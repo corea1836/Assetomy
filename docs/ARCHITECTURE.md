@@ -124,11 +124,12 @@ types/     도메인 타입 · 에러 코드
 ```
 대시보드 렌더 → buildDashboard(플랜별 DTO) → buildSummaryInput(DTO) → 입력 해시 = sha256(모델 ID + 프롬프트 + 입력)
   ├ 저장된 요약의 해시가 같음 ─▶ 그대로 표시
-  └ 다르거나 없음 ─▶ Sonnet(Free)·Opus(Pro)·mock 고정 문구 → { 요약 1~2문장, 팁 1~3개 } → 코드 검증
+  └ 다르거나 없음 ─▶ Sonnet(Free)·Opus(Pro)·mock 고정 문구 → { 요약 2~3문장, 절약 팁 1~5개, 숫자는 자리표시자 } → 코드 검증·자리표시자 채움
         ├ 통과 ─▶ save_ai_summary(사용자 잠금, 그 달 거래가 있을 때만 upsert) → 표시
         └ 실패(오류·시간 초과·거절·검증 탈락) ─▶ 실패 안내, 저장하지 않음, 다음 조회 때 다시
 ```
 - 입력은 DTO에서 허용한 필드만 고른다. 거래 id·카드 라벨·개별 거래 날짜는 넣지 않는다. Free 입력에는 탐지 상세·추세가 없다.
+- 숫자 자리표시자는 입력 JSON의 숫자 필드 경로다(`{period}`, `{total}`, `{monthOverMonth.diff}`, `{categories[0].ratio}`, `{topMerchants[1].count}` 등). 코드가 필드 이름으로 단위를 정해 채운다(금액 `1,234원`, `diff`는 부호 없는 크기, 비율 `24%`, 건수 `3건`, 연속 개월 `3개월`, 기간 `9월 1일~9월 30일`). 저장하는 문장은 채운 결과다. Free 입력에는 탐지 상세·추세 경로가 없어서 그 자리표시자는 검증에서 탈락한다.
 - 해시가 다르면 저장된 요약을 보여주지 않는다. 플랜이 바뀐 사용자에게 이전 플랜의 요약이 보이지 않게 하기 위해서다.
 - 요약은 대시보드 Server Component의 Suspense 안에서 만들고, 경계의 `key`를 입력 해시로 둔다. 이유: `router.refresh()`(카테고리 수정·업로드 완료) 때 이미 보이던 경계가 새 요약을 기다리면 화면 전체 갱신이 LLM 응답만큼 늦어진다. key가 바뀌면 그 경계만 "만드는 중"으로 바뀐다.
 - API 키는 요약을 만들 때 읽는다. 키가 없거나 호출이 실패해도 대시보드는 그려지고 요약 카드만 실패로 보인다.
@@ -181,7 +182,7 @@ success 페이지 · 웹훅(서명 검증) · 결제 기간이 지난 상태 · 
 - CSRF: 세션을 쓰는 POST/PUT/DELETE는 Origin 정확 일치, JSON 요청은 `application/json`만, 파일 업로드는 `multipart/form-data`만. 로그인·로그아웃 폼(`/auth/login`·`/auth/logout`)은 `application/x-www-form-urlencoded`만 받고 Origin을 검사한다. 웹훅은 서명, Cron은 `CRON_SECRET`.
 - 격리: RLS 읽기 + 검증된 서버 쓰기 + 복합 FK. 타인 리소스는 404.
 - 파일: private 버킷에 암호화본만(AES-256-GCM, 파일마다 랜덤 IV). 평문 원본은 메모리에서만 다룬다. 확장자·용량(4MB)·행 수(5,000)·셀 길이 상한, xlsx ZIP 시그니처, 패치된 SheetJS. PDF는 `%PDF-` 시그니처·100쪽 상한·암호 PDF 거절, pdfjs-dist는 `isEvalSupported: false`로 글자·좌표만 읽는다.
-- LLM: 분류에는 가맹점명, 요약에는 월 집계, 폴백 매핑에는 헤더와 값 패턴(숫자 → 9, 문자 → X)만 보낸다. 실제 셀 값과 원본은 보내지 않는다. structured outputs를 쓰고 결과는 코드로 검증한다. 요약·팁에 숫자·금지 표현이 있으면 버린다(ADR-005). Sonnet·Opus 요청은 안전 분류기 거절에 대비해 서버 쪽 대체(`fallbacks: "default"`)를 켠다. LLM 응답 본문은 로그에 남기지 않는다.
+- LLM: 분류에는 가맹점명, 요약에는 월 집계, 폴백 매핑에는 헤더와 값 패턴(숫자 → 9, 문자 → X)만 보낸다. 실제 셀 값과 원본은 보내지 않는다. structured outputs를 쓰고 결과는 코드로 검증한다. 요약·팁의 숫자는 `{total}`·`{categories[0].ratio}`처럼 입력 경로 자리표시자로 받아 코드가 채운다. 자리표시자 밖의 숫자, 입력에 없는 경로, 배열 항목의 이름(카테고리·가맹점·`N월`)이 같은 요약·팁 안에 없는 자리표시자, 금지 표현이 있으면 버린다(ADR-005). Sonnet·Opus 요청은 안전 분류기 거절에 대비해 서버 쪽 대체(`fallbacks: "default"`)를 켠다. LLM 응답 본문은 로그에 남기지 않는다.
 - 헤더 `X-Frame-Options: DENY` · `nosniff` · `strict-origin-when-cross-origin`. XSS는 `react/no-danger`와 텍스트 렌더링으로 막는다.
 - 로그는 코드와 id만. 비용은 24시간 30개·동시 2개를 DB에서 원자적으로 제한하고 Anthropic·Vercel 지출 한도를 건다.
 

@@ -231,7 +231,7 @@ describe("dashboard page", () => {
     expect(within(upload).getByText("업로드 패널")).toBeInTheDocument();
     expect(within(upload).getByText("올린 파일 목록")).toBeInTheDocument();
     const headingNames = screen.getAllByRole("heading").map((heading) => heading.textContent);
-    const order = ["2026년 9월 지출", "총지출", "이번 달 요약", "카테고리", "가장 많이 쓴 곳", "일별 지출", "후보 지출 티저", "추세 잠금 카드", "새 이용내역 추가"];
+    const order = ["2026년 9월 지출", "이번 달 요약", "총지출", "카테고리", "가장 많이 쓴 곳", "일별 지출", "후보 지출 티저", "추세 잠금 카드", "새 이용내역 추가"];
     expect(headingNames.filter((name) => order.includes(name!))).toEqual(order);
   });
 

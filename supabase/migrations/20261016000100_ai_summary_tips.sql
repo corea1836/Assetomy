@@ -1,13 +1,13 @@
--- 요약에 해 볼 일 팁 목록을 더한다. 기존 요약은 다시 만들 수 있는 캐시이고 프롬프트도 바뀌므로 지운다.
+-- 요약에 절약 팁 목록(1~5개)을 더한다. 기존 요약은 다시 만들 수 있는 캐시이고 프롬프트도 바뀌므로 지운다.
 delete from public.ai_summaries;
 
 alter table public.ai_summaries
   add column tips text[] not null,
   add constraint ai_summaries_tips_check check (
-    cardinality(tips) between 1 and 3
+    cardinality(tips) between 1 and 5
     and array_position(tips, null) is null
     and '' <> all (tips)
-    and char_length(array_to_string(tips, '')) <= 900
+    and char_length(array_to_string(tips, '')) <= 1500
   );
 
 drop function public.save_ai_summary(uuid, text, text, text, text, text);

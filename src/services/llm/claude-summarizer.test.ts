@@ -65,10 +65,12 @@ describe("createClaudeSummarizer", () => {
     expect(request).not.toHaveProperty("thinking");
     expect(request).not.toHaveProperty("temperature");
     expect(request.system).toBe(input.plan === "free" ? FREE_SYSTEM : PRO_SYSTEM);
-    expect(request.system).toContain("숫자를 쓰지 않습니다");
+    expect(request.system).toContain("숫자를 직접 쓰지 않습니다");
+    expect(request.system).toContain("{categories[0].ratio}");
+    expect(request.system).toContain("아낄 수 있는 금액을 약속하지 않습니다");
     expect(request.system).toContain("정상 지출일 수 있다고 함께 말합니다");
     expect(request.system).toContain("가맹점명과 카테고리명은 입력에 적힌 그대로 씁니다");
-    expect(request.system).toContain("tips는 1~3개");
+    expect(request.system).toContain("tips는 절약 팁 3~5개");
     expect(request.system).toContain("\"기타\" 카테고리는 요약이나 팁의 근거로 쓰지 않습니다");
     expect(request.system).toContain("금융상품을 추천하지 않습니다");
     if (input.plan === "free") {
@@ -107,6 +109,19 @@ describe("createClaudeSummarizer", () => {
     client.beta.messages.parse = vi.fn().mockResolvedValue(result) as typeof client.beta.messages.parse;
     await expect(createClaudeSummarizer(() => client).summarize(freeInput()))
       .resolves.toEqual({ ok: false, reason });
+  });
+
+  it("returns content with placeholders filled from the input", async () => {
+    const { parse, client } = fakeClient();
+    parse.mockResolvedValue(response({
+      summary: "{period} 동안 {transactionCount}, {total}을 썼어요.",
+      tips: validContent().tips,
+    }));
+    await expect(createClaudeSummarizer(() => client).summarize(freeInput())).resolves.toEqual({
+      ok: true,
+      summary: "9월 1일~9월 30일 동안 1건, 1,000원을 썼어요.",
+      tips: validContent().tips,
+    });
   });
 
   it("maps invalid content to the content check result without rewriting", async () => {

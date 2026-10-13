@@ -33,6 +33,7 @@
   --text-display-xl: 4rem; --text-display-xl--line-height: 1.15; --text-display-xl--letter-spacing: -1.6px;
 
   --shadow-soft: 0 4px 12px rgb(0 0 0 / 0.04);
+  --shadow-glow: 0 16px 40px -16px rgb(11 122 94 / 0.45); /* 월간 요약 카드에만. primary 색 그림자 */
   --shadow-float: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 24px 48px -12px rgb(0 0 0 / 0.6); /* 떠 있는 다크 면. 검은 그림자만 */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 }

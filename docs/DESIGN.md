@@ -8,7 +8,7 @@ Assetomy Design System을 이 제품(한국어 대시보드 MVP)에 맞게 줄�
 3. **대시보드는 도구다.** 마케팅 패턴(다크 밴드·큰 display 글자·목업·다크 밴드의 깊이·등장 모션)은 랜딩에만 쓴다.
 
 ## 금지
-- blur(glass), 그라데이션(글자·버튼·밝은 면 배경), 색 있는 orb, 글로우(색 있는 그림자). 예외는 랜딩 다크 밴드의 점 그리드와 빛 하나뿐이다(아래 "랜딩 → 다크 밴드의 깊이")
+- blur(glass), 그라데이션(글자·버튼·밝은 면 배경), 색 있는 orb, 글로우(색 있는 그림자). 예외는 랜딩 다크 밴드의 점 그리드와 빛(아래 "랜딩 → 다크 밴드의 깊이"), 월간 요약 카드의 민트 그라데이션·글로우(AI 요약을 눈에 띄게, 사용자 결정) 두 가지뿐이다
 - 보라/인디고, 색 있는 왼쪽 보더 카드, 이모지 아이콘, 빨간 경고 배너 남발
 - "Powered by AI" 배지, 숫자 카운트업·막대가 자라는 모션·차트 진입 애니메이션
 - 잠금 카드를 blur·모자이크로 가리기(정적 예시로 보여준다)
@@ -50,6 +50,7 @@ Assetomy Design System을 이 제품(한국어 대시보드 MVP)에 맞게 줄�
   --text-display-xl: 4rem; --text-display-xl--line-height: 1.15; --text-display-xl--letter-spacing: -1.6px;
 
   --shadow-soft: 0 4px 12px rgb(0 0 0 / 0.04);
+  --shadow-glow: 0 16px 40px -16px rgb(11 122 94 / 0.45); /* 월간 요약 카드에만. primary 색 그림자 */
   --shadow-float: inset 0 1px 0 rgb(255 255 255 / 0.06), 0 24px 48px -12px rgb(0 0 0 / 0.6); /* 떠 있는 다크 면. 검은 그림자만 */
   --ease-standard: cubic-bezier(0.2, 0, 0, 1);
 }
@@ -80,7 +81,7 @@ Assetomy Design System을 이 제품(한국어 대시보드 MVP)에 맞게 줄�
 | 다크 밴드 위 | `text-white`, 보조 `text-muted-soft`, 막대·아이콘 `primary-on-dark`. 증감은 색 없이 흰 글자 + 부호 + "늘었어요/줄었어요"(`increase`는 다크 면 대비 3.7:1) |
 | 다크 면 3단계 | 밴드 `surface-dark` → 카드 `surface-dark-elevated` → 겹친 앞면·떠 있는 칩 `surface-dark-raised` + `shadow-float` |
 | Pro 표시 | `rounded-full bg-primary-soft px-2.5 py-0.5 text-caption font-semibold text-primary-active` |
-| 월간 요약 카드 | `bg-primary-soft`, 반짝임 아이콘 `text-primary` |
+| 월간 요약 카드 | `border border-primary/25 bg-primary-soft bg-linear-to-br from-primary/15 via-primary-soft to-canvas shadow-glow`, 반짝임 아이콘 `text-primary` |
 
 - 증가=빨강·감소=파랑은 국내 관례다. 색만으로 구분하지 않고 부호와 "늘었어요/줄었어요"를 함께 쓴다.
 - 포인트 색은 한 화면 구역에 한두 곳만 쓴다.
@@ -146,7 +147,7 @@ disabled:bg-surface-soft disabled:text-muted-soft      에러: border-danger
 
 ### 화면별 요소
 - **총지출 카드**: 큰 숫자 바로 아래 전월 대비 문장. 거래 건수·반영 기간·취소·환불 기준은 카드 아래쪽에 `border-t border-hairline-soft`로 나눠 둔다(카드가 늘어나면 아래에 붙는다).
-- **월간 요약 카드**: 총지출 카드 바로 아래(`md:` 이상에서는 왼쪽 열에 총지출과 함께 쌓고, 오른쪽 열은 카테고리). `rounded-3xl bg-primary-soft p-6 sm:p-8`. 제목 줄은 `SparklesIcon`(20px `text-primary`) + "이번 달 요약"(`text-lg font-semibold text-ink`), 본문 `text-lg leading-relaxed text-ink whitespace-pre-line`. 실제 대시보드는 본문 아래에 팁 목록을 둔다: 소제목 `h3` "이렇게 해 보세요"(`mt-6 text-base font-semibold text-ink`) + `ul.mt-2.list-disc.space-y-2.pl-5.text-base.leading-relaxed.text-ink`(팁 1~3개). 데모·랜딩은 팁 없이 본문만 둔다. 그 아래 출처 한 줄 `text-caption text-body`. 출처는 실제 대시보드 "AI가 가맹점명과 집계로 쓴 요약이에요. 금액은 코드로 계산해요.", 데모·랜딩 "예시 요약이에요. 가입하면 AI가 내 가맹점명과 집계로 요약해요."(데모 요약은 fixture의 고정 문장이다). 실제 대시보드에서 요약을 만드는 동안은 같은 카드의 본문 자리에 "이번 달 요약을 만들고 있어요"(`text-base text-body`, 카드에 `aria-busy="true"`), 만들지 못하면 "요약을 만들지 못했어요. 새로고침하면 다시 만들어요."(`text-base text-body`)를 쓴다. 두 상태에는 출처 줄이 없다. 문구는 `lib/errors/messages.ts`에 둔다.
+- **월간 요약 카드**: 실제 대시보드는 제목 줄 바로 아래 전체 폭 첫 줄, 데모는 총지출 카드 바로 아래(`md:` 이상에서는 왼쪽 열에 총지출과 함께 쌓고, 오른쪽 열은 카테고리. 데모 요약은 짧은 고정 문장이다). `rounded-3xl p-6 sm:p-8`에 위 색 표의 그라데이션·테두리·글로우(데모·랜딩도 같은 카드). 제목 줄은 `SparklesIcon`(20px `text-primary`) + "이번 달 요약"(`text-lg font-semibold text-ink`), 본문 `text-lg leading-relaxed text-ink whitespace-pre-line`. 요약·팁 안의 숫자(`1,234원`·`3건`·`24%`·`3개월`·`9월 1일~9월 30일`)는 `strong.font-semibold.tabular-nums`로 강조한다. 실제 대시보드는 팁 목록을 둔다: `md:` 이상에서는 본문 왼쪽·팁 오른쪽 2열(`grid md:grid-cols-2 gap-6 md:gap-8`), 그 아래는 본문 아래에 쌓는다. 소제목 `h3` "이렇게 절약해 보세요"(`text-base font-semibold text-ink`) + `ul.mt-2.list-disc.space-y-2.pl-5.text-base.leading-relaxed.text-ink`(팁 1~5개). 데모·랜딩은 팁 없이 본문만 둔다. 그 아래 출처 한 줄 `text-caption text-body`. 출처는 실제 대시보드 "AI가 가맹점명과 집계로 쓴 요약이에요. 금액은 코드로 계산해요.", 데모·랜딩 "예시 요약이에요. 가입하면 AI가 내 가맹점명과 집계로 요약해요."(데모 요약은 fixture의 고정 문장이다). 실제 대시보드에서 요약을 만드는 동안은 같은 카드의 본문 자리에 "이번 달 요약을 만들고 있어요"(`text-base text-body`, 카드에 `aria-busy="true"`), 만들지 못하면 "요약을 만들지 못했어요. 새로고침하면 다시 만들어요."(`text-base text-body`)를 쓴다. 두 상태에는 출처 줄이 없다. 문구는 `lib/errors/messages.ts`에 둔다.
 - **카테고리 목록**: 금액순 5개까지 보이고, 나머지는 `<details>`로 접어 Text 스타일 summary "나머지 N개 카테고리 보기"를 둔다. 막대는 전체 최댓값 기준이다.
 - **데모 Pro 구분선**: 탐지 영역 앞에 `border-t border-hairline pt-8` + Pro 표시 + "여기부터 Pro 화면이에요. Free에서는 확인할 지출의 건수와 합계만 보여요."
 - **데모 하단 CTA**: 보조 카드에 "내 카드로 확인해 보세요" + 한 문장 + Primary "내 이용내역으로 해보기".
@@ -164,7 +165,7 @@ disabled:bg-surface-soft disabled:text-muted-soft      에러: border-danger
 - **워드마크**: 로고 파일 없이 소문자 `assetomy`, `text-[22px] font-medium leading-none tracking-[-0.02em] text-primary`(다크 위에서는 `text-white`).
 
 ## 레이아웃
-- 대시보드·설정: `max-w-5xl mx-auto px-4 sm:px-6`. 1열 기본, `md:` 이상에서 KPI·차트 2열. 첫 줄은 왼쪽 열에 총지출·월간 요약 카드를 쌓고 오른쪽 열에 카테고리를 둔다. 카드 사이 `gap-6`, 섹션 사이 `space-y-12`.
+- 대시보드·설정: `max-w-5xl mx-auto px-4 sm:px-6`. 1열 기본, `md:` 이상에서 KPI·차트 2열. 첫 줄은 월간 요약 카드(전체 폭), 둘째 줄은 왼쪽 총지출·오른쪽 카테고리다(데모는 왼쪽 열에 총지출·월간 요약 카드를 쌓는다). 카드 사이 `gap-6`, 섹션 사이 `space-y-12`.
 - 대시보드 상단 한 줄: 월 선택기 · 반영 기간 · "새 이용내역 추가"(같은 페이지 맨 아래 업로드 구역으로 이동).
 - 좌측 정렬 기본. 중앙 정렬은 모달·빈 상태·랜딩 CTA·로그인 화면에만 쓴다.
 

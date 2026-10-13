@@ -102,18 +102,17 @@ export default async function DashboardPage({ searchParams }: {
                   <Link href="#upload" className={buttonClass("secondary", "sm")}>새 이용내역 추가</Link>
                 </div>
 
+                {preparedSummary !== null && summaryDeps !== null && (
+                  <Suspense
+                    key={preparedSummary.inputHash}
+                    fallback={<MonthlySummaryStatus state="pending" upgrade={dashboard.plan === "free"} />}
+                  >
+                    <MonthlySummarySection userId={user.id} prepared={preparedSummary} deps={summaryDeps} />
+                  </Suspense>
+                )}
+
                 <div className="grid gap-6 md:grid-cols-2">
-                  <div className="flex flex-col gap-6">
-                    <TotalCard snapshot={dashboard.snapshot} mom={dashboard.mom} />
-                    {preparedSummary !== null && summaryDeps !== null && (
-                      <Suspense
-                        key={preparedSummary.inputHash}
-                        fallback={<MonthlySummaryStatus state="pending" upgrade={dashboard.plan === "free"} />}
-                      >
-                        <MonthlySummarySection userId={user.id} prepared={preparedSummary} deps={summaryDeps} />
-                      </Suspense>
-                    )}
-                  </div>
+                  <TotalCard snapshot={dashboard.snapshot} mom={dashboard.mom} />
                   <CategoryList categories={dashboard.snapshot.categories} />
                 </div>
 

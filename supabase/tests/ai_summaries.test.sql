@@ -240,8 +240,8 @@ insert into _tap(line) select throws_ok(
   '23514', null, '팁이 없으면 제약 오류다'
 );
 insert into _tap(line) select throws_ok(
-  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-09', 'free', 'm', repeat('a', 64), 's', array['1', '2', '3', '4'])$$,
-  '23514', null, '팁이 네 개면 제약 오류다'
+  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-09', 'free', 'm', repeat('a', 64), 's', array['1', '2', '3', '4', '5', '6'])$$,
+  '23514', null, '팁이 여섯 개면 제약 오류다'
 );
 insert into _tap(line) select throws_ok(
   $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-09', 'free', 'm', repeat('a', 64), 's', array['팁', null])$$,
@@ -252,8 +252,8 @@ insert into _tap(line) select throws_ok(
   '23514', null, '빈 팁은 제약 오류다'
 );
 insert into _tap(line) select throws_ok(
-  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-09', 'free', 'm', repeat('a', 64), 's', array[repeat('가', 901)])$$,
-  '23514', null, '팁 전체가 900자를 넘으면 제약 오류다'
+  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-09', 'free', 'm', repeat('a', 64), 's', array[repeat('가', 1501)])$$,
+  '23514', null, '팁 전체가 1500자를 넘으면 제약 오류다'
 );
 
 insert into _tap(line) select is(
