@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { apiError, checkMutationRequest } from "./http";
+import { apiError, checkMutationRequest, clientIp } from "./http";
 
 beforeEach(() => {
   vi.stubEnv("VERCEL_ENV", undefined);
@@ -60,5 +60,52 @@ describe("apiError", () => {
   it("includes a supplied reason", async () => {
     expect(await apiError(422, "UNSUPPORTED_FILE", "not_pdf").json())
       .toEqual({ error: { code: "UNSUPPORTED_FILE", reason: "not_pdf" } });
+  });
+});
+
+describe("clientIp", () => {
+  it("uses only the first forwarded IP and trims whitespace", () => {
+    expect(clientIp(new Headers({ "x-forwarded-for": " 203.0.113.5 , 10.0.0.1 " }))).toBe("203.0.113.5");
+  });
+
+  it("uses x-real-ip when x-forwarded-for is absent", () => {
+    expect(clientIp(new Headers({ "x-real-ip": " 198.51.100.9 " }))).toBe("198.51.100.9");
+  });
+
+  it("prefers x-forwarded-for over x-real-ip", () => {
+    expect(clientIp(new Headers({ "x-forwarded-for": "203.0.113.5", "x-real-ip": "198.51.100.9" })))
+      .toBe("203.0.113.5");
+  });
+
+  it.each(["", "not-an-ip", "10.0.0.1", "not-an-ip, 203.0.113.5"])(
+    "does not fall back to another IP for invalid or private first value %s", (value) => {
+      expect(clientIp(new Headers({ "x-forwarded-for": value, "x-real-ip": "198.51.100.9" }))).toBeNull();
+    },
+  );
+
+  it.each([
+    "::1", "127.0.0.1", "127.255.255.255", "10.1.2.3", "10.255.255.255",
+    "192.168.0.1", "192.168.255.255", "172.16.0.1", "172.20.0.1", "172.31.255.255",
+    "169.254.0.1", "169.254.255.255", "fc00::1", "fdff:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
+    "fe80::1", "febf:ffff:ffff:ffff:ffff:ffff:ffff:ffff",
+    "::ffff:127.0.0.1", "::ffff:7f00:1", "::ffff:10.1.2.3", "::ffff:172.20.0.1",
+    "::ffff:192.168.0.1", "::ffff:169.254.0.1",
+  ])("excludes local or private IP %s", (value) => {
+    expect(clientIp(new Headers({ "x-forwarded-for": value }))).toBeNull();
+    expect(clientIp(new Headers({ "x-real-ip": value }))).toBeNull();
+  });
+
+  it.each(["203.0.113.5", "2001:db8::1", "::ffff:203.0.113.5", "172.15.255.255", "172.32.0.1"])(
+    "preserves public IP %s", (value) => {
+      expect(clientIp(new Headers({ "x-forwarded-for": value }))).toBe(value);
+    },
+  );
+
+  it.each(["not-an-ip", "203.0.113.5:443", "[2001:db8::1]"])("rejects invalid IP %s", (value) => {
+    expect(clientIp(new Headers({ "x-real-ip": value }))).toBeNull();
+  });
+
+  it("returns null without either header", () => {
+    expect(clientIp(new Headers())).toBeNull();
   });
 });

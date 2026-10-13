@@ -4,6 +4,8 @@ import type { IsoDate } from "./transaction";
 export const UPGRADE_SOURCES = ["teaser", "trend", "summary", "pricing", "settings"] as const;
 export type UpgradeSource = (typeof UPGRADE_SOURCES)[number];
 
+export type BillingUrlResponse = { url: string };
+
 export type StoredSubscription = {
   plan: Plan;
   currentPeriodEnd: string | null;
