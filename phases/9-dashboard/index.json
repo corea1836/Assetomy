@@ -12,10 +12,34 @@
     }
   ],
   "steps": [
-    { "step": 0, "name": "dashboard-schema", "status": "pending" },
-    { "step": 1, "name": "dashboard-components", "status": "pending" },
-    { "step": 2, "name": "dashboard-data", "status": "pending" },
-    { "step": 3, "name": "dashboard-api", "status": "pending" },
-    { "step": 4, "name": "dashboard-page", "status": "pending" }
-  ]
+    {
+      "step": 0,
+      "name": "dashboard-schema",
+      "status": "completed",
+      "started_at": "2026-10-13T18:42:33+0900",
+      "summary": "Codex 사용량 한도로 실패해 Claude 세션이 마무리하고 dev DB에 push·pgTAP 완료. supabase/migrations/20261015000000_dashboard.sql: user_metrics(user_id uuid PK·auth.users FK cascade, first_attempt_at·first_success_at·teaser_seen_at·first_click_at·first_paid_at timestamptz, upgrade_source text teaser|trend|summary|pricing|settings|direct; 클릭 있으면 direct 아닌 source 필수, direct는 클릭 없음+결제 있음) RLS on·정책 없음·anon/authenticated 권한 없음·service_role 전체; upload_attempts에 extends_period boolean(outcome done일 때만)·deleted_at timestamptz 추가; 트리거 upload_attempts_first_attempt(after insert→first_attempt_at=created_at, 처음만), upload_attempts_success(before update of outcome, done으로 바뀔 때→extends_period=이 업로드 최대 used_on>다른 업로드 최대 used_on(없으면 true), first_success_at=completed_at 또는 now, 처음만), uploads_deleted_at(after delete→그 업로드 시도 deleted_at=now); 트리거 함수 private.record_first_upload_attempt()·record_upload_success()는 invoker, private.record_upload_deletion()은 20261015000100_dashboard_deletion_definer.sql로 security definer(Auth 사용자 삭제 cascade가 Auth 역할로 실행돼 권한 오류 나던 문제); public.record_metric(p_user_id uuid, p_event text, p_source text) returns jsonb: event teaser_seen|upgrade_click|first_paid(그 밖·잘못된 source는 22023), teaser_seen·upgrade_click은 subscriptions plan=pro면 unchanged, upgrade_click은 upgrade_source null일 때만 first_click_at·source, first_paid는 first_paid_at null일 때만 기록하고 source 없으면 direct, 결과 {kind: recorded|unchanged|user_not_found}; public.set_merchant_category(p_user_id uuid, p_merchant_key text, p_category text) returns jsonb: 그 사용자 거래가 없으면 {kind:not_found}, 있으면 merchant_category_overrides upsert(updated_at=now)+같은 가맹점 거래 category 갱신 후 {kind:updated, updated:n}, 잘못된 카테고리는 23514; 두 RPC 모두 lock_user·invoker·search_path ''·service_role 전용. supabase/tests/dashboard.test.sql pgTAP 118개 통과(전체 pgTAP 332개), npm run test:db 25개 통과, lint·build·단위 1541개 통과",
+      "completed_at": "2026-10-13T20:34:05+0900"
+    },
+    {
+      "step": 1,
+      "name": "dashboard-components",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "dashboard-data",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "dashboard-api",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "dashboard-page",
+      "status": "pending"
+    }
+  ],
+  "created_at": "2026-10-13T18:42:33+0900"
 }

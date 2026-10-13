@@ -60,6 +60,7 @@ alter table public.upload_attempts
 - **삭제 시각**: `uploads` 행이 지워진 뒤 → 같은 사용자·같은 `upload_id`의 `upload_attempts` 중 `deleted_at`이 null인 행에 `now()`를 넣는다.
 - 트리거 함수는 `revoke execute ... from public, anon, authenticated`.
 - 트리거는 auth 사용자 삭제(cascade)로 `uploads`·`upload_attempts`가 지워질 때도 에러 없이 끝나야 한다. 이유: DB 통합 테스트가 끝날 때 admin API로 임시 사용자를 지운다.
+- (실행 중 반영) 삭제 시각 트리거 함수 `private.record_upload_deletion()`만 `security definer`다(`20261015000100_dashboard_deletion_definer.sql`). 이유: Auth가 사용자를 지울 때 cascade로 실행되는 이 트리거는 Auth 역할 권한으로 돌아 `upload_attempts` 권한이 없어 사용자 삭제 전체가 실패했다(pgTAP은 postgres로 지워서 잡지 못하고 DB 통합 테스트의 `deleteTestUser`에서 드러남).
 
 #### 1-4. RPC `record_metric`
 ```sql
@@ -117,7 +118,7 @@ test -f supabase/migrations/20261015000000_dashboard.sql
 test -f supabase/tests/dashboard.test.sql
 grep -qiE 'create table public.user_metrics' supabase/migrations/20261015000000_dashboard.sql
 ! grep -niE 'create policy' supabase/migrations/20261015000000_dashboard.sql
-! grep -niE 'security definer|auth\.uid\(\)' supabase/migrations/20261015000000_dashboard.sql
+! grep -niE 'auth\.uid\(\)' supabase/migrations/20261015000000_dashboard.sql
 test "$(grep -c 'private.lock_user' supabase/migrations/20261015000000_dashboard.sql)" -ge 2
 grep -q 'string_agg(line' supabase/tests/dashboard.test.sql
 test "$(tail -n 3 supabase/tests/dashboard.test.sql | grep -ciE '^rollback;')" -eq 1
@@ -142,7 +143,7 @@ git diff --quiet HEAD -- supabase/migrations/20261013000000_upload_schema.sql su
 - `supabase db push`, `supabase db reset`, `supabase db query`, `supabase link`, `supabase test db`, `scripts/pgtap.sh`를 실행하지 마라. 이유: dev DB 마이그레이션과 pgTAP 실행은 이 step이 끝난 뒤 사용자 쪽에서 한다(ARCHITECTURE "모드 · 환경").
 - 기존 마이그레이션 파일(`20261013*.sql`, `20261014*.sql`)을 고치지 마라. 기존 업로드 RPC를 `create or replace`로 다시 정의하지도 마라. 이유: 이미 dev DB에 적용됐고, 측정은 트리거로 남기기로 했다.
 - 사용자(authenticated)에게 `user_metrics`·`upload_attempts` 권한이나 정책을 주지 마라. 이유: 측정 이력은 사용자가 접근하지 않는다(ARCHITECTURE "데이터 모델").
-- `security definer`를 쓰지 마라. 이유: 기존 함수와 같이 invoker로 두고 service_role 권한 안에서만 쓴다.
+- 삭제 시각 트리거 함수 밖에서 `security definer`를 쓰지 마라. 이유: 기존 함수와 같이 invoker로 두고 service_role 권한 안에서만 쓴다.
 - RPC에서 `auth.uid()`를 쓰지 마라. 이유: 서버가 세션에서 꺼낸 user_id를 넘긴다.
 - `ai_summaries` 테이블을 만들지 마라. 이유: 10-ai-summary에서 만든다.
 - 앱 코드(`src/`)를 고치지 마라. 이유: 다음 step에서 한다.
