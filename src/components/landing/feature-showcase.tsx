@@ -26,7 +26,7 @@ export function FeatureShowcase({
 
   return (
     <div className="mt-10 space-y-16">
-      <article className="reveal grid min-w-0 items-center gap-8 lg:grid-cols-2 lg:gap-16">
+      <article className="reveal grid min-w-0 items-start gap-8 lg:grid-cols-2 lg:gap-16">
         <div className="min-w-0">
           <CardIcon size={24} className="text-primary" />
           <h3 className="mt-5 text-title-lg font-normal text-ink">한 화면에 모든 카드</h3>
@@ -35,7 +35,12 @@ export function FeatureShowcase({
           </p>
         </div>
         <div className="min-w-0 rounded-3xl bg-surface-soft p-6 sm:p-8">
-          <ul aria-label="예시 카드" className="flex flex-wrap gap-3">
+          {/* 칩을 같은 폭 칸 가운데에 두어 아래 연결선이 칩 가운데에서 내려오게 한다 */}
+          <ul
+            aria-label="예시 카드"
+            className="grid justify-items-center"
+            style={{ gridTemplateColumns: `repeat(${cardLabels.length}, minmax(0, 1fr))` }}
+          >
             {cardLabels.map((label) => (
               <li
                 key={label}
@@ -68,7 +73,7 @@ export function FeatureShowcase({
         </div>
       </article>
 
-      <article className="reveal grid min-w-0 items-center gap-8 lg:grid-cols-2 lg:gap-16">
+      <article className="reveal grid min-w-0 items-start gap-8 lg:grid-cols-2 lg:gap-16">
         <div className="min-w-0 lg:order-2">
           <SearchIcon size={24} className="text-primary" />
           <h3 className="mt-5 text-title-lg font-normal text-ink">확인이 필요한 지출</h3>
@@ -158,7 +163,7 @@ export function FeatureShowcase({
         </div>
       </article>
 
-      <article className="reveal grid min-w-0 items-center gap-8 lg:grid-cols-2 lg:gap-16">
+      <article className="reveal grid min-w-0 items-start gap-8 lg:grid-cols-2 lg:gap-16">
         <div className="min-w-0">
           <ShieldCheckIcon size={24} className="text-primary" />
           <h3 className="mt-5 text-title-lg font-normal text-ink">연동 없이, 언제든 삭제</h3>

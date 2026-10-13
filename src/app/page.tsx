@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { notFound } from "next/navigation";
+import { notFound, redirect } from "next/navigation";
 import { buttonClass } from "@/components/button-styles";
 import { ArrowRightIcon, CheckIcon } from "@/components/icons";
 import { DarkBackdrop } from "@/components/landing/dark-backdrop";
@@ -15,17 +15,13 @@ import { getSessionUser } from "@/lib/auth";
 import { DEMO_SUMMARY, DEMO_SUMMARY_MONTH, DEMO_TODAY, DEMO_TRANSACTIONS } from "@/lib/demo/fixture";
 import { formatWon } from "@/lib/format";
 import { PRO_PRICE_KRW } from "@/lib/pricing";
-import { getSubscription } from "@/lib/queries/subscriptions";
-import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const freeFeatures = ["월별 소비 현황", "전월 대비", "확인할 지출 건수와 합계", "월간 요약"];
 const proFeatures = ["Free의 모든 기능", "확인할 지출 상세", "최대 12개월 추세", "더 자세한 월간 요약"];
 
 export default async function Page(): Promise<React.JSX.Element> {
-  const user = await getSessionUser();
-  // 공개 페이지라 플랜을 읽지 못해도 깨지지 않게 업그레이드 링크로 둔다(대시보드가 다시 판단한다).
-  const isPro = user !== null && await getSubscription(await createSupabaseServerClient(), user.id)
-    .then((subscription) => subscription?.plan === "pro", () => false);
+  // 로그인한 사용자는 랜딩 대신 바로 대시보드로 간다.
+  if (await getSessionUser()) redirect("/dashboard");
   const dashboard = buildDashboard({
     transactions: DEMO_TRANSACTIONS,
     plan: "pro",
@@ -45,10 +41,10 @@ export default async function Page(): Promise<React.JSX.Element> {
           <header className="flex items-center justify-between gap-6">
             <Wordmark tone="onDark" />
             <Link
-              href={user ? "/dashboard" : "/login"}
+              href="/login"
               className="rounded-lg font-semibold text-white hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary"
             >
-              {user ? "대시보드" : "로그인"}
+              로그인
             </Link>
           </header>
 
@@ -152,15 +148,9 @@ export default async function Page(): Promise<React.JSX.Element> {
                 ))}
               </ul>
               <PlanPreview plan="pro" findings={findings} />
-              {isPro ? (
-                <Link href="/settings" className={`${buttonClass("primary")} mt-auto w-full`}>
-                  구독 관리
-                </Link>
-              ) : (
-                <Link href={user ? "/dashboard?upgrade=pricing" : `/login?next=${encodeURIComponent("/dashboard?upgrade=pricing")}`} className={`${buttonClass("primary")} mt-auto w-full`}>
-                  Pro 시작하기
-                </Link>
-              )}
+              <Link href={`/login?next=${encodeURIComponent("/dashboard?upgrade=pricing")}`} className={`${buttonClass("primary")} mt-auto w-full`}>
+                Pro 시작하기
+              </Link>
             </article>
           </div>
           <p className="mt-6 text-caption text-body">

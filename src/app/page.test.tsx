@@ -1,19 +1,21 @@
 import { render, screen, within } from "@testing-library/react";
+import { redirect } from "next/navigation";
 import { renderToStaticMarkup } from "react-dom/server";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import Page from "@/app/page";
 import { FINDING_KIND_LABELS } from "@/components/dashboard/finding-labels";
 import * as analytics from "@/lib/analytics/dashboard";
 import { getSessionUser } from "@/lib/auth";
-import { getSubscription } from "@/lib/queries/subscriptions";
 import { DEMO_SUMMARY, DEMO_TODAY, DEMO_TRANSACTIONS } from "@/lib/demo/fixture";
 import { formatDate, formatMonth, formatMonthShort, formatWon } from "@/lib/format";
 import { CATEGORY_LABELS } from "@/types/category";
 
 vi.mock("@vercel/analytics", () => ({ track: vi.fn() }));
 vi.mock("@/lib/auth", () => ({ getSessionUser: vi.fn() }));
-vi.mock("@/lib/queries/subscriptions", () => ({ getSubscription: vi.fn() }));
-vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: vi.fn(async () => ({ session: true })) }));
+vi.mock("next/navigation", async (importOriginal) => ({
+  ...await importOriginal<typeof import("next/navigation")>(),
+  redirect: vi.fn(() => { throw new Error("NEXT_REDIRECT"); }),
+}));
 
 function demoDashboard() {
   const dashboard = analytics.buildDashboard({
@@ -27,7 +29,7 @@ function demoDashboard() {
 
 beforeEach(() => {
   vi.mocked(getSessionUser).mockReset().mockResolvedValue(null);
-  vi.mocked(getSubscription).mockReset().mockResolvedValue(null);
+  vi.mocked(redirect).mockClear();
 });
 
 afterEach(() => vi.restoreAllMocks());
@@ -48,39 +50,16 @@ describe("landing page", () => {
     )).toBeInTheDocument();
   });
 
-  it("replaces the header login link with a dashboard link for a signed-in user", async () => {
+  it("sends a signed-in user straight to the dashboard instead of the landing", async () => {
     vi.mocked(getSessionUser).mockResolvedValue({ id: "u1" });
-    render(await Page());
 
-    expect(screen.getByRole("link", { name: "대시보드" })).toHaveAttribute("href", "/dashboard");
-    expect(screen.queryByRole("link", { name: "로그인" })).toBeNull();
-    expect(screen.getByRole("link", { name: "Pro 시작하기" }))
-      .toHaveAttribute("href", "/dashboard?upgrade=pricing");
-    expect(getSubscription).toHaveBeenCalledExactlyOnceWith({ session: true }, "u1");
-  });
-
-  it("replaces the Pro upgrade link with subscription management for a signed-in Pro user", async () => {
-    vi.mocked(getSessionUser).mockResolvedValue({ id: "u1" });
-    vi.mocked(getSubscription).mockResolvedValue({ plan: "pro", currentPeriodEnd: null, cancelAtPeriodEnd: false });
-    render(await Page());
-
-    const proCard = screen.getByRole("heading", { name: "Pro", level: 3 }).closest("article")!;
-    expect(within(proCard).getByRole("link", { name: "구독 관리" })).toHaveAttribute("href", "/settings");
-    expect(screen.queryByRole("link", { name: "Pro 시작하기" })).toBeNull();
-  });
-
-  it("keeps the upgrade link when the plan cannot be read", async () => {
-    vi.mocked(getSessionUser).mockResolvedValue({ id: "u1" });
-    vi.mocked(getSubscription).mockRejectedValue(new Error("query:getSubscription:503"));
-    render(await Page());
-
-    expect(screen.getByRole("link", { name: "Pro 시작하기" }))
-      .toHaveAttribute("href", "/dashboard?upgrade=pricing");
+    await expect(Page()).rejects.toThrow("NEXT_REDIRECT");
+    expect(redirect).toHaveBeenCalledExactlyOnceWith("/dashboard");
   });
 
   it("preserves login and Free links and carries pricing upgrade through login", async () => {
     render(await Page());
-    expect(getSubscription).not.toHaveBeenCalled();
+    expect(redirect).not.toHaveBeenCalled();
 
     expect(screen.getByRole("link", { name: "로그인" })).toHaveAttribute("href", "/login");
     expect(screen.getByRole("link", { name: "Pro 시작하기" }))

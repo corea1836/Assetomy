@@ -69,6 +69,27 @@ describe("FeatureShowcase", () => {
       .not.toBeNull();
   });
 
+  it("centers each card chip in an equal column so its connector drops from the chip", () => {
+    render(<FeatureShowcase {...props} />);
+
+    const row = screen.getAllByRole("article")[0];
+    const chips = within(row).getByRole("list", { name: "예시 카드" });
+    expect(chips).toHaveClass("grid", "justify-items-center");
+    expect(chips).toHaveStyle({ gridTemplateColumns: `repeat(${props.cardLabels.length}, minmax(0, 1fr))` });
+    const paths = Array.from(row.querySelectorAll('svg[stroke-width="1"] path'))
+      .map((path) => path.getAttribute("d"));
+    expect(paths).toEqual(["M60 0V16H120V32", "M180 0V16H120V32"]);
+  });
+
+  it("aligns each feature's text with the top of its illustration", () => {
+    render(<FeatureShowcase {...props} />);
+
+    for (const row of screen.getAllByRole("article")) {
+      expect(row).toHaveClass("items-start");
+      expect(row).not.toHaveClass("items-center");
+    }
+  });
+
   it("shows every recurring merchant with sorted month ticks, matching dots, and a text period", () => {
     const originalMonths = [...props.dataMonths];
     render(<FeatureShowcase {...props} />);
