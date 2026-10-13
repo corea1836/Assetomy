@@ -39,7 +39,10 @@
     {
       "step": 3,
       "name": "dashboard-api",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-13T20:50:09+0900",
+      "summary": "POST /api/metrics: JSON {event:teaser_seen}|{event:upgrade_click,source:teaser|trend|summary|pricing|settings}를 zod 판별 유니온으로 검증하고 recorded·unchanged는 본문 없는 204, user_not_found는 401; PUT /api/merchant-categories: JSON {merchantKey:1~200자,category:고정 14개 ID}를 검증하고 updated는 200 {updated}, not_found는 404. 두 경로 모두 세션→Origin 정확 일치·application/json→입력 검증→기존 서버 저장소 순서, 본문 사용자 ID·추가 키 무시, 세션 없음 401·Origin 오류 403·입력 오류 400·예외 503(TEMPORARY_FAILURE), 로그는 에러 클래스명과 세션 ID만. 테스트 선작성·구현 전 실패→새 테스트 72개 통과, lint·build·정적 AC 및 전체 단위 1729개 통과(1개 skipped)·기존 DB 통합 31개 통과",
+      "completed_at": "2026-10-13T20:54:34+0900"
     },
     {
       "step": 4,
