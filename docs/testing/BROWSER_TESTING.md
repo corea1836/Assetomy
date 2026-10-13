@@ -157,8 +157,9 @@ scripts/browser-test/run.sh s2 s3    # 일부만
 자동화하지 않는다(로그인 세션이 필요하다). 모달은 Tab이 안에서 순환하고 Esc·닫기로 닫힌다. 설정에서 닫으면 업그레이드 버튼으로 포커스가 돌아오고, 결제 요청 중에는 닫기와 중복 요청이 막힌다.
 1. 랜딩 `Pro 시작하기` → 로그인 → `/dashboard?upgrade=pricing`에서 Free 업그레이드 모달. 로그인한 상태의 랜딩에서는 같은 대시보드 주소로 바로 간다. 닫으면 `/dashboard`로 바뀌고 새로고침해도 모달이 다시 열리지 않는다.
 2. 로컬 mock에서 설정 → `업그레이드` → 예시·`월 6,900원`·해외 가격·해지 안내 → `결제하기` → `/dashboard?checkout=success`의 `Pro가 활성화됐어요` → 설정에 Pro 표시(날짜 문구 없음) → `구독 관리` → 설정에서 Free 표시.
-3. 로컬 live+sandbox에서 테스트 카드로 결제 → 결제 완료 안내, `polar listen`으로 받은 `customer.state_changed` 웹훅이 200. 반영 중 안내가 나오면 `새로고침`으로 다시 확인한다.
-4. live+sandbox의 설정 → `구독 관리` → 포털에서 해지 예약 → 설정에서 `YYYY-MM-DD까지 Pro로 쓸 수 있어요`. 갱신 예정인 Pro에는 `다음 결제일 YYYY-MM-DD`가 보인다.
+3. 로컬 live+sandbox에서 테스트 카드로 결제 → 결제 완료 안내, `polar listen`으로 받은 `customer.state_changed` 웹훅이 200. 반영 중 안내가 나오면 `새로고침`으로 다시 확인하거나 설정을 연다(설정은 열 때마다 Polar와 동기화한다).
+4. live+sandbox의 설정 → `구독 관리` → 포털에서 해지 예약 → 포털의 돌아가기로 설정에 오면 바로 `YYYY-MM-DD까지 Pro로 쓸 수 있어요`(웹훅을 기다리지 않는다). 갱신 예정인 Pro에는 `다음 결제일 YYYY-MM-DD`가 보인다.
+5. 운영(deploy): Polar 대시보드의 웹훅 엔드포인트(`/api/webhooks/polar`)는 이벤트를 `customer.state_changed`만 선택한다. 나머지 이벤트는 200으로 무시하므로 받을 필요가 없다.
 
 ## 미확인 · 관찰 항목
 - 월 선택기 방향키: `onChange`에서 바로 `router.push`를 하므로, 방향키로 값이 바뀌는 환경(Windows·Linux Chrome)에서는 누를 때마다 페이지가 이동할 수 있다. macOS 헤드리스에서는 방향키로 값이 바뀌지 않아 재현하지 못했다. 해당 OS에서 수동으로 확인한다.

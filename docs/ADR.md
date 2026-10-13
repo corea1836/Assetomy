@@ -6,7 +6,7 @@ MVP 한 사이클(랜딩 → 데모 → 로그인 → 대시보드 → 결제 �
 ---
 
 ### ADR-001: Next.js 16 App Router + Vercel, 읽기는 Server Component·쓰기는 Route Handler
-**결정**: Next.js 16(`proxy.ts`), Vercel 함수 리전 `icn1`. 읽기는 Server Component, 쓰기는 Route Handler. 예외는 대시보드 렌더 중 AI 요약 저장과 기간이 지난 결제 상태 재동기화 2개뿐이다.
+**결정**: Next.js 16(`proxy.ts`), Vercel 함수 리전 `icn1`. 읽기는 Server Component, 쓰기는 Route Handler. 예외는 렌더 중 AI 요약 저장과 결제 상태 재동기화(결제 완료 화면·기간이 지난 Pro·설정 화면) 2개뿐이다.
 **이유**: 병렬 업로드·웹훅과 쓰기 패턴을 통일하고 테스트하기 쉽다. 요약을 위한 별도 라우트와 클라이언트 fetch가 필요 없다.
 **트레이드오프**: 예외 2개에서 동시 요청 시 같은 달 요약을 중복 생성할 수 있다(비용만 조금 늘고 저장은 하나로 수렴).
 

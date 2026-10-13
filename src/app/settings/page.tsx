@@ -14,7 +14,8 @@ export const metadata = { title: "설정 · assetomy" };
 export default async function SettingsPage(): Promise<React.JSX.Element> {
   const user = await requireUser("/settings");
   const stored = await getSubscription(await createSupabaseServerClient(), user.id);
-  const planState = await getPlanState(user.id, stored, defaultBillingDeps());
+  // 결제 반영이 늦거나 포털에서 돌아온 사용자가 플랜을 확인하는 곳이라 열 때마다 Polar와 맞춘다.
+  const planState = await getPlanState(user.id, stored, defaultBillingDeps(), { sync: true });
 
   return (
     <div className="mx-auto max-w-5xl px-4 pb-12 sm:px-6">

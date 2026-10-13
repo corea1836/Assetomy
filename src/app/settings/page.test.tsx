@@ -33,7 +33,7 @@ describe("settings page", () => {
     expect(requireUser).toHaveBeenCalledExactlyOnceWith("/settings");
     expect(getSubscription).toHaveBeenCalledExactlyOnceWith(supabase, "private-user-id");
     expect(defaultBillingDeps).toHaveBeenCalledOnce();
-    expect(getPlanState).toHaveBeenCalledExactlyOnceWith("private-user-id", null, deps);
+    expect(getPlanState).toHaveBeenCalledExactlyOnceWith("private-user-id", null, deps, { sync: true });
     expect(metadata.title).toBe("설정 · assetomy");
     expect(screen.getByRole("heading", { name: "설정", level: 1 })).toBeInTheDocument();
     expect(screen.getByRole("heading", { name: "플랜", level: 2 })).toBeInTheDocument();
@@ -52,7 +52,7 @@ describe("settings page", () => {
     vi.mocked(getSubscription).mockResolvedValue(pro);
     vi.mocked(getPlanState).mockResolvedValue({ plan: "pro", periodEnd: "2026-11-13", cancelAtPeriodEnd: true });
     const { container } = render(await SettingsPage());
-    expect(getPlanState).toHaveBeenCalledExactlyOnceWith("private-user-id", pro, deps);
+    expect(getPlanState).toHaveBeenCalledExactlyOnceWith("private-user-id", pro, deps, { sync: true });
     expect(screen.getByText("Pro")).toHaveClass("rounded-full", "bg-primary-soft", "text-primary-active");
     expect(screen.getByText("2026-11-13까지 Pro로 쓸 수 있어요")).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "구독 관리" })).toBeInTheDocument();
