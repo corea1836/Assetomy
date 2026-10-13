@@ -9,6 +9,9 @@ DIR=scripts/browser-test
 PORT=3100
 # Origin 검사와 OAuth 복귀 주소가 이 포트를 쓰게 한다. NEXT_PUBLIC_*는 빌드 때 치환되므로 빌드 전에 둔다.
 export NEXT_PUBLIC_SITE_URL="http://localhost:$PORT"
+# 시나리오는 mock 화면을 기준으로 한다. .env가 live여도(수동 결제 확인 중) mock으로 빌드·실행한다.
+# Next는 이미 있는 환경 변수를 .env로 덮지 않는다.
+export APP_MODE=mock
 
 listener() { lsof -ti "tcp:$PORT" -sTCP:LISTEN | head -1; }
 cwd_of() { lsof -a -p "$1" -d cwd -Fn | sed -n 's/^n//p'; }
