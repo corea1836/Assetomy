@@ -23,7 +23,10 @@
     {
       "step": 1,
       "name": "upload-queries",
-      "status": "pending"
+      "status": "completed",
+      "summary": "listCards(supabase: SupabaseClient, userId: string): Promise<CardOption[]> · findMerchantCategories(supabase: SupabaseClient, userId: string, merchantKeys: string[]): Promise<Map<string, CategoryId>> · getUploadOutcome(supabase: SupabaseClient, userId: string, uploadId: string): Promise<UploadOutcomeRecord | null> · getTransactionCoverage(supabase: SupabaseClient, userId: string): Promise<TransactionCoverage> 구현; src/lib/queries/query-error.ts의 QueryError(operation, code)는 query:<operation>:<code> 형식; src/types/upload.ts에 CardOption·TransactionCoverage·UploadOutcomeRecord 추가, 사용자 명시 조건·1000행 페이지네이션·100키 배치 및 AC 전체 통과",
+      "started_at": "2026-10-13T09:31:23+0900",
+      "completed_at": "2026-10-13T13:31:00+0900"
     },
     {
       "step": 2,
