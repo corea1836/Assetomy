@@ -20,33 +20,19 @@ sequenceDiagram
     participant P as Polar
     participant D as DB
 
-    U->>A: 결제하기 (POST /api/checkout)
-    Note over A: 세션에서 uid 확인, Origin 검사
-    A->>P: 현재 구독 상태 조회
-    A->>D: 상태 저장
-    alt 이미 Pro
-        A-->>U: 구독 관리 포털로 이동 (이중 결제 방지)
-    else Free
-        A->>P: checkout 생성 (external_customer_id = uid)
-        A-->>U: Polar 결제 페이지로 이동
-        U->>P: 카드 결제
-        par 사용자 복귀
-            P-->>U: /dashboard?checkout=success 로 이동
-            U->>A: 대시보드 요청
-            A->>P: 현재 구독 상태 조회
-            A->>D: 상태 저장
-            A-->>U: Pro 활성화 또는 결제 반영 중 안내
-        and 웹훅
-            P->>A: POST /api/webhooks/polar
-            Note over A: 서명 검증 후 페이로드에서 uid만 꺼냄
-            A->>P: 현재 구독 상태 조회
-            A->>D: 상태 저장
-            A-->>P: 200 (실패하면 503, Polar가 재전송)
-        end
-    end
+    U->>A: 결제하기
+    A->>P: 결제 페이지 생성 (로그인한 사용자 id 연결)
+    A-->>U: Polar 결제 페이지로 이동
+    U->>P: 카드 결제
+    P->>A: 웹훅: 결제 상태가 바뀜 (서명 검증)
+    A->>P: 이 사용자의 현재 결제 상태 조회
+    A->>D: 결제 상태 저장
+    P-->>U: assetomy로 돌아가기
+    U->>A: 대시보드 열기
+    A-->>U: 결제 결과 표시
 ```
 
-사용자 복귀와 웹훅 중 어느 쪽이 먼저 와도 결과가 같다. 둘 다 Polar에 현재 상태를 묻고 저장할 뿐이다.
+웹훅(5~7)과 사용자 복귀(8~10)는 어느 쪽이 먼저 와도 된다. 사용자가 먼저 돌아오면 assetomy가 Polar에 직접 물어보고 저장한다.
 
 ### 핵심 원칙
 
@@ -89,13 +75,6 @@ sequenceDiagram
 | 기간 만료 | 기간이 지난 Pro는 화면을 그릴 때 다시 조회해 갱신·만료를 반영한다 |
 | 탈퇴 뒤 도착한 웹훅 | 저장하지 않고 200으로 무시한다 |
 
-### 환경 분리
-
-- **mock은 운영에서 돌지 않는다.** `getMode()`는 Vercel production이면 항상 live다. mock(결제 = 바로 Pro)은 로컬·Preview 전용이고, mock에서 웹훅은 404다(ADR-014).
-- **운영은 sandbox로 결제받지 않는다.** production에서 `POLAR_ENV`가 `production`이 아니면 Polar 클라이언트를 만들지 않는다. 테스트 카드로 Pro가 열리는 일을 막는다.
-- **Polar 토큰은 최소 권한이다.** `checkouts:write` · `customer_sessions:write` · `customers:read`만 쓴다.
-- **로그에는 코드와 사용자 id만 남긴다.** 예: `billing:webhook:failed <uid>`. 본문·서명·Polar 에러 원문은 남기지 않는다.
-
 ### 알려진 한계
 
 - 웹훅이 오래 실패하고 사용자가 성공 페이지 전에 탭을 닫으면, 설정 화면을 열거나 Polar가 재전송할 때까지 Free로 보인다(결제 기록은 Polar에 있다).
@@ -107,19 +86,3 @@ sequenceDiagram
 
 - Polar 웹훅 엔드포인트는 `https://<도메인>/api/webhooks/polar`, 이벤트는 `customer.state_changed`만 선택하고 secret을 `POLAR_WEBHOOK_SECRET`에 넣는다.
 - 로컬에서 웹훅을 받을 때: `polar listen http://localhost:3000/api/webhooks/polar`(출력된 secret을 `.env`에).
-
-### 코드 위치
-
-| 파일 | 역할 |
-|---|---|
-| `src/app/api/checkout/route.ts` | 결제하기 API |
-| `src/lib/billing/checkout.ts` | checkout 전 동기화, 이미 Pro면 포털 |
-| `src/lib/billing/sync.ts` | `syncFromPolar` |
-| `src/lib/billing/plan.ts` | 화면용 플랜 판단, 기간 지난 Pro 재조회 |
-| `src/app/api/webhooks/polar/route.ts` | 웹훅 수신, 실패 시 503 |
-| `src/services/polar/webhook.ts` | 웹훅 서명 검증 |
-| `src/services/polar/polar-gateway.ts` | Polar API 호출, Pro 판정(상품·active) |
-| `src/lib/http.ts` | Origin·Content-Type 검사 |
-| `src/lib/env.ts` | production에서 sandbox 차단 |
-| `supabase/migrations/20261014000000_subscriptions.sql` | 구독 테이블, RLS, `save_subscription` |
-| `supabase/tests/subscriptions.test.sql` | 권한 pgTAP 테스트 |
