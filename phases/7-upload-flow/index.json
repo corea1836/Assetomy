@@ -39,7 +39,10 @@
     {
       "step": 3,
       "name": "upload-api",
-      "status": "pending"
+      "status": "completed",
+      "summary": "POST /api/cards JSON {label} → 201 {card:{id,label}}(공백 제거), POST /api/uploads multipart {cardId,file}(PDF·4MB) → 200 {result:{kind:done|no_new,uploadId,...UploadSummary}|{kind:duplicate,existingCardLabel}}, DELETE /api/uploads/[id](본문 없음) → 200 {deleted:true}와 세션 기반 {userId}/{id}.enc 삭제 시도 구현; ApiErrorCode·ApiErrorBody·UploadResultDto·CreateCardResponse·UploadResponse는 src/types/upload.ts, 에러는 {error:{code,reason?}}로 400 입력/라벨·401 세션·403 Origin·404 리소스·409 라벨/식별범위/처리중·422 파일·429 한도/동시처리·503 일시 장애 매핑; seoulToday는 src/lib/clock.ts, apiError·checkMutationRequest는 src/lib/http.ts(세션 → Origin → Content-Type 검사), maxDuration=300; pdfjs 외부 패키지·cmaps/standard_fonts/worker 번들 설정과 Turbopack require.resolve 경로 보존 적용, scripts/check-pdf-trace.mjs로 cmap 169개+pdf.worker.mjs+pdf.mjs 총 171개 필수 파일 포함 확인; lint·build·단위 테스트 1123개 통과(기존 1개 skip)·DB/Storage 테스트 16개·AC 정적 검사 통과",
+      "started_at": "2026-10-13T13:36:01+0900",
+      "completed_at": "2026-10-13T13:42:53+0900"
     },
     {
       "step": 4,
