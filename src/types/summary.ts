@@ -1,5 +1,18 @@
 import type { FindingKind, KindSummary, Period } from "./dashboard";
+import type { Plan } from "./dashboard";
 import type { YearMonth } from "./transaction";
+
+export type StoredSummary = { inputHash: string; summary: string };
+export type SaveSummaryInput = {
+  userId: string;
+  month: YearMonth;
+  plan: Plan;
+  model: string;
+  inputHash: string;
+  summary: string;
+};
+export type SaveSummaryResult = { kind: "saved" | "no_transactions" };
+export type MonthlySummaryView = { kind: "ready"; text: string } | { kind: "failed" };
 
 export type SummaryCategory = { category: string; amount: number; ratio: number | null };
 export type SummaryMerchant = { merchant: string; category: string; amount: number; count: number };
