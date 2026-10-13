@@ -9,7 +9,7 @@ const storedSummaryResponseSchema = z.object({
   data: z.object({
     input_hash: z.string().regex(/^[0-9a-f]{64}$/),
     summary: z.string().min(1),
-    tips: z.array(z.string().min(1)).min(1).max(3),
+    tips: z.array(z.string().min(1)).min(1).max(5),
   }).transform((row) => ({ inputHash: row.input_hash, summary: row.summary, tips: row.tips })).nullable(),
 });
 

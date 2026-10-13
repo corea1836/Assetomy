@@ -35,12 +35,19 @@ describe("getStoredSummary", () => {
     }).client, "user-a", "2026-09")).toEqual({ inputHash: "b".repeat(64), summary: "요약", tips: ["팁"] });
   });
 
+  it("reads back the most tips the summarizer and the database allow", async () => {
+    const tips = ["팁 1", "팁 2", "팁 3", "팁 4", "팁 5"];
+    expect(await getStoredSummary(fakeClient({
+      input_hash: "d".repeat(64), summary: "요약", tips,
+    }).client, "user-a", "2026-09")).toEqual({ inputHash: "d".repeat(64), summary: "요약", tips });
+  });
+
   it.each([
     undefined, {}, { input_hash: "A".repeat(64), summary: "요약", tips: ["팁"] },
     { input_hash: "short", summary: "요약", tips: ["팁"] },
     { input_hash: "c".repeat(64), summary: "", tips: ["팁"] }, { input_hash: "c".repeat(64), summary: 2, tips: ["팁"] },
     { input_hash: "c".repeat(64), summary: "요약" }, { input_hash: "c".repeat(64), summary: "요약", tips: [] },
-    { input_hash: "c".repeat(64), summary: "요약", tips: ["1", "2", "3", "4"] },
+    { input_hash: "c".repeat(64), summary: "요약", tips: ["1", "2", "3", "4", "5", "6"] },
     { input_hash: "c".repeat(64), summary: "요약", tips: [""] },
   ])("rejects malformed rows as QueryError: %#", async (data) => {
     const error = await getStoredSummary(fakeClient(data).client, "user-a", "2026-09").catch((caught: unknown) => caught);
