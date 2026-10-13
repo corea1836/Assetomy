@@ -5,7 +5,7 @@ const hrefs = (name) =>
 
 await go("/");
 const landingLinks = [await hrefs("로그인"), await hrefs("무료로 시작하기"), await hrefs("Pro 시작하기"), await hrefs("데모 보기")];
-check("S5 랜딩 CTA href", same(landingLinks, [["/login"], ["/login", "/login"], ["/login"], ["/demo"]]), JSON.stringify(landingLinks));
+check("S5 랜딩 CTA href", same(landingLinks, [["/login"], ["/login", "/login"], ["/login?next=%2Fdashboard%3Fupgrade%3Dpricing"], ["/demo"]]), JSON.stringify(landingLinks));
 const s5Body = await bodyText();
 check("S5 가격", s5Body.includes("월 6,900원") && s5Body.includes("0원") && s5Body.includes("해외에서는 $4.99/월로 결제돼요."), "");
 await page.getByRole("link", { name: "무료로 시작하기", exact: true }).first().click();

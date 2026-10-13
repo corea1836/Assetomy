@@ -50,14 +50,16 @@ describe("landing page", () => {
 
     expect(screen.getByRole("link", { name: "대시보드" })).toHaveAttribute("href", "/dashboard");
     expect(screen.queryByRole("link", { name: "로그인" })).toBeNull();
+    expect(screen.getByRole("link", { name: "Pro 시작하기" }))
+      .toHaveAttribute("href", "/dashboard?upgrade=pricing");
   });
 
-  it("links login and every signup entry to the future login page", async () => {
+  it("preserves login and Free links and carries pricing upgrade through login", async () => {
     render(await Page());
 
     expect(screen.getByRole("link", { name: "로그인" })).toHaveAttribute("href", "/login");
     expect(screen.getByRole("link", { name: "Pro 시작하기" }))
-      .toHaveAttribute("href", "/login");
+      .toHaveAttribute("href", "/login?next=%2Fdashboard%3Fupgrade%3Dpricing");
     const freeLinks = screen.getAllByRole("link", { name: "무료로 시작하기" });
     expect(freeLinks).toHaveLength(2);
     for (const link of freeLinks) expect(link).toHaveAttribute("href", "/login");

@@ -1,4 +1,6 @@
 import Link from "next/link";
+import { CheckoutNotice } from "@/components/billing/checkout-notice";
+import { PricingUpgrade } from "@/components/billing/pricing-upgrade";
 import { buttonClass } from "@/components/button-styles";
 import { Wordmark } from "@/components/wordmark";
 import { HyundaiGuide } from "@/components/upload/hyundai-guide";
@@ -6,20 +8,30 @@ import { Onboarding } from "@/components/upload/onboarding";
 import { UploadHistory } from "@/components/upload/upload-history";
 import { UploadPanel } from "@/components/upload/upload-panel";
 import { requireUser } from "@/lib/auth";
+import { defaultBillingDeps } from "@/lib/billing/deps";
+import { getPlanState } from "@/lib/billing/plan";
 import { formatPeriod } from "@/lib/format";
 import { listCards } from "@/lib/queries/cards";
+import { getSubscription } from "@/lib/queries/subscriptions";
 import { getTransactionCoverage } from "@/lib/queries/transactions";
 import { listDoneUploads } from "@/lib/queries/uploads";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "대시보드 · assetomy" };
 
-export default async function DashboardPage(): Promise<React.JSX.Element> {
+export default async function DashboardPage({ searchParams }: {
+  searchParams: Promise<{ checkout?: string | string[]; upgrade?: string | string[] }>;
+}): Promise<React.JSX.Element> {
   const user = await requireUser("/dashboard");
+  const params = await searchParams;
+  const checkout = Array.isArray(params.checkout) ? params.checkout[0] : params.checkout;
+  const upgrade = Array.isArray(params.upgrade) ? params.upgrade[0] : params.upgrade;
   const supabase = await createSupabaseServerClient();
-  const [cards, coverage, doneUploads] = await Promise.all([
+  const [cards, coverage, doneUploads, stored] = await Promise.all([
     listCards(supabase, user.id), getTransactionCoverage(supabase, user.id), listDoneUploads(supabase, user.id),
+    getSubscription(supabase, user.id),
   ]);
+  const planState = await getPlanState(user.id, stored, defaultBillingDeps(), { sync: checkout === "success" });
   const cardLabels = new Map(cards.map((card) => [card.id, card.label]));
   const history = doneUploads.map(({ cardId, ...upload }) => ({ ...upload, cardLabel: cardLabels.get(cardId) ?? null }));
 
@@ -32,14 +44,16 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
         >
           <Wordmark />
         </Link>
-        <form method="post" action="/auth/logout">
-          <button type="submit" className={buttonClass("secondary", "sm")}>
-            로그아웃
-          </button>
-        </form>
+        <div className="flex items-center gap-2">
+          <Link href="/settings" className={buttonClass("secondary", "sm")}>설정</Link>
+          <form method="post" action="/auth/logout">
+            <button type="submit" className={buttonClass("secondary", "sm")}>로그아웃</button>
+          </form>
+        </div>
       </header>
 
       <main className="pt-6">
+        {checkout === "success" && <CheckoutNotice plan={planState.plan} />}
         <div className={coverage.count === 0 ? "space-y-4" : "space-y-12"}>
           <div>
             {coverage.count === 0 ? <Onboarding /> : (
@@ -63,6 +77,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
             <div className={coverage.count > 0 ? "mt-4" : ""}><UploadPanel cards={cards} /></div>
           </section>
         </div>
+        {upgrade === "pricing" && planState.plan === "free" && <PricingUpgrade />}
       </main>
     </div>
   );

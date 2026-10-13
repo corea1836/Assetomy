@@ -52,6 +52,8 @@ check("S7 모르는 error 무시", (await alerts().count()) === 0, await alerts(
 
 await go("/dashboard");
 check("S7 비로그인 /dashboard → 로그인", path() === "/login?next=%2Fdashboard", path());
+await go("/settings");
+check("S7 비로그인 /settings → 로그인", path() === "/login?next=%2Fsettings", path());
 await go("/auth/callback?error=access_denied&error_description=x&next=%2Fdashboard");
 check("S7 콜백 동의 취소 → 취소 안내", path() === "/login?next=%2Fdashboard&error=cancelled", path());
 await go("/auth/callback?next=%2Fdashboard%3Fmonth%3D2026-09");

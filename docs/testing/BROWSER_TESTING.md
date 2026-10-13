@@ -2,7 +2,7 @@
 
 실제 브라우저에서 화면·숫자·동선을 확인할 때 이 문서를 기준으로 한다. 화면과 분기는 `USER_FLOW.md`, 문구와 레이아웃은 `DESIGN.md`·`UX_GUIDE.md`를 따른다. 이 문서와 화면이 다르면 위 문서와 코드가 맞는지 먼저 확인하고, 이 문서를 고친다.
 
-- 범위: 공개 화면 `/`(랜딩)·`/demo`(데모)·`/login`(로그인), 로그인하지 않은 `/dashboard`, `/auth/*`의 실패·거절 경로. 실제 구글 로그인 이후는 자동화하지 않고 아래 "수동 확인"으로 본다. 로그인 이후 화면은 라우트가 생기면 "추가할 시나리오"에서 옮겨 온다.
+- 범위: 공개 화면 `/`(랜딩)·`/demo`(데모)·`/login`(로그인), 로그인하지 않은 `/dashboard`·`/settings`, `/auth/*`의 실패·거절 경로. 실제 구글 로그인 이후는 자동화하지 않고 아래 "수동 확인"으로 본다. 로그인 이후 화면은 라우트가 생기면 "추가할 시나리오"에서 옮겨 온다.
 - 기대값은 데모 fixture(`src/lib/demo/fixture.ts`)를 `buildDashboard`에 넣어 계산한 값이다. 기준일 `DEMO_TODAY = 2026-10-05`, 데이터 2026-06~09(4개월), 카드 2장(생활비 카드 · 온라인 쇼핑 카드). fixture·탐지 규칙·포맷 함수가 바뀌면 이 문서의 숫자를 먼저 갱신한다.
 
 ## 실행 환경
@@ -98,7 +98,7 @@ scripts/browser-test/run.sh s2 s3    # 일부만
 - 모두 200, h1 `2026년 9월 지출`, 선택기 값 `2026-09`. 콘솔 에러 없음.
 
 ### S5. 가입 CTA 동선 (UC 01 → 02 진입점)
-- 랜딩 `href`: `로그인` 1개, `무료로 시작하기` 2개(가격 · 마지막 밴드), `Pro 시작하기` 1개가 모두 `/login`. `데모 보기`는 `/demo`.
+- 랜딩 `href`(로그인 전): `로그인` 1개, `무료로 시작하기` 2개(가격 · 마지막 밴드)는 `/login`. `Pro 시작하기` 1개는 `/login?next=%2Fdashboard%3Fupgrade%3Dpricing`. `데모 보기`는 `/demo`.
 - 가격: `월 6,900원`(임시값, PRD 확정 필요), `0원`, `해외에서는 $4.99/월로 결제돼요.`
 - 데모: `내 이용내역으로 해보기` 2개(헤더 · 맨 아래 `내 카드로 확인해 보세요` 구역)가 모두 `/login`, 안내 `예시 데이터로 만든 화면이에요. 실제 카드 내역이 아니에요.`
 - 데모의 워드마크(`assetomy` 링크)를 누르면 `/`로 간다.
@@ -127,7 +127,7 @@ scripts/browser-test/run.sh s2 s3    # 일부만
 | 구글 버튼 모양 | 배경 `rgb(255, 255, 255)`, 테두리 `rgb(116, 119, 117)`(`#747775`), 글자 `rgb(31, 31, 31)`, G 로고 `path` fill이 `#EA4335` · `#4285F4` · `#FBBC05` · `#34A853` 순서 |
 | next | 폼(`action="/auth/login"`)의 hidden `next`: 없으면 `/dashboard`, `?next=%2Fdashboard%3Fmonth%3D2026-09` → `/dashboard?month=2026-09`. `//evil.com` · `https://evil.com` · `/login` · `/auth/callback` → `/dashboard` |
 | 에러 안내(`main` 안 `role="alert"`) | `?error=cancelled` → `구글 로그인을 취소했어요. 계속하려면 다시 시도해 주세요.`, `?error=failed` → `로그인을 마치지 못했어요. 잠시 후 다시 시도해 주세요.`, `?error=zzz` → 없음 |
-| 보호 페이지 | 로그인하지 않고 `/dashboard` → `/login?next=%2Fdashboard` |
+| 보호 페이지 | 로그인하지 않고 `/dashboard` → `/login?next=%2Fdashboard`, `/settings` → `/login?next=%2Fsettings` |
 | 콜백 실패 | `/auth/callback?error=access_denied&…` → `/login?next=%2Fdashboard&error=cancelled`. code 없음 → `…&error=failed`(next 유지). 잘못된 code + `next=//evil.com` → `/login?next=%2Fdashboard&error=failed` |
 | 폼 POST 거절 | `http://127.0.0.1:3100`에서 제출한 폼: `/auth/login`·`/auth/logout` 모두 403. 같은 Origin의 JSON `POST /auth/login` 400, `GET /auth/login` 405 |
 | 키보드 · 375px | Tab 순서 `assetomy` → `Google로 계속하기`, 포커스 표시 있음. 375×667에서 가로 스크롤 없고 버튼이 첫 화면에 보인다 |
@@ -152,6 +152,13 @@ scripts/browser-test/run.sh s2 s3    # 일부만
 5. PDF가 아니거나 4MB를 넘는 파일은 올리기 전에 그 행에 실패 안내가 붙는다.
 6. `틀렸어요` → 삭제 확인 모달(Esc로 닫히고, Tab이 모달 안에서 돈다) → `삭제` → `삭제했어요`, 거래 건수가 줄어든다.
 7. 페이지를 새로고침한 뒤 `올린 파일`의 `삭제` → 같은 확인 모달 → `삭제` → 목록에서 빠지고, 마지막 파일이면 온보딩으로 돌아간다.
+
+## 수동 확인: 결제 (UC 09, 12)
+자동화하지 않는다(로그인 세션이 필요하다). 모달은 Tab이 안에서 순환하고 Esc·닫기로 닫힌다. 설정에서 닫으면 업그레이드 버튼으로 포커스가 돌아오고, 결제 요청 중에는 닫기와 중복 요청이 막힌다.
+1. 랜딩 `Pro 시작하기` → 로그인 → `/dashboard?upgrade=pricing`에서 Free 업그레이드 모달. 로그인한 상태의 랜딩에서는 같은 대시보드 주소로 바로 간다. 닫으면 `/dashboard`로 바뀌고 새로고침해도 모달이 다시 열리지 않는다.
+2. 로컬 mock에서 설정 → `업그레이드` → 예시·`월 6,900원`·해외 가격·해지 안내 → `결제하기` → `/dashboard?checkout=success`의 `Pro가 활성화됐어요` → 설정에 Pro 표시(날짜 문구 없음) → `구독 관리` → 설정에서 Free 표시.
+3. 로컬 live+sandbox에서 테스트 카드로 결제 → 결제 완료 안내, `polar listen`으로 받은 `customer.state_changed` 웹훅이 200. 반영 중 안내가 나오면 `새로고침`으로 다시 확인한다.
+4. live+sandbox의 설정 → `구독 관리` → 포털에서 해지 예약 → 설정에서 `YYYY-MM-DD까지 Pro로 쓸 수 있어요`. 갱신 예정인 Pro에는 `다음 결제일 YYYY-MM-DD`가 보인다.
 
 ## 미확인 · 관찰 항목
 - 월 선택기 방향키: `onChange`에서 바로 `router.push`를 하므로, 방향키로 값이 바뀌는 환경(Windows·Linux Chrome)에서는 누를 때마다 페이지가 이동할 수 있다. macOS 헤드리스에서는 방향키로 값이 바뀌지 않아 재현하지 못했다. 해당 OS에서 수동으로 확인한다.

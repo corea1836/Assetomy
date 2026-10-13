@@ -50,3 +50,10 @@ export function uploadErrorMessage(code: ApiErrorCode, reason?: string): string 
   if (reason && reasons && Object.hasOwn(reasons, reason)) return reasons[reason];
   return UPLOAD_ERROR_MESSAGES[code];
 }
+
+export function billingErrorMessage(code: ApiErrorCode): string {
+  if (code === "TEMPORARY_FAILURE") return "결제 화면을 열지 못했어요. 잠시 후 다시 시도해 주세요.";
+  if (code === "NOT_FOUND") return "구독 정보를 찾지 못했어요. 새로고침한 뒤 다시 시도해 주세요.";
+  if (code === "UNAUTHORIZED") return UPLOAD_ERROR_MESSAGES.UNAUTHORIZED;
+  return UPLOAD_ERROR_MESSAGES.BAD_REQUEST;
+}

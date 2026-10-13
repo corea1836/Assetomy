@@ -14,8 +14,7 @@ import { buildDashboard } from "@/lib/analytics/dashboard";
 import { getSessionUser } from "@/lib/auth";
 import { DEMO_SUMMARY, DEMO_SUMMARY_MONTH, DEMO_TODAY, DEMO_TRANSACTIONS } from "@/lib/demo/fixture";
 import { formatWon } from "@/lib/format";
-
-const PRO_PRICE_KRW = 6_900; // 임시값: PRD [확정 필요]
+import { PRO_PRICE_KRW } from "@/lib/pricing";
 
 const freeFeatures = ["월별 소비 현황", "전월 대비", "확인할 지출 건수와 합계", "월간 요약"];
 const proFeatures = ["Free의 모든 기능", "확인할 지출 상세", "최대 12개월 추세", "더 자세한 월간 요약"];
@@ -148,7 +147,7 @@ export default async function Page(): Promise<React.JSX.Element> {
                 ))}
               </ul>
               <PlanPreview plan="pro" findings={findings} />
-              <Link href="/login" className={`${buttonClass("primary")} mt-auto w-full`}>
+              <Link href={user ? "/dashboard?upgrade=pricing" : `/login?next=${encodeURIComponent("/dashboard?upgrade=pricing")}`} className={`${buttonClass("primary")} mt-auto w-full`}>
                 Pro 시작하기
               </Link>
             </article>
