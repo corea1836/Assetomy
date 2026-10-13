@@ -1,28 +1,73 @@
 import { render, screen } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { requireUser } from "@/lib/auth";
+import { listCards } from "@/lib/queries/cards";
+import { getTransactionCoverage } from "@/lib/queries/transactions";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { UploadPanel } from "@/components/upload/upload-panel";
+import type { SupabaseClient } from "@supabase/supabase-js";
 import DashboardPage, { metadata } from "./page";
 
 vi.mock("@/lib/auth", () => ({ requireUser: vi.fn() }));
+vi.mock("@/lib/queries/cards", () => ({ listCards: vi.fn() }));
+vi.mock("@/lib/queries/transactions", () => ({ getTransactionCoverage: vi.fn() }));
+vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: vi.fn() }));
+vi.mock("@/components/upload/upload-panel", () => ({ UploadPanel: vi.fn(() => <div>업로드 패널</div>) }));
+
+const supabase = {} as SupabaseClient;
+const cards = [{ id: "card-a", label: "현대 생활비" }];
 
 beforeEach(() => {
   vi.mocked(requireUser).mockReset().mockResolvedValue({ id: "private-user-id" });
+  vi.mocked(createSupabaseServerClient).mockReset().mockResolvedValue(supabase);
+  vi.mocked(listCards).mockReset().mockResolvedValue(cards);
+  vi.mocked(getTransactionCoverage).mockReset().mockResolvedValue({ count: 0, from: null, to: null });
+  vi.mocked(UploadPanel).mockClear();
 });
 
 describe("dashboard page", () => {
-  it("checks the session and shows the minimal preparation screen without the user ID", async () => {
+  it("checks the session and shows onboarding and a DTO-only panel without the user ID", async () => {
     const { container } = render(await DashboardPage());
 
     expect(requireUser).toHaveBeenCalledExactlyOnceWith("/dashboard");
     expect(metadata.title).toBe("대시보드 · assetomy");
-    expect(screen.getByRole("heading", { level: 1, name: "아직 올린 이용내역이 없어요" }))
+    expect(screen.getByRole("heading", { level: 1, name: "카드 이용내역을 올려 주세요" }))
       .toBeInTheDocument();
-    expect(screen.getByText("카드 이용내역 올리기를 준비하고 있어요."))
-      .toBeInTheDocument();
+    expect(screen.getByText("업로드 패널")).toBeInTheDocument();
+    expect(listCards).toHaveBeenCalledExactlyOnceWith(supabase, "private-user-id");
+    expect(getTransactionCoverage).toHaveBeenCalledExactlyOnceWith(supabase, "private-user-id");
+    expect(vi.mocked(UploadPanel).mock.calls[0][0]).toEqual({ cards });
     expect(container).not.toHaveTextContent("private-user-id");
     expect(container.firstElementChild).toHaveClass(
       "mx-auto", "max-w-5xl", "px-4", "pb-12", "sm:px-6",
     );
+  });
+
+  it("shows stored coverage and the repeat upload panel with the shared folded guide", async () => {
+    vi.mocked(getTransactionCoverage).mockResolvedValue({ count: 26, from: "2026-09-01", to: "2026-10-11" });
+    const { container } = render(await DashboardPage());
+    expect(screen.getByRole("heading", { level: 1, name: "올린 이용내역" })).toBeInTheDocument();
+    expect(screen.getByText("거래 26건 · 반영 기간 9/1~10/11")).toBeInTheDocument();
+    expect(screen.getByText("월별 대시보드는 준비하고 있어요")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "새 이용내역 추가" })).toBeInTheDocument();
+    expect(screen.getByText("업로드 패널")).toBeInTheDocument();
+    expect(container.querySelectorAll("#guide-hyundai")).toHaveLength(1);
+    expect(container.querySelector("#guide-hyundai")).not.toHaveAttribute("open");
+    expect(vi.mocked(UploadPanel).mock.calls[0][0]).toEqual({ cards });
+    expect(screen.queryByRole("heading", { name: "카드 이용내역을 올려 주세요" })).not.toBeInTheDocument();
+    expect(container).not.toHaveTextContent(/총지출|이번 달 요약|Pro로 보기/);
+    expect(container).not.toHaveTextContent("private-user-id");
+  });
+
+  it("preserves the panel when a refresh switches between onboarding and stored coverage", async () => {
+    const view = render(await DashboardPage());
+    const panel = screen.getByText("업로드 패널");
+    vi.mocked(getTransactionCoverage).mockResolvedValue({ count: 2, from: "2026-09-01", to: "2026-09-30" });
+    view.rerender(await DashboardPage());
+    expect(screen.getByText("업로드 패널")).toBe(panel);
+    vi.mocked(getTransactionCoverage).mockResolvedValue({ count: 0, from: null, to: null });
+    view.rerender(await DashboardPage());
+    expect(screen.getByText("업로드 패널")).toBe(panel);
   });
 
   it("offers the home wordmark and a small secondary logout submit button in the header", async () => {
@@ -45,6 +90,8 @@ describe("dashboard page", () => {
 
     await expect(DashboardPage()).rejects.toBe(redirectError);
     expect(requireUser).toHaveBeenCalledExactlyOnceWith("/dashboard");
+    expect(createSupabaseServerClient).not.toHaveBeenCalled();
+    expect(listCards).not.toHaveBeenCalled();
     expect(screen.queryByRole("heading")).not.toBeInTheDocument();
   });
 });
