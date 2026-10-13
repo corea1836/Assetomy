@@ -47,7 +47,10 @@
     {
       "step": 4,
       "name": "billing-ui",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-13T15:17:27+0900",
+      "summary": "src/components/billing/의 upgrade-dialog.tsx: UpgradeDialog({source:UpgradeSource,opener:HTMLElement|null,onClose:()=>void}), upgrade-button.tsx: UpgradeButton({source:UpgradeSource,label:string,variant?:primary|secondary}), pricing-upgrade.tsx: PricingUpgrade(), manage-subscription-button.tsx: ManageSubscriptionButton(), checkout-notice.tsx: CheckoutNotice({plan:Plan})(모두 React.JSX.Element 반환); 포커스·Esc·Tab 순환·스크롤 잠금·opener 복귀, JSON checkout/portal 호출·zod URL 검증·중복 클릭 방지·오류 재시도·결제 안내 구현; /settings는 requireUser와 RLS 구독 조회·getPlanState로 Free 업그레이드/Pro 날짜·구독 관리 표시, 대시보드는 설정 링크·checkout=success 강제 동기화와 안내·Free upgrade=pricing 모달을 추가하고 기존 업로드 유지, 랜딩 Pro 시작하기는 로그인 전 /login?next=%2Fdashboard%3Fupgrade%3Dpricing 및 로그인 후 /dashboard?upgrade=pricing; src/lib/errors/messages.ts의 billingErrorMessage(code:ApiErrorCode):string과 src/lib/pricing.ts의 PRO_PRICE_KRW=6900·PRO_PRICE_USD_LABEL 공유; docs/testing/BROWSER_TESTING.md와 scripts/browser-test/s5-signup-links.js·s7-login.js의 href·settings 보호 페이지·수동 결제 절차 갱신(브라우저 미실행); TDD 새 단위 46개·전체 단위 1533개 통과(기존 1개 skip), DB 통합 25개·lint·build·파일/금지 패턴 AC 통과, 커밋·배포 없음",
+      "completed_at": "2026-10-13T15:27:14+0900"
     }
   ],
   "created_at": "2026-10-13T14:53:31+0900"
