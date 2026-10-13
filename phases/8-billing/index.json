@@ -39,7 +39,10 @@
     {
       "step": 3,
       "name": "billing-api",
-      "status": "pending"
+      "status": "completed",
+      "summary": "POST /api/checkout: 세션→Origin·application/json→JSON {source}(UPGRADE_SOURCES만 허용·다른 키 무시)→세션 RLS 구독 조회·startCheckout에 세션 uid/source/clientIp/stored 전달→200 {url}, 401 UNAUTHORIZED·403 FORBIDDEN·400 BAD_REQUEST·503 TEMPORARY_FAILURE; POST /api/portal: 세션→Origin·application/json(본문 미조회)→openPortal→200 {url}, 고객 없음 404 NOT_FOUND·401/403/400/503 매핑; POST /api/webhooks/polar: mock은 본문·Polar 미호출 404, live는 세션·Origin·Content-Type 검사 없이 request.text 원문과 서명 검증→invalid_signature 403·invalid_payload 400·ignored/외부 ID 없음 또는 UUID 아님 200 {received:true}, UUID만 syncFromPolar에 전달해 synced/user_not_found 200·failed 503, secret 누락·파서 예외 500 TEMPORARY_FAILURE, 에러 로그는 코드·id만; src/lib/http.ts의 clientIp(headers)는 x-forwarded-for 첫 값 trim→없으면 x-real-ip, node:net isIP 검증·BlockList로 loopback/사설/link-local 및 IPv4-mapped IPv6 동일 대역 제외, 유효 공인 IP만 반환; src/types/billing.ts에 BillingUrlResponse={url:string} 추가; TDD 새 단위 103개·전체 단위 1487개 통과(1개 skip), 기존 DB 통합 25개·lint·build·파일/금지 패턴 AC 통과",
+      "started_at": "2026-10-13T15:10:45+0900",
+      "completed_at": "2026-10-13T15:17:27+0900"
     },
     {
       "step": 4,
