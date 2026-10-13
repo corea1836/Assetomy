@@ -28,3 +28,16 @@ describe("Next.js agent rules", () => {
     expect(nextConfig.agentRules).toBe(false);
   });
 });
+
+describe("PDF upload function bundle", () => {
+  it("keeps pdfjs-dist external and includes CID maps, fonts and the worker", () => {
+    expect(nextConfig.serverExternalPackages).toEqual(["pdfjs-dist"]);
+    expect(nextConfig.outputFileTracingIncludes).toEqual({
+      "/api/uploads": [
+        "./node_modules/pdfjs-dist/cmaps/**/*",
+        "./node_modules/pdfjs-dist/standard_fonts/**/*",
+        "./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
+      ],
+    });
+  });
+});

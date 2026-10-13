@@ -3,6 +3,14 @@ import type { NextConfig } from "next";
 const nextConfig: NextConfig = {
   // AGENTS.md는 CLAUDE.md와 같은 내용으로 직접 관리한다. 에이전트가 띄운 next dev가 블록을 붙이지 않게 한다.
   agentRules: false,
+  serverExternalPackages: ["pdfjs-dist"],
+  outputFileTracingIncludes: {
+    "/api/uploads": [
+      "./node_modules/pdfjs-dist/cmaps/**/*",
+      "./node_modules/pdfjs-dist/standard_fonts/**/*",
+      "./node_modules/pdfjs-dist/legacy/build/pdf.worker.mjs",
+    ],
+  },
   async headers() {
     return [
       {

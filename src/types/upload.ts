@@ -53,6 +53,21 @@ export type UploadSummary = {
 };
 
 export type CardOption = { id: string; label: string };
+
+export type ApiErrorCode =
+  | "BAD_REQUEST" | "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND"
+  | "INVALID_LABEL" | "DUPLICATE_LABEL"
+  | "CARD_NOT_FOUND" | "CARD_SCOPE_MISMATCH" | "UPLOAD_PROCESSING"
+  | "FILE_TOO_LARGE" | "UNSUPPORTED_FILE" | "UNREADABLE"
+  | "RATE_LIMITED" | "BUSY" | "TEMPORARY_FAILURE";
+
+export type ApiErrorBody = { error: { code: ApiErrorCode; reason?: string } };
+export type UploadResultDto =
+  | ({ kind: "done" | "no_new"; uploadId: string } & UploadSummary)
+  | { kind: "duplicate"; existingCardLabel: string | null };
+export type CreateCardResponse = { card: CardOption };
+export type UploadResponse = { result: UploadResultDto };
+
 export type TransactionCoverage = { count: number; from: IsoDate | null; to: IsoDate | null };
 export type UploadOutcomeRecord =
   | ({ status: "done" | "no_new" } & UploadSummary)

@@ -15,7 +15,10 @@ export type PdfExtraction =
   | { ok: true; items: PdfTextItem[] }
   | Extract<ParseFailure, { code: "UNSUPPORTED_FILE" }>;
 
-const packageDir = dirname(createRequire(import.meta.url).resolve("pdfjs-dist/package.json"));
+// Node의 실제 파일 경로를 유지한다. Turbopack의 모듈 ID로 치환되면 dirname이 실패한다.
+const packageDir = dirname(createRequire(import.meta.url).resolve(
+  /* turbopackIgnore: true */ "pdfjs-dist/package.json",
+));
 GlobalWorkerOptions.workerSrc = join(packageDir, "legacy/build/pdf.worker.mjs");
 
 export async function extractPdfTextItems(bytes: Uint8Array): Promise<PdfExtraction> {
