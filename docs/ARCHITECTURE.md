@@ -120,13 +120,14 @@ types/     도메인 타입 · 에러 코드
 
 ## 결제 동기화
 ```
-checkout: 이미 Pro면 포털, 아니면 Polar checkout(external_customer_id = 세션 uid, customer_ip_address = 요청자 IP)
-success 페이지 · 웹훅(서명 검증) · 결제 기간이 지난 상태 ─▶ syncFromPolar(uid)
+checkout: syncFromPolar(uid) 후 Pro면 포털, 아니면 Polar checkout(external_customer_id = 세션 uid, customer_ip_address = 요청자 IP)
+success 페이지 · 웹훅(서명 검증) · 결제 기간이 지난 상태 · 설정 화면 ─▶ syncFromPolar(uid)
   조회 시작 시각 기록 → Polar 현재 상태 조회 → 저장된 조회보다 늦게 시작했을 때만 저장
 ```
 - Polar에 고객이 없으면(404) Free로 확정하고, 그 밖의 조회 실패는 기존 상태를 유지한다(Free로 덮지 않음). Pro 상품의 active 구독만 권한으로 본다.
 - 결제 기간이 지난 상태: 저장된 Pro의 결제 기간 끝이 지났으면 대시보드·설정을 렌더할 때 다시 동기화한다. 설정은 기간과 관계없이 렌더할 때마다 동기화한다(결제 반영이 늦은 사용자와 포털에서 돌아온 사용자가 플랜을 확인하는 곳).
 - 웹훅은 서명이 틀리면 403, `customer.state_changed`가 아니거나 `external_id`가 없으면 200으로 무시한다. 동기화 중 Polar 조회가 실패하면 503을 돌려 Polar가 다시 보내게 한다.
+- checkout은 저장된 값 대신 Polar 현재 상태로 판단한다. 웹훅 반영 전인 결제 사용자에게 두 번째 checkout을 만들지 않기 위해서다(동기화가 실패하면 저장된 값으로 판단).
 - mock: checkout은 Polar 없이 바로 Pro로, 포털은 바로 Free로 저장한다. 동기화는 Polar를 조회하지 않고 저장된 상태를 쓰며, 웹훅은 404다.
 - 첫 실결제는 production에서 active Pro를 처음 확인한 시각이다(쿠폰·무료 구독 미운영 전제).
 - Pro 상품은 USD $4.99를 기본 가격으로, KRW 가격을 추가로 둔다. Polar는 고객 위치로 통화를 고르므로 서버에서 만든 checkout에는 요청자 IP를 넘긴다.
