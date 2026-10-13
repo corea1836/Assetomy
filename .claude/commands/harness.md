@@ -25,6 +25,7 @@
 5. **AC는 실행 가능한 커맨드** — "~가 동작해야 한다" 같은 추상적 서술이 아닌 `npm run build && npm test` 같은 실제 실행 가능한 검증 커맨드를 포함한다.
 6. **주의사항은 구체적으로** — "조심해라" 대신 "X를 하지 마라. 이유: Y" 형식으로 적는다.
 7. **네이밍** — step name은 kebab-case slug로, 해당 step의 핵심 모듈/작업을 한두 단어로 표현한다 (예: `project-setup`, `api-layer`, `auth-flow`).
+8. **사용자 준비물은 preflight로** — 로그인·연결·키처럼 사용자가 해야 phase가 돌 수 있는 준비물은 phase `index.json`의 `preflight`에 점검 명령과 안내로 적는다. step 중간에 blocked로 알게 하지 않는다.
 
 ### D. 파일 생성
 
@@ -55,6 +56,9 @@
 {
   "project": "<프로젝트명>",
   "phase": "<task-name>",
+  "preflight": [
+    { "check": "supabase projects list >/dev/null 2>&1", "hint": "별도 터미널에서: supabase login" }
+  ],
   "steps": [
     { "step": 0, "name": "project-setup", "status": "pending" },
     { "step": 1, "name": "core-types", "status": "pending" },
@@ -70,6 +74,7 @@
 - `steps[].step`: 0부터 시작하는 순번.
 - `steps[].name`: kebab-case slug.
 - `steps[].status`: 초기값은 모두 `"pending"`.
+- `preflight`(선택): 실행 전에 확인할 사용자 준비물. `check`는 프로젝트 루트에서 도는 셸 명령(성공 = exit 0)이고, `hint`는 실패할 때 보여줄 할 일 한 줄이다. 대화형 터미널이 필요한 일(로그인 등)은 hint에 "별도 터미널에서"를 붙인다. `check`의 출력은 화면에 보이지 않지만, 값을 출력하지 않는 명령(`grep -q '^KEY=.' .env`)으로 쓴다. 준비물이 없으면 필드를 생략한다.
 
 상태 전이와 자동 기록 필드:
 
@@ -132,15 +137,18 @@ npm test        # 테스트 통과
 ### E. 실행
 
 ```bash
-python3 scripts/execute.py {task-name}        # 순차 실행
-python3 scripts/execute.py {task-name} --push  # 실행 후 push
-python3 scripts/execute.py {task-name} --deploy  # step 완료마다 Vercel preview 배포
-python3 scripts/execute.py {task-name} --resume  # blocked·error step을 pending으로 되돌리고 이어서 실행
+scripts/run-phase.sh {task-name}            # 순차 실행
+scripts/run-phase.sh {task-name} --resume   # blocked·error step을 pending으로 되돌리고 이어서 실행
+scripts/run-phase.sh {task-name} --push     # 실행 후 push
+scripts/run-phase.sh {task-name} --deploy   # step 완료마다 Vercel preview 배포
 ```
+
+`scripts/run-phase.sh`는 `.nvmrc` 메이저 버전의 node를 찾아 PATH 앞에 두고(`$ASSETOMY_NODE_BIN` → 현재 PATH → `~/.local/node-v<major>.*/bin` → brew `node@<major>`), macOS면 `caffeinate -dims`로 잠자기를 막고, 로그를 `phases/{task-name}/run-<시각>.log`(git 제외)에 남기며 `scripts/execute.py`를 실행한다. 종료 코드는 execute.py 그대로다: 0 완료 · 1 error · 2 blocked · 3 사전 준비 필요.
 
 execute.py가 자동으로 처리하는 것:
 
 - Node 버전 점검 — `.nvmrc`의 메이저 버전과 `node -v`가 다르면 실행하지 않음
+- 사전 점검 — `index.json`의 `preflight`를 모두 돌리고, 실패한 항목의 hint만 보여준 뒤 상태를 바꾸지 않고 멈춤(exit 3)
 - `feat-{task-name}` 브랜치 생성/checkout
 - 가드레일 주입 — CLAUDE.md + docs/*.md 내용을 매 step 프롬프트에 포함(하위 폴더 `docs/testing/` 등은 제외)
 - 컨텍스트 누적 — 완료된 step의 summary를 다음 step 프롬프트에 전달

@@ -21,3 +21,4 @@ coverage/
 
 # claude code worktrees
 .claude/worktrees/
+phases/**/run-*.log

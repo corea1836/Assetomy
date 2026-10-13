@@ -436,6 +436,71 @@ class TestCheckNodeVersion:
         assert calls.index("_check_node_version") < calls.index("_checkout_branch")
 
 
+class TestCheckPreflight:
+    @staticmethod
+    def _set_preflight(executor, items):
+        index = json.loads(executor._index_file.read_text())
+        index["preflight"] = items
+        executor._index_file.write_text(json.dumps(index, ensure_ascii=False))
+
+    def test_no_preflight_is_noop(self, executor):
+        with patch.object(ex.subprocess, "run") as mock_run:
+            executor._check_preflight()
+        mock_run.assert_not_called()
+
+    def test_all_checks_pass(self, executor, tmp_project):
+        self._set_preflight(executor, [
+            {"check": "true", "hint": "안 보여야 함"},
+            {"check": "test -f marker", "hint": "marker 필요"},
+        ])
+        (tmp_project / "marker").write_text("")
+        executor._check_preflight()  # 프로젝트 루트에서 돌아 marker를 찾는다
+
+    def test_failing_checks_exit_3_with_only_their_hints(self, executor, capsys):
+        self._set_preflight(executor, [
+            {"check": "true", "hint": "통과한 항목 안내"},
+            {"check": "false", "hint": "별도 터미널에서: supabase login"},
+            {"check": "exit 7", "hint": ".env에 FILE_ENCRYPTION_KEY 추가"},
+        ])
+        with pytest.raises(SystemExit) as exc_info:
+            executor._check_preflight()
+        assert exc_info.value.code == 3
+        out = capsys.readouterr().out
+        assert "supabase login" in out and "FILE_ENCRYPTION_KEY" in out
+        assert "통과한 항목 안내" not in out
+
+    def test_does_not_print_check_output(self, executor, capsys):
+        self._set_preflight(executor, [{"check": "echo SECRET_VALUE; false", "hint": "키 필요"}])
+        with pytest.raises(SystemExit):
+            executor._check_preflight()
+        assert "SECRET_VALUE" not in capsys.readouterr().out
+
+    def test_timeout_counts_as_failure(self, executor):
+        self._set_preflight(executor, [{"check": "sleep 5", "hint": "느린 점검"}])
+        with patch.object(ex.subprocess, "run", side_effect=subprocess.TimeoutExpired("sleep 5", 60)):
+            with pytest.raises(SystemExit) as exc_info:
+                executor._check_preflight()
+        assert exc_info.value.code == 3
+
+    def test_failure_leaves_index_unchanged(self, executor):
+        self._set_preflight(executor, [{"check": "false", "hint": "x"}])
+        before = executor._index_file.read_text()
+        with pytest.raises(SystemExit):
+            executor._check_preflight()
+        assert executor._index_file.read_text() == before
+
+    def test_run_checks_preflight_before_blockers_and_branch(self, executor):
+        calls = []
+        for name in ["_print_header", "_check_node_version", "_check_preflight", "_check_blockers",
+                     "_checkout_branch", "_ensure_created_at", "_execute_all_steps", "_finalize"]:
+            setattr(executor, name, lambda *a, n=name: calls.append(n))
+        executor._load_guardrails = lambda: ""
+        executor.run()
+        assert calls.index("_check_node_version") < calls.index("_check_preflight")
+        assert calls.index("_check_preflight") < calls.index("_check_blockers")
+        assert calls.index("_check_preflight") < calls.index("_checkout_branch")
+
+
 # ---------------------------------------------------------------------------
 # _commit_step (mocked)
 # ---------------------------------------------------------------------------

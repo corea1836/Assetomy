@@ -86,6 +86,7 @@ class StepExecutor:
     def run(self):
         self._print_header()
         self._check_node_version()
+        self._check_preflight()
         self._check_blockers()
         self._checkout_branch()
         guardrails = self._load_guardrails()
@@ -312,6 +313,33 @@ class StepExecutor:
             print(f"\n  ✗ Node {required} 버전이 필요합니다(현재: {current or '설치되지 않음'}).")
             print(f"  .nvmrc 버전으로 바꾼 뒤 다시 실행하세요.")
             sys.exit(1)
+
+    PREFLIGHT_TIMEOUT = 60
+
+    def _check_preflight(self):
+        """index.json의 preflight 점검을 모두 돌리고, 실패한 항목의 안내만 보여준 뒤 멈춘다.
+
+        점검 명령의 출력은 비밀 값이 섞일 수 있어 보여주지 않는다. 실패해도 상태 파일을 바꾸지 않는다.
+        """
+        items = self._read_json(self._index_file).get("preflight", [])
+        failed = []
+        for item in items:
+            try:
+                r = subprocess.run(
+                    item["check"], shell=True, cwd=self._root,
+                    capture_output=True, text=True, timeout=self.PREFLIGHT_TIMEOUT,
+                )
+                ok = r.returncode == 0
+            except subprocess.TimeoutExpired:
+                ok = False
+            if not ok:
+                failed.append(item.get("hint", item["check"]))
+
+        if failed:
+            print(f"\n  ✗ 사전 준비가 필요합니다({len(failed)}개). 아래를 마친 뒤 다시 실행하세요.")
+            for hint in failed:
+                print(f"    - {hint}")
+            sys.exit(3)
 
     def _check_blockers(self):
         index = self._read_json(self._index_file)
