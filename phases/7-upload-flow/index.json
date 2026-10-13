@@ -12,10 +12,34 @@
     }
   ],
   "steps": [
-    { "step": 0, "name": "merchant-classifier", "status": "pending" },
-    { "step": 1, "name": "upload-queries", "status": "pending" },
-    { "step": 2, "name": "ingest", "status": "pending" },
-    { "step": 3, "name": "upload-api", "status": "pending" },
-    { "step": 4, "name": "upload-ui", "status": "pending" }
-  ]
+    {
+      "step": 0,
+      "name": "merchant-classifier",
+      "status": "completed",
+      "summary": "MerchantClassifier.classify(merchants: MerchantInput[]): Promise<Map<string, CategoryId>>와 getMerchantClassifier() 구현, CLASSIFY_BATCH_SIZE=200·CLASSIFY_CONCURRENCY=3, mock 규칙은 src/services/llm/mock-classifier.ts의 KEYWORD_RULES, @anthropic-ai/sdk 0.133.0의 messages.parse + zodOutputFormat(zod v4) structured outputs와 응답 검증·배치별 실패 etc 처리 적용",
+      "started_at": "2026-10-13T09:28:20+0900",
+      "completed_at": "2026-10-13T09:31:22+0900"
+    },
+    {
+      "step": 1,
+      "name": "upload-queries",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "ingest",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "upload-api",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "upload-ui",
+      "status": "pending"
+    }
+  ],
+  "created_at": "2026-10-13T09:28:20+0900"
 }
