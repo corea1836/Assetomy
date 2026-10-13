@@ -31,7 +31,10 @@
     {
       "step": 2,
       "name": "dashboard-data",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-13T20:43:24+0900",
+      "summary": "src/lib/queries/transactions.ts listTransactions(supabase: SupabaseClient, userId: string, cardLabels: ReadonlyMap<string, string>): Promise<Transaction[]>(타입 src/types/transaction.ts): user_id 필터·used_on/id 오름차순·1000행 range 끝까지·zod 검증·카드 라벨 매핑·unknown_card QueryError, 기존 getTransactionCoverage 유지; src/lib/store/metrics.ts recordMetric(userId: string, metric: StoreMetric): Promise<RecordMetricResult>(src/types/metrics.ts StoreMetric=MetricRequest|{event:first_paid}, RecordMetricResult={kind:recorded|unchanged|user_not_found}): server-only service-role record_metric RPC·upgrade_click만 source 전달·zod 검증; src/lib/store/merchant-categories.ts setMerchantCategory(userId: string, merchantKey: string, category: CategoryId): Promise<SetMerchantCategoryResult>(src/types/category.ts {kind:updated,updated:number}|{kind:not_found}): server-only service-role set_merchant_category RPC·zod 검증; BillingDeps에 isProductionBilling:()=>boolean·recordMetric:(userId:string,metric:StoreMetric)=>Promise<RecordMetricResult> 추가, defaultBillingDeps의 production 판정은 호출 시 getMode()===live && getPolarEnv().server===production으로 lazy 평가; syncFromPolar가 synced·저장 결과 Pro·live+Polar production일 때만 first_paid 기록, 기록 실패도 동기화 결과 유지·billing:first_paid:<StoreError code 또는 unexpected_error>와 userId만 로그; 새 DB 테스트 6개(1001행 조회·사용자 격리·측정 RPC·업로드 측정 트리거·카테고리 수정·Auth cascade 삭제 포함), 전체 DB 31개·단위 1657개 통과(1개 skipped), lint·build·정적 AC 통과, TDD 실패→통과 확인",
+      "completed_at": "2026-10-13T20:50:09+0900"
     },
     {
       "step": 3,
