@@ -155,7 +155,8 @@ disabled:bg-surface-soft disabled:text-muted-soft      에러: border-danger
 - **후보 지출 티저(Free)**: amber 박스(`rounded-3xl border p-6 sm:p-8`)에 종류별 건수·금액과 `candidateTotal`. "정상 지출일 수 있어요. 상세에서 확인해 보세요."
 - **업로드 상태 행**: 파일명(말줄임) · 카드 라벨 · 상태(대기 / 올리는 중 / 분석 중 / 확인 필요 / 완료 / 실패) · 결과 한 줄. 완료는 `text-primary`. 실패는 `text-danger`로 쓰고 원인과 다음 행동 버튼을 붙인다. 확인 필요 행에는 작은 Primary "열 확인하기"를 둔다.
 - **매핑 확인**: 제안된 열(이용일 · 가맹점 · 금액 · 승인번호 · 취소 표시)을 원래 열 이름과 함께 보여준다(수정 불가). 아래에 처음 5행 미리보기 표를 둔다. 문구는 "처음 보는 형식이에요. 열이 맞는지 확인해 주세요."이고, 버튼은 Primary "이대로 읽기" · Secondary "취소".
-- **카테고리 수정**: 카테고리 목록·Top N 행의 select(고정 14개). 바꾸면 바로 저장하고 다시 그린다. "같은 가맹점의 모든 거래에 적용돼요".
+- **가장 많이 쓴 곳**: 금액순 5곳을 보이고, 그 달의 나머지 가맹점(환불만 있는 가맹점 포함)은 카테고리 목록과 같은 `<details>`로 접어 Text 스타일 summary "나머지 N곳 보기"를 둔다.
+- **카테고리 수정**: 실제 대시보드의 "가장 많이 쓴 곳" 행(5곳과 나머지 가맹점)마다 행 안 select(고정 14개). 바꾸면 바로 저장하고 다시 그린다. "같은 가맹점의 모든 거래에 적용돼요". 데모는 select 없이 글자로 보여준다.
 - **로그인 화면**(`/login`): 상단에 워드마크(`/` 링크)만 둔다. 본문은 가운데 정렬 `mx-auto max-w-sm px-4 pt-16`: 제목 `text-title-lg` "구글 계정으로 시작해요" → `text-base text-body` "카드번호·계좌·카드사 비밀번호는 받지 않아요" → (`?error`가 있으면) 에러 박스 → 구글 로그인 버튼(전체 너비). 에러 박스는 `rounded-xl bg-red-50 px-4 py-3 text-left text-sm text-danger`, `role="alert"`이고 원인과 "다시 시도해 주세요"를 함께 쓴다(문구는 `lib/errors/messages.ts`).
 - **구글 로그인 버튼**: Google 브랜드 가이드의 라이트 테마다. Pill 공통의 높이·모양·누름·포커스 링(`h-11 rounded-full … active:scale-[.98] focus-visible:outline-primary`)에 `w-full border border-[#747775] bg-white font-medium text-[#1F1F1F] hover:bg-surface-soft`. 글자 앞에 원래 색 G 로고(18px, 색·비율을 바꾸지 않고 `aria-hidden`), 문구 "Google로 계속하기". `buttonClass`를 쓰지 않는 유일한 버튼이고, 로고는 `icons.tsx` 규칙(`currentColor`)의 예외다.
 - **대시보드 헤더**: 왼쪽 워드마크(`/` 링크), 오른쪽 Secondary 작게 "로그아웃"(`POST /auth/logout` 폼).
@@ -164,7 +165,7 @@ disabled:bg-surface-soft disabled:text-muted-soft      에러: border-danger
 
 ## 레이아웃
 - 대시보드·설정: `max-w-5xl mx-auto px-4 sm:px-6`. 1열 기본, `md:` 이상에서 KPI·차트 2열. 첫 줄은 왼쪽 열에 총지출·월간 요약 카드를 쌓고 오른쪽 열에 카테고리를 둔다. 카드 사이 `gap-6`, 섹션 사이 `space-y-12`.
-- 대시보드 상단 한 줄: 월 선택기 · 반영 기간 · "새 이용내역 추가".
+- 대시보드 상단 한 줄: 월 선택기 · 반영 기간 · "새 이용내역 추가"(같은 페이지 맨 아래 업로드 구역으로 이동).
 - 좌측 정렬 기본. 중앙 정렬은 모달·빈 상태·랜딩 CTA·로그인 화면에만 쓴다.
 
 ### 랜딩 (`/`)
