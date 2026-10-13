@@ -117,7 +117,7 @@ scripts/browser-test/run.sh s2 s3    # 일부만
 | 데모 1280px | 카드 2열 |
 | 랜딩 Tab | `로그인` → `데모 보기` → `무료로 시작하기` → `Pro 시작하기` → `무료로 시작하기`. 모두 `outline: solid 2px` |
 | 랜딩 키보드 이동 | Tab 2번(`데모 보기`) + Enter → `/demo` |
-| 데모 Tab | (`NEXTJS-PORTAL` 제외) `assetomy` → `내 이용내역으로 해보기` → `월 선택` → `나머지 5개 카테고리 보기` → `내 이용내역으로 해보기` → 페이지 끝. 포커스 표시 있음(선택기는 ring) |
+| 데모 Tab | (`NEXTJS-PORTAL` 제외) `assetomy` → `내 이용내역으로 해보기` → `월 선택` → `나머지 5개 카테고리 보기` → `나머지 7곳 보기` → `내 이용내역으로 해보기` → 페이지 끝. 포커스 표시 있음(선택기는 ring) |
 | 차트 포커스 | 두 차트(`[role="img"][aria-label$="막대 차트"]`) 안에 `tabindex="0"`·`role="application"`이 없다. 접근성 트리에는 `img "일별 지출 막대 차트"`, `img "월별 지출 추세 막대 차트"`만 나온다 |
 | 콘솔·네트워크 | `/`, `/demo`, `/demo?month=2026-06`, 랜딩 → 데모 클릭 이동에서 콘솔 에러·경고, 4xx/5xx 응답 없음 |
 
@@ -196,3 +196,4 @@ scripts/browser-test/run.sh s2 s3    # 일부만
 | 2026-10-13 | `49c242e`(feat-7-upload-flow) + 작업 트리(대시보드 `올린 파일` 목록·삭제, 카드 없을 때 이름 입력칸, 암호화 안내 중복 제거), `run.sh` 프로덕션 빌드, Node 24.21.0 | PASS 124 · FAIL 0 · 스크립트 오류 0 | 공개 화면 회귀 확인. 바뀐 화면은 로그인 뒤라 단위 테스트와 "수동 확인: 업로드" 2·3·7번으로 본다 |
 | 2026-10-13 | `02725ff`(feat-8-billing), `run.sh` 프로덕션 빌드, Node 24.21.0 | PASS 125 · FAIL 0 · 스크립트 오류 0 | 결제 phase. 랜딩 `Pro 시작하기` href가 `/login?next=%2Fdashboard%3Fupgrade%3Dpricing`로 바뀌었고, 로그인하지 않은 `/settings` → `/login?next=%2Fsettings` 1개가 늘었다. 업그레이드 모달·설정 플랜·결제 완료 안내는 로그인 뒤라 단위 테스트와 "수동 확인: 결제"로 본다 |
 | 2026-10-13 | `feat-8-billing` 작업 트리(Pro 사용자의 랜딩 `구독 관리`·대시보드 `이미 Pro를 쓰고 있어요`), `run.sh` 프로덕션 빌드(`APP_MODE=mock` 강제), Node 24.21.0 | PASS 125 · FAIL 0 · 스크립트 오류 0 | 첫 실행은 `.env`가 live라 Vercel Analytics 404로 FAIL 9(측정 문제) → `run.sh`가 mock을 강제하도록 고친 뒤 통과. 로그인한 Pro 화면은 단위 테스트와 수동 확인 1번으로 본다 |
+| 2026-10-13 | `4b53692`(feat-9-dashboard) + 작업 트리(S6 데모 Tab 순서 갱신), `run.sh` 프로덕션 빌드, Node 24.21.0 | PASS 127 · FAIL 0 · 스크립트 오류 0 | 첫 실행 FAIL 1(S6 데모 Tab 순서)은 `가장 많이 쓴 곳`에 `나머지 7곳 보기`를 추가해 기대값이 낡은 것(DESIGN `가장 많이 쓴 곳`) → 문서·`s6`에 반영. 로그인 뒤 대시보드는 단위 테스트와 "수동 확인: 대시보드"로 본다. 방향키 항목은 미확인 |

@@ -88,10 +88,10 @@ await page.waitForURL(`${BASE}/demo`);
 check("S6 Tab 2번 + Enter → /demo", path() === "/demo", path());
 
 await go("/demo");
-const demoTabs = await tabOrder(5);
+const demoTabs = await tabOrder(6);
 check(
   "S6 데모 Tab 순서·포커스 표시",
-  same(demoTabs.map((f) => f.text), ["assetomy", "내 이용내역으로 해보기", "월 선택", "나머지 5개 카테고리 보기", "내 이용내역으로 해보기"]) && demoTabs.every((f) => f.visible),
+  same(demoTabs.map((f) => f.text), ["assetomy", "내 이용내역으로 해보기", "월 선택", "나머지 5개 카테고리 보기", "나머지 7곳 보기", "내 이용내역으로 해보기"]) && demoTabs.every((f) => f.visible),
   JSON.stringify(demoTabs),
 );
 
