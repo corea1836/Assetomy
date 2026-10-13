@@ -76,8 +76,11 @@ describe("createClaudeSummarizer", () => {
     if (input.plan === "free") {
       expect(request.system).toContain("candidates에는 종류별 건수와 합계만 있습니다");
       expect(request.system).not.toContain("findings는 확인이 필요한 지출 후보입니다");
+      expect(request.system).not.toContain("가장 많이 늘어난 카테고리와 가장 많이 줄어든 카테고리");
     } else {
       expect(request.system).toContain("findings는 확인이 필요한 지출 후보입니다");
+      expect(request.system).toContain("가장 많이 늘어난 카테고리와 가장 많이 줄어든 카테고리를 금액 차이와 함께");
+      expect(request.system).toContain("가장 많이 늘어난 카테고리에 대한 절약 팁");
       expect(request.system).not.toContain("candidates에는 종류별 건수와 합계만 있습니다");
     }
   });

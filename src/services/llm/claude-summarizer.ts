@@ -43,7 +43,9 @@ export const FREE_SYSTEM = [
 export const PRO_SYSTEM = [
   COMMON_SYSTEM,
   "findings는 확인이 필요한 지출 후보입니다. 금액이 큰 후보는 가맹점명을 들어 팁으로 짚습니다. 자리표시자: {findings[0].amount} → \"1,234원\", {findings[0].transactionCount} → \"3건\", {findings[0].seriesMonthCount} → 정기결제가 이어진 달 수 \"3개월\".",
-  "trend가 있으면 여러 달의 흐름이나 카테고리 변화를 summary나 팁 중 한 곳에서 한 번만 말합니다. 자리표시자: {trend.months[0].total} → \"1,234원\"(같은 문장에 그 달을 \"N월\"로 씀), {trend.categoryChanges[0].current}·{trend.categoryChanges[0].previous} → \"1,234원\", {trend.categoryChanges[0].diff} → 부호 없는 차이 \"1,234원\"(diff가 양수면 늘었고 음수면 줄었습니다).",
+  "trend.categoryChanges가 있으면 summary에서 지난달과 비교해 가장 많이 늘어난 카테고리와 가장 많이 줄어든 카테고리를 금액 차이와 함께 짚습니다(예: \"식비는 {trend.categoryChanges[0].diff} 늘었고 쇼핑은 {trend.categoryChanges[1].diff} 줄었어요\"). 이때 summary는 4문장까지 씁니다. 그리고 가장 많이 늘어난 카테고리에 대한 절약 팁을 하나 줍니다. categoryChanges는 차이가 큰 순서이고, diff가 양수면 늘었고 음수면 줄었습니다. 늘어난 카테고리만 있거나 줄어든 카테고리만 있으면 있는 쪽만 말합니다.",
+  "trend.months가 있으면 여러 달의 흐름은 summary나 팁 중 한 곳에서 한 번만 말합니다.",
+  "trend 자리표시자: {trend.months[0].total} → \"1,234원\"(같은 문장에 그 달을 \"N월\"로 씀), {trend.categoryChanges[0].current}·{trend.categoryChanges[0].previous} → \"1,234원\", {trend.categoryChanges[0].diff} → 부호 없는 차이 \"1,234원\".",
 ].join("\n");
 
 export function createClaudeSummarizer(
