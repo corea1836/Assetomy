@@ -44,6 +44,10 @@
       "dir": "8-billing",
       "status": "completed",
       "completed_at": "2026-10-13T15:27:14+0900"
+    },
+    {
+      "dir": "9-dashboard",
+      "status": "pending"
     }
   ]
 }
