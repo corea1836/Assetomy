@@ -1,0 +1,21 @@
+{
+  "project": "assetomy",
+  "phase": "10-ai-summary",
+  "preflight": [
+    {
+      "check": "grep -q '^SUPABASE_SECRET_KEY=.' .env && grep -q '^NEXT_PUBLIC_SUPABASE_URL=https://' .env",
+      "hint": ".env에 dev 프로젝트의 NEXT_PUBLIC_SUPABASE_URL과 SUPABASE_SECRET_KEY를 넣어 주세요(DB 통합 테스트용)"
+    },
+    {
+      "check": "test -f supabase/.temp/project-ref && supabase projects list >/dev/null 2>&1",
+      "hint": "별도 터미널에서: supabase login && supabase link --project-ref rpirufnxspecugnvjjko (step 0 마이그레이션 push용)"
+    }
+  ],
+  "steps": [
+    { "step": 0, "name": "summary-schema", "status": "pending" },
+    { "step": 1, "name": "summary-input", "status": "pending" },
+    { "step": 2, "name": "summarizer-service", "status": "pending" },
+    { "step": 3, "name": "summary-data", "status": "pending" },
+    { "step": 4, "name": "summary-ui", "status": "pending" }
+  ]
+}

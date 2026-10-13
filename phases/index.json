@@ -49,6 +49,10 @@
       "dir": "9-dashboard",
       "status": "completed",
       "completed_at": "2026-10-13T21:02:46+0900"
+    },
+    {
+      "dir": "10-ai-summary",
+      "status": "pending"
     }
   ]
 }
