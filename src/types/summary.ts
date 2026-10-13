@@ -1,5 +1,4 @@
-import type { FindingKind, KindSummary, Period } from "./dashboard";
-import type { Plan } from "./dashboard";
+import type { FindingKind, KindSummary, Period, Plan } from "./dashboard";
 import type { YearMonth } from "./transaction";
 
 export type StoredSummary = { inputHash: string; summary: string };
