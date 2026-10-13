@@ -31,7 +31,10 @@
     {
       "step": 2,
       "name": "ingest",
-      "status": "pending"
+      "status": "completed",
+      "summary": "processUpload(input: ProcessUploadInput, deps: ProcessUploadDeps): Promise<ProcessUploadOutcome> 구현; ProcessUploadInput={userId:string,cardId:string,fileName:string,bytes:Uint8Array}, ProcessUploadDeps={today:IsoDate,beginUpload(BeginUploadInput):Promise<BeginUploadResult>,saveStatement(userId:string,uploadId:string,plaintext:Uint8Array):Promise<void>,readStatement(bytes:Uint8Array):Promise<ParseResult>,findMerchantCategories(merchantKeys:string[]):Promise<Map<string,CategoryId>>,classifier:MerchantClassifier,ingestUpload(IngestUploadInput):Promise<IngestUploadResult>,failUpload(userId:string,uploadId:string,code:string,reason?:string):Promise<FailUploadResult>,getUploadOutcome(uploadId:string):Promise<UploadOutcomeRecord|null>}; ProcessUploadOutcome=(done|no_new + uploadId + UploadSummary)|duplicate(existingCardId)|rejected(uploadId,UNSUPPORTED_FILE/UnsupportedFileReason 또는 UNREADABLE/UnreadableReason)|card_not_found|rate_limited|busy|card_scope_mismatch(uploadId)|temporary_failure(uploadId:string|null); failUpload는 ParseFailure의 UNSUPPORTED_FILE·UNREADABLE/code·reason 그대로 또는 INTERNAL_ERROR/storage·parser·categories, 불명확한 ingest는 상태 1회 재조회 후 행 보존; src/lib/retention.ts의 retentionCutoff(today:IsoDate):IsoDate·RETENTION_MONTHS=12, src/lib/ingest/fingerprint.ts의 transactionFingerprint({cardId:string,identityScope:IdentityScope,sourceEventKey:string,eventKind:EventKind}):string 구현; lint·build·전체 단위·DB/Storage 통합·AC 정적 검사 통과",
+      "started_at": "2026-10-13T13:31:00+0900",
+      "completed_at": "2026-10-13T13:36:01+0900"
     },
     {
       "step": 3,
