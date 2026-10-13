@@ -3,11 +3,13 @@ import { buttonClass } from "@/components/button-styles";
 import { Wordmark } from "@/components/wordmark";
 import { HyundaiGuide } from "@/components/upload/hyundai-guide";
 import { Onboarding } from "@/components/upload/onboarding";
+import { UploadHistory } from "@/components/upload/upload-history";
 import { UploadPanel } from "@/components/upload/upload-panel";
 import { requireUser } from "@/lib/auth";
 import { formatPeriod } from "@/lib/format";
 import { listCards } from "@/lib/queries/cards";
 import { getTransactionCoverage } from "@/lib/queries/transactions";
+import { listDoneUploads } from "@/lib/queries/uploads";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 export const metadata = { title: "대시보드 · assetomy" };
@@ -15,9 +17,11 @@ export const metadata = { title: "대시보드 · assetomy" };
 export default async function DashboardPage(): Promise<React.JSX.Element> {
   const user = await requireUser("/dashboard");
   const supabase = await createSupabaseServerClient();
-  const [cards, coverage] = await Promise.all([
-    listCards(supabase, user.id), getTransactionCoverage(supabase, user.id),
+  const [cards, coverage, doneUploads] = await Promise.all([
+    listCards(supabase, user.id), getTransactionCoverage(supabase, user.id), listDoneUploads(supabase, user.id),
   ]);
+  const cardLabels = new Map(cards.map((card) => [card.id, card.label]));
+  const history = doneUploads.map(({ cardId, ...upload }) => ({ ...upload, cardLabel: cardLabels.get(cardId) ?? null }));
 
   return (
     <div className="mx-auto max-w-5xl px-4 pb-12 sm:px-6">
@@ -45,6 +49,7 @@ export default async function DashboardPage(): Promise<React.JSX.Element> {
                   거래 {coverage.count}건 · 반영 기간 {coverage.from && coverage.to && formatPeriod({ from: coverage.from, to: coverage.to })}
                 </p>
                 <p className="mt-2 text-caption text-body">월별 대시보드는 준비하고 있어요</p>
+                <div className="mt-8"><UploadHistory uploads={history} /></div>
               </section>
             )}
           </div>

@@ -69,6 +69,10 @@ export type CreateCardResponse = { card: CardOption };
 export type UploadResponse = { result: UploadResultDto };
 
 export type TransactionCoverage = { count: number; from: IsoDate | null; to: IsoDate | null };
+export type DoneUpload = {
+  id: string; cardId: string; fileName: string; inserted: number; periodFrom: IsoDate; periodTo: IsoDate;
+};
+export type UploadHistoryItem = Omit<DoneUpload, "cardId"> & { cardLabel: string | null };
 export type UploadOutcomeRecord =
   | ({ status: "done" | "no_new" } & UploadSummary)
   | { status: "processing" | "failed" };

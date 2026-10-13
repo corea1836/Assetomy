@@ -4,7 +4,7 @@ import { beginUpload, failUpload, ingestUpload } from "@/lib/store/uploads";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createTestUser, deleteTestUser } from "@/lib/supabase/db-test-helpers";
 import type { IngestRow } from "@/types/upload";
-import { getUploadOutcome } from "./uploads";
+import { getUploadOutcome, listDoneUploads } from "./uploads";
 
 let userIds: string[] = [];
 let userA: string;
@@ -67,5 +67,31 @@ describe("getUploadOutcome against the dev DB", () => {
     const failed = await start("c");
     expect(await failUpload(userA, failed, "UNREADABLE")).toEqual({ kind: "failed" });
     expect(await getUploadOutcome(admin, userA, failed)).toEqual({ status: "failed" });
+  });
+});
+
+describe("listDoneUploads against the dev DB", () => {
+  it("lists only the user's done uploads, newest first", async () => {
+    const first = await start("a");
+    await ingest(first);
+    const duplicate = await start("b");
+    expect(await ingest(duplicate)).toMatchObject({ kind: "no_new" });
+    expect(await failUpload(userA, await start("c"), "UNREADABLE")).toEqual({ kind: "failed" });
+    await start("d");
+    const otherCard = await createCard(userB, "다른 사용자 카드");
+    if (otherCard.kind !== "created") throw new Error("db-test:create_card:unexpected_response");
+    const other = await beginUpload({ userId: userB, cardId: otherCard.cardId, fileName: "b.pdf", fileHash: "e".repeat(64), fileSize: 100 });
+    if (other.kind !== "started") throw new Error("db-test:begin_upload:unexpected_response");
+    await ingestUpload({ userId: userB, uploadId: other.uploadId, identityScope: "content", cancelStyle: "negative_amount", rows, skipped: 0 });
+    const second = await start("f");
+    await ingestUpload({ userId: userA, uploadId: second, identityScope: "content", cancelStyle: "negative_amount",
+      rows: [{ ...rows[0], usedOn: "2026-10-01", fingerprint: "3".repeat(64) }], skipped: 0 });
+
+    const admin = createSupabaseAdminClient();
+    expect(await listDoneUploads(admin, userA)).toEqual([
+      { id: second, cardId, fileName: "test.csv", inserted: 1, periodFrom: "2026-10-01", periodTo: "2026-10-01" },
+      { id: first, cardId, fileName: "test.csv", inserted: 2, periodFrom: "2026-09-01", periodTo: "2026-09-03" },
+    ]);
+    expect((await listDoneUploads(admin, userB)).map(({ id }) => id)).toEqual([other.uploadId]);
   });
 });

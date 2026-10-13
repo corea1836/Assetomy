@@ -74,12 +74,12 @@ describe("UploadPanel file and card selection", () => {
     button.focus();
     fireEvent.click(button);
     expect(open).toHaveBeenCalledOnce();
-    expect(screen.getByText("원본 파일은 암호화해 보관해요")).toBeVisible();
     expect(screen.getByText("파일당 4MB · 최근 24시간 30개 · 동시에 2개씩 처리해요")).toBeVisible();
     expect(screen.getByText("여러 카드가 섞인 파일은 카드별로 다시 받아 주세요")).toBeVisible();
     expect(screen.getByText("기간이 겹쳐도 같은 거래는 한 번만 반영돼요")).toBeVisible();
     expect(screen.getByText("분석을 위해 가맹점명과 집계 결과가 AI 서비스로 전송됩니다.")).toBeVisible();
     expect(screen.getByText("원본 파일은 암호화해 보관하고, 거래는 이용일 기준 12개월 뒤 삭제됩니다.")).toBeVisible();
+    expect(screen.getAllByText(/암호화/)).toHaveLength(1);
     expect(container.querySelectorAll('[aria-live="polite"]')).toHaveLength(1);
     expect(container).not.toHaveTextContent(/지금 바로|놓치지 마세요|!/);
   });
@@ -149,6 +149,24 @@ describe("UploadPanel file and card selection", () => {
     const other = within(row("10월.pdf")).getByRole("combobox", { name: "카드" });
     expect(within(other).getByRole("option", { name: "신한 생활비" })).toBeInTheDocument();
     expect(other).toHaveValue("");
+  });
+
+  it("shows the new card name field directly when no card exists, then switches rows to the card select", async () => {
+    render(<UploadPanel cards={[]} />);
+    addFiles([pdf(), pdf("10월.pdf")]);
+    expect(screen.queryByRole("combobox", { name: "카드" })).not.toBeInTheDocument();
+    const label = within(row("9월.pdf")).getByRole("textbox", { name: "새 카드 이름" });
+    expect(within(row("10월.pdf")).getByRole("textbox", { name: "새 카드 이름" })).toBeInTheDocument();
+    fireEvent.change(label, { target: { value: "현대" } });
+    fetchMock.mockResolvedValue(Response.json({ card: { id: "card-b", label: "현대" } }, { status: 201 }));
+    fireEvent.click(within(row("9월.pdf")).getByRole("button", { name: "추가" }));
+    await waitFor(() => expect(within(row("9월.pdf")).getByRole("combobox", { name: "카드" })).toHaveValue("card-b"));
+    const other = within(row("10월.pdf")).getByRole("combobox", { name: "카드" });
+    expect(other).toHaveValue("");
+    expect(within(other).getByRole("option", { name: "현대" })).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "새 카드 이름" })).not.toBeInTheDocument();
+    fireEvent.change(other, { target: { value: "card-b" } });
+    expect(screen.getByRole("button", { name: "올리기" })).toBeEnabled();
   });
 
   it("keeps card creation failure beside that row", async () => {

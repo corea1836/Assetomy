@@ -1,7 +1,7 @@
 import "server-only";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { z } from "zod";
-import type { UploadOutcomeRecord } from "@/types/upload";
+import type { DoneUpload, UploadOutcomeRecord } from "@/types/upload";
 import { readQuery } from "./query-error";
 
 const uploadResponseSchema = z.object({
@@ -26,4 +26,28 @@ export async function getUploadOutcome(
     .select("id, status, inserted_count, duplicate_count, skipped_count, period_from, period_to, net_amount")
     .eq("user_id", userId).eq("id", uploadId).maybeSingle(), uploadResponseSchema);
   return data;
+}
+
+const PAGE_SIZE = 1000;
+const doneUploadsResponseSchema = z.object({
+  data: z.array(z.object({
+    id: z.uuid(), card_id: z.uuid(), file_name: z.string().min(1).max(255), inserted_count: z.int().positive(),
+    period_from: z.iso.date(), period_to: z.iso.date(),
+  }).transform((row) => ({
+    id: row.id, cardId: row.card_id, fileName: row.file_name, inserted: row.inserted_count,
+    periodFrom: row.period_from, periodTo: row.period_to,
+  }))),
+});
+
+export async function listDoneUploads(supabase: SupabaseClient, userId: string): Promise<DoneUpload[]> {
+  const uploads: DoneUpload[] = [];
+  for (let offset = 0; ; offset += PAGE_SIZE) {
+    const { data } = await readQuery("listDoneUploads", () => supabase.from("uploads")
+      .select("id, card_id, file_name, inserted_count, period_from, period_to")
+      .eq("user_id", userId).eq("status", "done")
+      .order("created_at", { ascending: false }).order("id", { ascending: false })
+      .range(offset, offset + PAGE_SIZE - 1), doneUploadsResponseSchema);
+    uploads.push(...data);
+    if (data.length < PAGE_SIZE) return uploads;
+  }
 }
