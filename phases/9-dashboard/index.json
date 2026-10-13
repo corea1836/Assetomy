@@ -23,7 +23,10 @@
     {
       "step": 1,
       "name": "dashboard-components",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-13T20:34:19+0900",
+      "summary": "src/types/dashboard.ts Snapshot.otherMerchants: MerchantAmount[] 추가(그 달 상위 5곳 밖의 모든 가맹점·0/음수 포함, 금액 내림차순·merchantKey 오름차순·최신 거래의 표시명/카테고리); src/types/category.ts MerchantCategoryRequest={merchantKey:string,category:CategoryId}·MerchantCategoryResponse={updated:number}, src/types/metrics.ts MetricRequest={event:teaser_seen}|{event:upgrade_click,source:UpgradeSource}; TopMerchants({merchants:MerchantAmount[],otherMerchants:MerchantAmount[],editable?:boolean})에 나머지 접기·선택적 행별 카테고리 수정, MerchantCategorySelect({merchantKey:string,merchant:string,category:CategoryId})는 PUT /api/merchant-categories JSON {merchantKey,category}(저장 중 비활성·중복 요청 차단, 200 refresh/저장했어요, 실패 값 복원·categoryErrorMessage·aria-live); TeaserCard({teaser:Teaser,dataMonthCount:number})는 종류별 건수/합계·후보 합계만 표시하고 후보가 있을 때 마운트 시 sendMetric({event:teaser_seen}) 및 source=teaser UpgradeButton, TrendLockCard()는 실제 데이터 props 없이 정적 4개월 예시·source=trend UpgradeButton; UpgradeDialog({source:UpgradeSource,opener:HTMLElement|null,onClose:()=>void,teaser?:Teaser|null})는 내 후보→상세 예시→가격 순서와 마운트 시 sendMetric({event:upgrade_click,source}), UpgradeButton({source:UpgradeSource,label:string,variant?:primary|secondary,teaser?:Teaser|null})·PricingUpgrade({teaser?:Teaser|null})가 teaser 전달; sendMetric(metric:MetricRequest):void는 POST /api/metrics JSON metric·keepalive:true·응답/실패 무시; 데모는 otherMerchants만 추가 전달(select 없음), S2 시나리오/문서 기대값 상위 5곳 동일·닫힌 나머지 7곳 보기·펼치면 총 12곳·나머지 첫 예시 구름선 통신 55,000원; TDD 확인, lint/build 및 단위 1584개 통과(1개 skipped), 모든 AC 정적 검사 통과·브라우저 시나리오 실행 안 함",
+      "completed_at": "2026-10-13T20:43:24+0900"
     },
     {
       "step": 2,
