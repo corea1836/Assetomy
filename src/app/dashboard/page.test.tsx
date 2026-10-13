@@ -176,10 +176,17 @@ describe("dashboard page", () => {
     expect(screen.getByText("업로드 패널")).toBeInTheDocument();
   });
 
-  it("does not open the pricing modal for Pro", async () => {
+  it("tells Pro that the plan is already active instead of opening the pricing modal", async () => {
     vi.mocked(getPlanState).mockResolvedValue({ plan: "pro", periodEnd: null, cancelAtPeriodEnd: false });
     render(await page({ upgrade: "pricing" }));
     expect(screen.queryByRole("dialog")).not.toBeInTheDocument();
+    expect(screen.getByRole("status")).toHaveTextContent("이미 Pro를 쓰고 있어요");
+  });
+
+  it("shows no plan notice for Pro without the pricing action", async () => {
+    vi.mocked(getPlanState).mockResolvedValue({ plan: "pro", periodEnd: null, cancelAtPeriodEnd: false });
+    render(await page({}));
+    expect(screen.queryByRole("status")).not.toBeInTheDocument();
   });
 
   it("uses the first array value for checkout and upgrade", async () => {

@@ -12,7 +12,7 @@
 scripts/browser-test/run.sh          # 전체
 scripts/browser-test/run.sh s2 s3    # 일부만
 ```
-- `run.sh`가 하는 일: 3100 포트가 비었는지 확인 → `NEXT_PUBLIC_SITE_URL=http://localhost:3100`으로 `npm run build`(Origin 검사·OAuth 복귀 주소가 3100을 쓰게 한다) → `next start -p 3100` → 서버 위치가 이 저장소인지 확인 → 각 시나리오 앞에 `lib.js`를 붙여 dev-browser(`--browser assetomy-test --headless`)로 실행 → `PASS`·`FAIL` 집계 → 자기가 띄운 서버만 끈다. FAIL이나 스크립트 오류가 있으면 exit 1.
+- `run.sh`가 하는 일: 3100 포트가 비었는지 확인 → `NEXT_PUBLIC_SITE_URL=http://localhost:3100`·`APP_MODE=mock`으로 `npm run build`(Origin 검사·OAuth 복귀 주소가 3100을 쓰게 하고, `.env`가 live여도 mock 화면으로 돌린다) → `next start -p 3100` → 서버 위치가 이 저장소인지 확인 → 각 시나리오 앞에 `lib.js`를 붙여 dev-browser(`--browser assetomy-test --headless`)로 실행 → `PASS`·`FAIL` 집계 → 자기가 띄운 서버만 끈다. FAIL이나 스크립트 오류가 있으면 exit 1.
 - `scripts/browser-test/s1-*.js`~`s7-*.js`는 아래 S1~S7을 옮긴 것이다. 기대값을 바꾸면 이 문서와 스크립트를 함께 고친다. 판정은 항목마다 `PASS`/`FAIL` 한 줄로 출력한다.
 - 화면을 따로 살펴볼 때는 서버를 3100에 띄우고 도우미를 붙여 쓴다.
   ```bash
@@ -26,6 +26,7 @@ scripts/browser-test/run.sh s2 s3    # 일부만
 ### 주의할 점
 - 프로덕션 서버(`next start`)에서는 Playwright의 `networkidle`이 오지 않는다(남은 요청이 0건이어도). 이동은 `go()`를, 클릭 이동 뒤에는 `settle()`을 쓴다. `load` 뒤 직접 센 요청이 0.5초 동안 0건이면 안정된 것으로 본다.
 - `lib.js`는 요소 대기 5초, 이동 대기 60초로 둔다. 이유: locator가 틀리면 Playwright 기본값(30초)만큼 기다리다 스크립트 전체가 결과 없이 끝나고, 서버를 막 띄운 뒤 첫 이동은 5초를 넘는다.
+- `run.sh`는 `APP_MODE=mock`을 강제한다. 이유: live로 빌드하면 레이아웃이 Vercel Analytics(`/_vercel/insights/script.js`)를 넣는데, 이 경로는 Vercel에서만 제공돼 로컬에서 404가 나고 모든 시나리오의 콘솔·네트워크 오류 검사가 실패한다(2026-10-13, 수동 결제 확인으로 `.env`가 live였을 때 FAIL 9).
 - 3100 포트를 쓴다. 이유: `.claude/worktrees/*`의 다른 세션이 3000에 서버를 띄워 두는 일이 있고, 그러면 내 서버는 `EADDRINUSE`로 뜨지 못하는데 테스트는 그 worktree 화면을 상대로 통과해 버린다.
 - 서버는 `lsof -ti tcp:3100 -sTCP:LISTEN | xargs kill`로 내가 띄운 것만 끈다(`-sTCP:LISTEN`이 없으면 그 포트에 붙은 다른 프로세스까지 잡힌다). `pkill -f "next dev"`는 자식 `next-server`를 남긴다. `dev-browser stop`은 다른 세션의 브라우저까지 끄므로 쓰지 않는다(`run.sh`는 `--idle-timeout 5m`으로 자기 브라우저를 닫는다).
 - 섹션은 `<h2>` 제목으로 찾는다(`section(...)`). 제목: `총지출`, `카테고리`, `가장 많이 쓴 곳`, `일별 지출`, `확인이 필요한 지출`, `월별 추세`, `이번 달 요약`, `내 카드로 확인해 보세요`. 랜딩은 `요금`, `숫자는 코드가 계산하고, 요약은 문장으로 정리해요`.
@@ -155,7 +156,7 @@ scripts/browser-test/run.sh s2 s3    # 일부만
 
 ## 수동 확인: 결제 (UC 09, 12)
 자동화하지 않는다(로그인 세션이 필요하다). 모달은 Tab이 안에서 순환하고 Esc·닫기로 닫힌다. 설정에서 닫으면 업그레이드 버튼으로 포커스가 돌아오고, 결제 요청 중에는 닫기와 중복 요청이 막힌다.
-1. 랜딩 `Pro 시작하기` → 로그인 → `/dashboard?upgrade=pricing`에서 Free 업그레이드 모달. 로그인한 상태의 랜딩에서는 같은 대시보드 주소로 바로 간다. 닫으면 `/dashboard`로 바뀌고 새로고침해도 모달이 다시 열리지 않는다.
+1. 랜딩 `Pro 시작하기` → 로그인 → `/dashboard?upgrade=pricing`에서 Free 업그레이드 모달. 로그인한 상태의 랜딩에서는 같은 대시보드 주소로 바로 간다. 닫으면 `/dashboard`로 바뀌고 새로고침해도 모달이 다시 열리지 않는다. Pro로 로그인한 랜딩의 Pro 카드는 `구독 관리`(`/settings`)이고, Pro가 `/dashboard?upgrade=pricing`에 오면 모달 대신 `이미 Pro를 쓰고 있어요`가 보인다.
 2. 로컬 mock에서 설정 → `업그레이드` → 예시·`월 6,900원`·해외 가격·해지 안내 → `결제하기` → `/dashboard?checkout=success`의 `Pro가 활성화됐어요` → 설정에 Pro 표시(날짜 문구 없음) → `구독 관리` → 설정에서 Free 표시.
 3. 로컬 live+sandbox에서 테스트 카드로 결제 → 결제 완료 안내, `polar listen`으로 받은 `customer.state_changed` 웹훅이 200. 반영 중 안내가 나오면 `새로고침`으로 다시 확인하거나 설정을 연다(설정은 열 때마다 Polar와 동기화한다).
 4. live+sandbox의 설정 → `구독 관리` → 포털에서 해지 예약 → 포털의 돌아가기로 설정에 오면 바로 `YYYY-MM-DD까지 Pro로 쓸 수 있어요`(웹훅을 기다리지 않는다). 갱신 예정인 Pro에는 `다음 결제일 YYYY-MM-DD`가 보인다.
@@ -185,3 +186,4 @@ scripts/browser-test/run.sh s2 s3    # 일부만
 | 2026-10-13 | `0a47675`(feat-7-upload-flow), `run.sh` 프로덕션 빌드, Node 24.21.0 | PASS 124 · FAIL 0 · 스크립트 오류 0 | 공개 화면·로그인 회귀 확인. 로그인 뒤 업로드 화면은 세션이 필요해 "수동 확인: 업로드"로 옮겼고, 수동 확인 1번의 대시보드 문구를 온보딩 제목으로 갱신. 실제 현대카드 PDF는 `ASSETOMY_SAMPLE_PDF`로 단위 테스트 통과(78건·1,820,075원) |
 | 2026-10-13 | `49c242e`(feat-7-upload-flow) + 작업 트리(대시보드 `올린 파일` 목록·삭제, 카드 없을 때 이름 입력칸, 암호화 안내 중복 제거), `run.sh` 프로덕션 빌드, Node 24.21.0 | PASS 124 · FAIL 0 · 스크립트 오류 0 | 공개 화면 회귀 확인. 바뀐 화면은 로그인 뒤라 단위 테스트와 "수동 확인: 업로드" 2·3·7번으로 본다 |
 | 2026-10-13 | `02725ff`(feat-8-billing), `run.sh` 프로덕션 빌드, Node 24.21.0 | PASS 125 · FAIL 0 · 스크립트 오류 0 | 결제 phase. 랜딩 `Pro 시작하기` href가 `/login?next=%2Fdashboard%3Fupgrade%3Dpricing`로 바뀌었고, 로그인하지 않은 `/settings` → `/login?next=%2Fsettings` 1개가 늘었다. 업그레이드 모달·설정 플랜·결제 완료 안내는 로그인 뒤라 단위 테스트와 "수동 확인: 결제"로 본다 |
+| 2026-10-13 | `feat-8-billing` 작업 트리(Pro 사용자의 랜딩 `구독 관리`·대시보드 `이미 Pro를 쓰고 있어요`), `run.sh` 프로덕션 빌드(`APP_MODE=mock` 강제), Node 24.21.0 | PASS 125 · FAIL 0 · 스크립트 오류 0 | 첫 실행은 `.env`가 live라 Vercel Analytics 404로 FAIL 9(측정 문제) → `run.sh`가 mock을 강제하도록 고친 뒤 통과. 로그인한 Pro 화면은 단위 테스트와 수동 확인 1번으로 본다 |

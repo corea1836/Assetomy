@@ -54,6 +54,12 @@ export default async function DashboardPage({ searchParams }: {
 
       <main className="pt-6">
         {checkout === "success" && <CheckoutNotice plan={planState.plan} />}
+        {upgrade === "pricing" && checkout !== "success" && planState.plan === "pro" && (
+          <div role="status" aria-live="polite" className="mb-6 rounded-3xl bg-primary-soft p-6 text-primary-active">
+            <p>이미 Pro를 쓰고 있어요</p>
+            <Link href="/settings" className="mt-3 inline-block rounded-lg font-semibold text-primary hover:underline focus-visible:outline-2 focus-visible:outline-offset-2 focus-visible:outline-primary active:text-primary-active">구독 관리</Link>
+          </div>
+        )}
         <div className={coverage.count === 0 ? "space-y-4" : "space-y-12"}>
           <div>
             {coverage.count === 0 ? <Onboarding /> : (

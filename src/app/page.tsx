@@ -15,12 +15,17 @@ import { getSessionUser } from "@/lib/auth";
 import { DEMO_SUMMARY, DEMO_SUMMARY_MONTH, DEMO_TODAY, DEMO_TRANSACTIONS } from "@/lib/demo/fixture";
 import { formatWon } from "@/lib/format";
 import { PRO_PRICE_KRW } from "@/lib/pricing";
+import { getSubscription } from "@/lib/queries/subscriptions";
+import { createSupabaseServerClient } from "@/lib/supabase/server";
 
 const freeFeatures = ["월별 소비 현황", "전월 대비", "확인할 지출 건수와 합계", "월간 요약"];
 const proFeatures = ["Free의 모든 기능", "확인할 지출 상세", "최대 12개월 추세", "더 자세한 월간 요약"];
 
 export default async function Page(): Promise<React.JSX.Element> {
   const user = await getSessionUser();
+  // 공개 페이지라 플랜을 읽지 못해도 깨지지 않게 업그레이드 링크로 둔다(대시보드가 다시 판단한다).
+  const isPro = user !== null && await getSubscription(await createSupabaseServerClient(), user.id)
+    .then((subscription) => subscription?.plan === "pro", () => false);
   const dashboard = buildDashboard({
     transactions: DEMO_TRANSACTIONS,
     plan: "pro",
@@ -147,9 +152,15 @@ export default async function Page(): Promise<React.JSX.Element> {
                 ))}
               </ul>
               <PlanPreview plan="pro" findings={findings} />
-              <Link href={user ? "/dashboard?upgrade=pricing" : `/login?next=${encodeURIComponent("/dashboard?upgrade=pricing")}`} className={`${buttonClass("primary")} mt-auto w-full`}>
-                Pro 시작하기
-              </Link>
+              {isPro ? (
+                <Link href="/settings" className={`${buttonClass("primary")} mt-auto w-full`}>
+                  구독 관리
+                </Link>
+              ) : (
+                <Link href={user ? "/dashboard?upgrade=pricing" : `/login?next=${encodeURIComponent("/dashboard?upgrade=pricing")}`} className={`${buttonClass("primary")} mt-auto w-full`}>
+                  Pro 시작하기
+                </Link>
+              )}
             </article>
           </div>
           <p className="mt-6 text-caption text-body">
