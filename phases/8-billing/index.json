@@ -23,7 +23,10 @@
     {
       "step": 1,
       "name": "polar-service",
-      "status": "pending"
+      "status": "completed",
+      "summary": "@polar-sh/sdk@1.0.2(^1.0.2) 설치·@polar-sh/sdk/2026-10만 import; src/services/polar/types.ts의 PolarGateway는 getCustomerState(userId: string): Promise<PolarCustomerState>·createCheckoutUrl(input: CheckoutInput): Promise<string>·createPortalUrl(input: {userId: string; returnUrl: string}): Promise<string|null>, CheckoutInput={userId, customerIp: string|null, successUrl, returnUrl, source: UpgradeSource}, PolarCustomerState={kind: no_customer}|{kind: customer; pro: ProSubscription|null}, ProSubscription={subscriptionId: string; currentPeriodEnd: string; cancelAtPeriodEnd: boolean}, PolarGatewayError(operation: get_state|checkout|portal, code: string)는 polar:<operation>:<HTTP 상태|network|unexpected_response>만 노출; createPolarGateway(polar: PolarClient, proProductId: string): PolarGateway는 active Pro 상품의 가장 늦은 기간 끝 선택·404 처리·응답 검증·checkout IP/source 전달, getPolarGateway(): PolarGateway는 mock에서 polar:mock_mode·live에서 timeout 10초; src/services/polar/webhook.ts의 PolarWebhookResult={kind: state_changed; externalCustomerId: string|null}|{kind: ignored|invalid_signature|invalid_payload}, parsePolarWebhook(body: string, headers: Headers, secret: string): Promise<PolarWebhookResult>는 Standard Webhooks 서명 검증 후 external_id만 반환; src/lib/env.ts의 getPolarEnv(): PolarEnv={accessToken: string; server: sandbox|production; proProductId: string}·getPolarWebhookSecret(): string은 lazy zod 검증·변수명만 에러·Vercel production의 sandbox 차단; src/types/billing.ts의 UpgradeSource=teaser|trend|summary|pricing|settings; src/services/polar/fake-gateway.ts의 createFakePolarGateway(initial?: Record<string, PolarCustomerState>)는 기본 no_customer·메모리 setState·메서드별 failNext 1회·calls 기록·https://polar.test/checkout/<userId> 및 /portal/<userId>(고객 없음 null), 앱 import 없음; TDD·lint·build·전체 단위 테스트 1292개 통과(1개 skip)·모든 파일/금지 패턴 AC 통과, 실제 Polar API·DB 호출 없음",
+      "started_at": "2026-10-13T14:57:23+0900",
+      "completed_at": "2026-10-13T15:03:23+0900"
     },
     {
       "step": 2,
