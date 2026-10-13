@@ -31,7 +31,10 @@
     {
       "step": 2,
       "name": "summarizer-service",
-      "status": "pending"
+      "status": "completed",
+      "summary": "src/services/llm/types.ts에 MonthlySummarizer.modelFor(plan: Plan)·summarize(input: SummaryInput), SummaryResult·SummaryFailureReason을 정의했다. src/services/llm/index.ts의 getMonthlySummarizer(): MonthlySummarizer는 mock/live를 분기하고 키와 Anthropic 클라이언트 생성을 요약 호출까지 미룬다. src/services/llm/claude-summarizer.ts의 createClaudeSummarizer(createClient: () => Pick<Anthropic, \"beta\">): MonthlySummarizer는 Free Sonnet·Pro Opus, 16,000 토큰·medium effort·Zod 출력 형식·server-side fallback으로 요청하고 검증 결과를 수정 없이 반환한다. src/services/llm/mock-summarizer.ts의 createMockSummarizer(): MonthlySummarizer는 두 고정 문구를 제공하며 모두 checkSummaryText 검증을 통과한다. src/services/llm/summary-text.ts의 checkSummaryText(raw: string, input: SummaryInput): SummaryTextCheck는 길이·가맹점명 제거 후 마크업·숫자·금지 표현을 검사한다. LLM 대상 테스트 45개와 전체 단위 테스트 1,785개가 통과했다.",
+      "started_at": "2026-10-13T22:39:03+0900",
+      "completed_at": "2026-10-13T22:43:51+0900"
     },
     {
       "step": 3,
