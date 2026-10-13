@@ -47,7 +47,10 @@
     {
       "step": 4,
       "name": "upload-ui",
-      "status": "pending"
+      "status": "completed",
+      "summary": "src/components/upload/upload-panel.tsx의 UploadPanel({cards:CardOption[]})와 props 없는 onboarding.tsx·hyundai-guide.tsx·data-notice.tsx 구현; send-upload.ts의 sendUpload(form:FormData,onSent:()=>void):Promise<{status:number;body:unknown}>로 PDF 최대 2개 동시 전송·분석 상태·결과·실패 복구·카드 등록·삭제 확인 모달·aria-live 제공, src/lib/errors/messages.ts의 uploadErrorMessage(code:ApiErrorCode,reason?:string):string 추가; /dashboard는 거래 없음이면 3단계 온보딩, 거래 있음이면 건수·반영 기간과 새 이용내역 추가를 표시하며 refresh 때 패널 유지; Node 24에서 lint·build·PDF trace·단위 1188개(기존 1개 skip)·DB 통합 16개·AC 정적 검사 통과, 375px 브라우저와 모달 키보드 동작 확인",
+      "started_at": "2026-10-13T13:42:53+0900",
+      "completed_at": "2026-10-13T13:54:33+0900"
     }
   ],
   "created_at": "2026-10-13T09:28:20+0900"
