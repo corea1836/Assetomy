@@ -20,14 +20,18 @@ import { formatWon } from "@/lib/format";
 import { listTransactions } from "@/lib/queries/transactions";
 import { listDoneUploads } from "@/lib/queries/uploads";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
+import { defaultSummaryDeps } from "@/lib/summary/deps";
+import type { SummaryDeps } from "@/lib/summary/monthly-summary";
 import { UploadHistory } from "@/components/upload/upload-history";
 import { UploadPanel } from "@/components/upload/upload-panel";
+import { MonthlySummarySection } from "./monthly-summary-section";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { FreeDashboard, ProDashboard } from "@/types/dashboard";
 import DashboardPage, { metadata } from "./page";
 
 vi.mock("@/lib/auth", () => ({ requireUser: vi.fn() }));
 vi.mock("@/lib/billing/deps", () => ({ defaultBillingDeps: vi.fn() }));
+vi.mock("@/lib/summary/deps", () => ({ defaultSummaryDeps: vi.fn() }));
 vi.mock("@/lib/billing/plan", () => ({ getPlanState: vi.fn() }));
 vi.mock("@/lib/queries/subscriptions", () => ({ getSubscription: vi.fn() }));
 vi.mock("@/lib/clock", () => ({ seoulToday: vi.fn() }));
@@ -41,6 +45,9 @@ vi.mock("@/lib/queries/uploads", () => ({ listDoneUploads: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: vi.fn() }));
 vi.mock("@/components/upload/upload-panel", () => ({ UploadPanel: vi.fn(() => <div>업로드 패널</div>) }));
 vi.mock("@/components/upload/upload-history", () => ({ UploadHistory: vi.fn(() => <div>올린 파일 목록</div>) }));
+vi.mock("./monthly-summary-section", () => ({
+  MonthlySummarySection: vi.fn(() => <section><h2>이번 달 요약</h2></section>),
+}));
 vi.mock("@/components/dashboard/daily-chart", () => ({ DailyChart: vi.fn(() => <section><h2>일별 지출</h2></section>) }));
 vi.mock("@/components/dashboard/trend-chart", () => ({ TrendChart: vi.fn(() => <section><h2>월별 추세</h2></section>) }));
 vi.mock("@/components/dashboard/teaser-card", () => ({ TeaserCard: vi.fn(() => <section><h2>후보 지출 티저</h2></section>) }));
@@ -61,6 +68,9 @@ vi.mock("@/components/billing/pricing-upgrade", async (importOriginal) => {
 
 const supabase = {} as SupabaseClient;
 const deps = {} as BillingDeps;
+const summaryDeps = {
+  summarizer: { modelFor: (plan: "free" | "pro") => plan === "free" ? "test-free-model" : "test-pro-model" },
+} as unknown as SummaryDeps;
 const cards = [{ id: "card-a", label: "현대 생활비" }];
 const freeDashboard = buildDashboard({ transactions: DEMO_TRANSACTIONS, plan: "free", today: DEMO_TODAY }) as FreeDashboard;
 const proDashboard = buildDashboard({ transactions: DEMO_TRANSACTIONS, plan: "pro", today: DEMO_TODAY }) as ProDashboard;
@@ -78,9 +88,11 @@ beforeEach(() => {
   vi.mocked(listDoneUploads).mockReset().mockResolvedValue([]);
   vi.mocked(getSubscription).mockReset().mockResolvedValue(null);
   vi.mocked(defaultBillingDeps).mockReset().mockReturnValue(deps);
+  vi.mocked(defaultSummaryDeps).mockReset().mockReturnValue(summaryDeps);
   vi.mocked(getPlanState).mockReset().mockResolvedValue({ plan: "free" });
   vi.mocked(UploadPanel).mockClear();
   vi.mocked(UploadHistory).mockClear();
+  vi.mocked(MonthlySummarySection).mockClear();
   for (const component of [DailyChart, FindingsList, MonthSelect, TeaserCard, TopMerchants, TrendChart, TrendLockCard, PricingUpgrade]) {
     vi.mocked(component).mockClear();
   }
@@ -135,8 +147,35 @@ describe("dashboard page", () => {
     expect(screen.queryByRole("heading", { name: "카드 이용내역을 올려 주세요" })).not.toBeInTheDocument();
     expect(container.innerHTML).not.toContain("확인할 지출 상세");
     for (const { id } of DEMO_TRANSACTIONS) expect(container.innerHTML).not.toContain(id);
-    expect(container).not.toHaveTextContent(/이번 달 요약|월별 대시보드는 준비하고 있어요|여기부터 Pro 화면이에요|내 카드로 확인해 보세요/);
+    expect(container).not.toHaveTextContent(/월별 대시보드는 준비하고 있어요|여기부터 Pro 화면이에요|내 카드로 확인해 보세요/);
     expect(container).not.toHaveTextContent("private-user-id");
+  });
+
+  it("builds a Free summary input from the Free dashboard DTO only", async () => {
+    vi.mocked(listTransactions).mockResolvedValue(DEMO_TRANSACTIONS);
+    render(await page());
+
+    expect(defaultSummaryDeps).toHaveBeenCalledExactlyOnceWith(supabase);
+    const [props] = vi.mocked(MonthlySummarySection).mock.calls[0];
+    expect(props.userId).toBe("private-user-id");
+    expect(props.prepared.plan).toBe("free");
+    expect(props.prepared.month).toBe(freeDashboard.month);
+    expect("findings" in props.prepared.input).toBe(false);
+    expect(props.deps).toBe(summaryDeps);
+  });
+
+  it("builds a Pro summary input from the Pro dashboard DTO", async () => {
+    vi.mocked(listTransactions).mockResolvedValue(DEMO_TRANSACTIONS);
+    vi.mocked(getPlanState).mockResolvedValue({ plan: "pro", periodEnd: null, cancelAtPeriodEnd: false });
+    render(await page());
+
+    expect(defaultSummaryDeps).toHaveBeenCalledExactlyOnceWith(supabase);
+    const [props] = vi.mocked(MonthlySummarySection).mock.calls[0];
+    expect(props.userId).toBe("private-user-id");
+    expect(props.prepared.plan).toBe("pro");
+    expect(props.prepared.month).toBe(proDashboard.month);
+    expect("findings" in props.prepared.input).toBe(true);
+    expect(props.deps).toBe(summaryDeps);
   });
 
   it("renders Pro findings and trend DTOs without Free components", async () => {
@@ -189,7 +228,7 @@ describe("dashboard page", () => {
     expect(within(upload).getByText("업로드 패널")).toBeInTheDocument();
     expect(within(upload).getByText("올린 파일 목록")).toBeInTheDocument();
     const headingNames = screen.getAllByRole("heading").map((heading) => heading.textContent);
-    const order = ["2026년 9월 지출", "총지출", "카테고리", "가장 많이 쓴 곳", "일별 지출", "후보 지출 티저", "추세 잠금 카드", "새 이용내역 추가"];
+    const order = ["2026년 9월 지출", "총지출", "이번 달 요약", "카테고리", "가장 많이 쓴 곳", "일별 지출", "후보 지출 티저", "추세 잠금 카드", "새 이용내역 추가"];
     expect(headingNames.filter((name) => order.includes(name!))).toEqual(order);
   });
 
@@ -234,6 +273,8 @@ describe("dashboard page", () => {
     expect(MonthSelect).not.toHaveBeenCalled();
     expect(TeaserCard).not.toHaveBeenCalled();
     expect(FindingsList).not.toHaveBeenCalled();
+    expect(defaultSummaryDeps).not.toHaveBeenCalled();
+    expect(MonthlySummarySection).not.toHaveBeenCalled();
   });
 
   it("preserves the panel when a refresh switches between onboarding and the dashboard", async () => {

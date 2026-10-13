@@ -35,4 +35,16 @@ describe("UpgradeButton", () => {
     render(<UpgradeButton source="settings" label="업그레이드" variant="secondary" />);
     expect(screen.getByRole("button", { name: "업그레이드" })).toHaveClass("bg-surface-strong");
   });
+
+  it("supports a text trigger without pill styling and opens the dialog", () => {
+    render(<UpgradeButton source="summary" label="Pro로 보기" variant="text" />);
+    const opener = screen.getByRole("button", { name: "Pro로 보기" });
+
+    expect(opener).toHaveClass("rounded-lg", "font-semibold", "text-primary", "hover:underline", "active:text-primary-active");
+    expect(opener).toHaveClass("focus-visible:outline-2", "focus-visible:outline-offset-2", "focus-visible:outline-primary");
+    expect(opener).not.toHaveClass("rounded-full");
+
+    fireEvent.click(opener);
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+  });
 });

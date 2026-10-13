@@ -1,7 +1,9 @@
 import Link from "next/link";
+import { Suspense } from "react";
 import { CheckoutNotice } from "@/components/billing/checkout-notice";
 import { PricingUpgrade } from "@/components/billing/pricing-upgrade";
 import { buttonClass } from "@/components/button-styles";
+import { MonthlySummarySection } from "./monthly-summary-section";
 import { CategoryList } from "@/components/dashboard/category-list";
 import { DailyChart } from "@/components/dashboard/daily-chart";
 import { FindingsList } from "@/components/dashboard/findings-list";
@@ -9,6 +11,7 @@ import { MonthSelect } from "@/components/dashboard/month-select";
 import { TeaserCard } from "@/components/dashboard/teaser-card";
 import { TopMerchants } from "@/components/dashboard/top-merchants";
 import { TotalCard } from "@/components/dashboard/total-card";
+import { MonthlySummaryStatus } from "@/components/dashboard/monthly-summary";
 import { TrendChart } from "@/components/dashboard/trend-chart";
 import { TrendLockCard } from "@/components/dashboard/trend-lock-card";
 import { Wordmark } from "@/components/wordmark";
@@ -18,6 +21,8 @@ import { UploadHistory } from "@/components/upload/upload-history";
 import { UploadPanel } from "@/components/upload/upload-panel";
 import { buildDashboard } from "@/lib/analytics/dashboard";
 import { monthOf } from "@/lib/analytics/dates";
+import { prepareSummary } from "@/lib/summary/monthly-summary";
+import { defaultSummaryDeps } from "@/lib/summary/deps";
 import { requireUser } from "@/lib/auth";
 import { defaultBillingDeps } from "@/lib/billing/deps";
 import { getPlanState } from "@/lib/billing/plan";
@@ -53,6 +58,10 @@ export default async function DashboardPage({ searchParams }: {
     getPlanState(user.id, stored, defaultBillingDeps(), { sync: checkout === "success" }),
   ]);
   const dashboard = buildDashboard({ transactions, plan: planState.plan, month, today: seoulToday() });
+  const summaryDeps = dashboard === null ? null : defaultSummaryDeps(supabase);
+  const preparedSummary = dashboard === null || summaryDeps === null
+    ? null
+    : prepareSummary(dashboard, summaryDeps.summarizer);
   const history = doneUploads.map(({ cardId, ...upload }) => ({ ...upload, cardLabel: cardLabels.get(cardId) ?? null }));
 
   return (
@@ -96,6 +105,14 @@ export default async function DashboardPage({ searchParams }: {
                 <div className="grid gap-6 md:grid-cols-2">
                   <div className="flex flex-col gap-6">
                     <TotalCard snapshot={dashboard.snapshot} mom={dashboard.mom} />
+                    {preparedSummary !== null && summaryDeps !== null && (
+                      <Suspense
+                        key={preparedSummary.inputHash}
+                        fallback={<MonthlySummaryStatus state="pending" upgrade={dashboard.plan === "free"} />}
+                      >
+                        <MonthlySummarySection userId={user.id} prepared={preparedSummary} deps={summaryDeps} />
+                      </Suspense>
+                    )}
                   </div>
                   <CategoryList categories={dashboard.snapshot.categories} />
                 </div>

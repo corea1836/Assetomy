@@ -1,6 +1,9 @@
-import { render, screen } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
-import { MonthlySummary } from "./monthly-summary";
+import { fireEvent, render, screen } from "@testing-library/react";
+import { describe, expect, it, vi } from "vitest";
+import { sendMetric } from "@/components/send-metric";
+import { MonthlySummary, MonthlySummaryStatus } from "./monthly-summary";
+
+vi.mock("@/components/send-metric", () => ({ sendMetric: vi.fn() }));
 
 describe("MonthlySummary", () => {
   it("shows the supplied summary with the title and preserves line breaks", () => {
@@ -51,5 +54,45 @@ describe("MonthlySummary", () => {
     const { container } = render(<MonthlySummary summary="정기결제로 보이는 지출은 정상 지출일 수 있어요." source="example" />);
 
     expect(container.textContent).not.toMatch(/절약|낭비|부정 결제|AI가 분석|Powered by AI/);
+  });
+
+  it("keeps the example source and has no upgrade prompt by default", () => {
+    render(<MonthlySummary summary="예시 요약 문장이에요." source="example" />);
+
+    expect(screen.getByText("예시 요약이에요. 가입하면 AI가 내 가맹점명과 집계로 요약해요.")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Pro로 보기" })).not.toBeInTheDocument();
+    expect(screen.queryByText("Pro에서는 확인할 지출 상세와 여러 달 추세까지 요약해요")).not.toBeInTheDocument();
+  });
+
+  it("shows the Free upgrade prompt and opens the summary upgrade dialog", () => {
+    render(<MonthlySummary summary="저장된 요약 문장이에요." source="ai" upgrade />);
+
+    expect(screen.getByText("Pro에서는 확인할 지출 상세와 여러 달 추세까지 요약해요")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Pro로 보기" }));
+
+    expect(screen.getByRole("dialog")).toBeInTheDocument();
+    expect(sendMetric).toHaveBeenCalledWith({ event: "upgrade_click", source: "summary" });
+  });
+
+  it("shows pending and failed status text without an attribution line", () => {
+    const { rerender } = render(<MonthlySummaryStatus state="pending" upgrade />);
+    const pending = screen.getByText("이번 달 요약을 만들고 있어요");
+    expect(pending.closest("section")).toHaveAttribute("aria-busy", "true");
+    expect(pending).toHaveClass("mt-4", "text-base", "text-body");
+    expect(screen.queryByText("AI가 가맹점명과 집계로 쓴 요약이에요. 금액은 코드로 계산해요.")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Pro로 보기" })).toBeInTheDocument();
+
+    rerender(<MonthlySummaryStatus state="failed" />);
+    expect(screen.getByText("요약을 만들지 못했어요. 새로고침하면 다시 만들어요.")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "이번 달 요약" })).toBeInTheDocument();
+    expect(screen.queryByText("AI가 가맹점명과 집계로 쓴 요약이에요. 금액은 코드로 계산해요.")).not.toBeInTheDocument();
+  });
+
+  it("renders markup-looking summary text literally", () => {
+    const summary = "<b>태그</b>";
+    render(<MonthlySummary summary={summary} source="ai" />);
+
+    expect(screen.getByText(summary)).toBeInTheDocument();
+    expect(document.querySelector("b")).toBeNull();
   });
 });

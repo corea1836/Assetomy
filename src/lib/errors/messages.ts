@@ -1,6 +1,11 @@
 import type { LoginErrorCode } from "@/types/auth";
 import type { ApiErrorCode } from "@/types/upload";
 
+export const SUMMARY_STATUS_MESSAGES = {
+  pending: "이번 달 요약을 만들고 있어요",
+  failed: "요약을 만들지 못했어요. 새로고침하면 다시 만들어요.",
+} as const;
+
 export const LOGIN_ERROR_MESSAGES: Record<LoginErrorCode, string> = {
   cancelled: "구글 로그인을 취소했어요. 계속하려면 다시 시도해 주세요.",
   failed: "로그인을 마치지 못했어요. 잠시 후 다시 시도해 주세요.",
