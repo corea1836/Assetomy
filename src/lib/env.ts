@@ -13,6 +13,12 @@ export type SupabaseEnv = {
   publishableKey: string;
 };
 
+export type PolarEnv = {
+  accessToken: string;
+  server: "sandbox" | "production";
+  proProductId: string;
+};
+
 const emptyAsUndefined = (value: unknown) => (value === "" ? undefined : value);
 
 const deploymentEnvSchema = z.object({
@@ -54,6 +60,39 @@ const supabaseAdminEnvSchema = z.object({
 });
 
 const anthropicApiKeySchema = z.string().min(1);
+
+const polarEnvSchema = z.object({
+  POLAR_ACCESS_TOKEN: z.preprocess(emptyAsUndefined, z.string().min(1)),
+  POLAR_ENV: z.preprocess(emptyAsUndefined, z.enum(["sandbox", "production"])),
+  POLAR_PRO_PRODUCT_ID: z.preprocess(emptyAsUndefined, z.string().min(1)),
+});
+const polarWebhookSecretSchema = z.preprocess(emptyAsUndefined, z.string().min(1));
+
+export function getPolarEnv(): PolarEnv {
+  if (process.env.VERCEL_ENV === "production" && process.env.POLAR_ENV !== "production") {
+    throw new Error("POLAR_ENV");
+  }
+
+  const result = polarEnvSchema.safeParse({
+    POLAR_ACCESS_TOKEN: process.env.POLAR_ACCESS_TOKEN,
+    POLAR_ENV: process.env.POLAR_ENV,
+    POLAR_PRO_PRODUCT_ID: process.env.POLAR_PRO_PRODUCT_ID,
+  });
+  if (!result.success) {
+    throw new Error(result.error.issues.map((issue) => issue.path[0]).join(", "));
+  }
+  return {
+    accessToken: result.data.POLAR_ACCESS_TOKEN,
+    server: result.data.POLAR_ENV,
+    proProductId: result.data.POLAR_PRO_PRODUCT_ID,
+  };
+}
+
+export function getPolarWebhookSecret(): string {
+  const result = polarWebhookSecretSchema.safeParse(process.env.POLAR_WEBHOOK_SECRET);
+  if (!result.success) throw new Error("POLAR_WEBHOOK_SECRET");
+  return result.data;
+}
 
 export function getAnthropicApiKey(): string {
   const result = anthropicApiKeySchema.safeParse(process.env.ANTHROPIC_API_KEY);

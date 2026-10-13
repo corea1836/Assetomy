@@ -1,6 +1,6 @@
 import { randomBytes } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { getAnthropicApiKey, getDeploymentEnv, getFileEncryptionKey, getSupabaseAdminEnv, getSupabaseEnv } from "./env";
+import { getAnthropicApiKey, getDeploymentEnv, getFileEncryptionKey, getPolarEnv, getPolarWebhookSecret, getSupabaseAdminEnv, getSupabaseEnv } from "./env";
 
 const envNames = [
   "VERCEL_ENV",
@@ -12,6 +12,10 @@ const envNames = [
   "SUPABASE_SECRET_KEY",
   "FILE_ENCRYPTION_KEY",
   "ANTHROPIC_API_KEY",
+  "POLAR_ACCESS_TOKEN",
+  "POLAR_ENV",
+  "POLAR_PRO_PRODUCT_ID",
+  "POLAR_WEBHOOK_SECRET",
 ] as const;
 
 beforeEach(() => {
@@ -19,6 +23,92 @@ beforeEach(() => {
 });
 
 afterEach(() => vi.unstubAllEnvs());
+
+describe("getPolarEnv", () => {
+  beforeEach(() => {
+    vi.stubEnv("POLAR_ACCESS_TOKEN", "test-polar-token");
+    vi.stubEnv("POLAR_ENV", "sandbox");
+    vi.stubEnv("POLAR_PRO_PRODUCT_ID", "test-pro-product");
+  });
+
+  it.each(["sandbox", "production"])("accepts POLAR_ENV=%s", (server) => {
+    vi.stubEnv("POLAR_ENV", server);
+    expect(getPolarEnv()).toEqual({
+      accessToken: "test-polar-token", server, proProductId: "test-pro-product",
+    });
+  });
+
+  it.each(["POLAR_ACCESS_TOKEN", "POLAR_ENV", "POLAR_PRO_PRODUCT_ID"] as const)(
+    "reports only %s for missing or empty values",
+    (name) => {
+      for (const value of [undefined, ""]) {
+        vi.stubEnv(name, value);
+        expect(() => getPolarEnv()).toThrowError(new RegExp(`^${name}$`));
+      }
+    },
+  );
+
+  it("reports all missing variable names without their values", () => {
+    for (const name of ["POLAR_ACCESS_TOKEN", "POLAR_ENV", "POLAR_PRO_PRODUCT_ID"]) {
+      vi.stubEnv(name, undefined);
+    }
+    expect(() => getPolarEnv()).toThrowError(/^POLAR_ACCESS_TOKEN, POLAR_ENV, POLAR_PRO_PRODUCT_ID$/);
+  });
+
+  it("rejects an invalid environment without exposing any values", () => {
+    vi.stubEnv("POLAR_ENV", "sensitive-invalid-environment");
+    expect(() => getPolarEnv()).toThrowError(/^POLAR_ENV$/);
+  });
+
+  it.each([undefined, "", "sandbox"])("rejects %j in Vercel production", (server) => {
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("POLAR_ENV", server);
+    expect(() => getPolarEnv()).toThrowError(/^POLAR_ENV$/);
+  });
+
+  it("accepts production billing in Vercel production", () => {
+    vi.stubEnv("VERCEL_ENV", "production");
+    vi.stubEnv("POLAR_ENV", "production");
+    expect(getPolarEnv().server).toBe("production");
+  });
+
+  it("reads new settings on every call", () => {
+    expect(getPolarEnv().accessToken).toBe("test-polar-token");
+    vi.stubEnv("POLAR_ACCESS_TOKEN", "other-test-token");
+    vi.stubEnv("POLAR_ENV", "production");
+    vi.stubEnv("POLAR_PRO_PRODUCT_ID", "other-test-product");
+    expect(getPolarEnv()).toEqual({
+      accessToken: "other-test-token", server: "production", proProductId: "other-test-product",
+    });
+  });
+
+  it("can be freshly imported without Polar settings", async () => {
+    for (const name of ["POLAR_ACCESS_TOKEN", "POLAR_ENV", "POLAR_PRO_PRODUCT_ID"]) {
+      vi.stubEnv(name, undefined);
+    }
+    vi.resetModules();
+    await expect(import("./env")).resolves.toHaveProperty("getPolarEnv", expect.any(Function));
+  });
+});
+
+describe("getPolarWebhookSecret", () => {
+  it.each([undefined, ""])("reports only the variable name for %j", (secret) => {
+    vi.stubEnv("POLAR_WEBHOOK_SECRET", secret);
+    expect(() => getPolarWebhookSecret()).toThrowError(/^POLAR_WEBHOOK_SECRET$/);
+  });
+
+  it("reads the current secret on every call", () => {
+    vi.stubEnv("POLAR_WEBHOOK_SECRET", "test-webhook-secret");
+    expect(getPolarWebhookSecret()).toBe("test-webhook-secret");
+    vi.stubEnv("POLAR_WEBHOOK_SECRET", "other-test-webhook-secret");
+    expect(getPolarWebhookSecret()).toBe("other-test-webhook-secret");
+  });
+
+  it("can be freshly imported without a webhook secret", async () => {
+    vi.resetModules();
+    await expect(import("./env")).resolves.toHaveProperty("getPolarWebhookSecret", expect.any(Function));
+  });
+});
 
 describe("getAnthropicApiKey", () => {
   it("returns a non-empty key", () => {
