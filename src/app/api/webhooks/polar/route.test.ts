@@ -25,6 +25,7 @@ const secret = "PRIVATE_SECRET";
 const deps: BillingDeps = {
   mode: "live", origin: "http://localhost:3000", now: () => new Date("2026-10-13T06:00:00Z"),
   gateway: vi.fn(), saveSubscription: vi.fn(),
+  isProductionBilling: () => false, recordMetric: vi.fn(),
 };
 
 beforeEach(() => {

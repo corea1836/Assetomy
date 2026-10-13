@@ -16,6 +16,7 @@ function setup() {
   const deps: BillingDeps = {
     mode: "live", origin: "https://assetomy.test", now: () => new Date("2026-10-13T06:00:00Z"),
     gateway: vi.fn(() => gateway), saveSubscription: save,
+    isProductionBilling: () => false, recordMetric: vi.fn(),
   };
   return { deps, gateway, save };
 }

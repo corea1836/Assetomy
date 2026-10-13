@@ -4,7 +4,7 @@ import { beginUpload, ingestUpload } from "@/lib/store/uploads";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
 import { createTestUser, deleteTestUser } from "@/lib/supabase/db-test-helpers";
 import type { IngestRow } from "@/types/upload";
-import { getTransactionCoverage } from "./transactions";
+import { getTransactionCoverage, listTransactions } from "./transactions";
 
 let userIds: string[] = [];
 let userA: string;
@@ -31,6 +31,7 @@ async function saveRows(userId: string, rows: IngestRow[]) {
   const result = await ingestUpload({ userId, uploadId: upload.uploadId, identityScope: "content",
     cancelStyle: "negative_amount", rows, skipped: 0 });
   expect(result).toMatchObject({ kind: "done", inserted: rows.length });
+  return card.cardId;
 }
 
 describe("getTransactionCoverage against the dev DB", () => {
@@ -47,5 +48,24 @@ describe("getTransactionCoverage against the dev DB", () => {
     await saveRows(userB, [{ ...rows[0], usedOn: "2022-01-01" }, { ...rows[1], usedOn: "2026-10-13" }]);
     expect(await getTransactionCoverage(admin, userA))
       .toEqual({ count: 1001, from: "2023-01-01", to: "2025-12-21" });
+  });
+});
+
+describe("listTransactions against the dev DB", () => {
+  it("reads all 1001 A rows with card labels and ascending dates while excluding B", async () => {
+    const rows: IngestRow[] = Array.from({ length: 1001 }, (_, index) => ({
+      usedOn: `${2023 + Math.floor(index / 336)}-${String(Math.floor((index % 336) / 28) + 1).padStart(2, "0")}-${String(index % 28 + 1).padStart(2, "0")}`,
+      merchant: "예시 가맹점", merchantKey: "예시가맹점", amount: 1000, eventKind: "purchase", category: "food",
+      fingerprint: index.toString(16).padStart(64, "0"),
+    }));
+    const cardA = await saveRows(userA, [...rows].reverse());
+    await saveRows(userB, [{ ...rows[0], usedOn: "2022-01-01" }, { ...rows[1], usedOn: "2026-10-13" }]);
+    const transactions = await listTransactions(createSupabaseAdminClient(), userA, new Map([[cardA, "생활비 카드"]]));
+    expect(transactions).toHaveLength(1001);
+    expect(new Set(transactions.map((transaction) => transaction.id)).size).toBe(1001);
+    expect(transactions.map((transaction) => transaction.date)).toEqual(rows.map((row) => row.usedOn));
+    for (const transaction of transactions) {
+      expect(transaction).toMatchObject({ cardId: cardA, cardLabel: "생활비 카드", amount: 1000, category: "food" });
+    }
   });
 });

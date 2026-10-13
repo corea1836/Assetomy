@@ -19,6 +19,7 @@ export type CategoryId = (typeof CATEGORY_IDS)[number];
 
 export type MerchantCategoryRequest = { merchantKey: string; category: CategoryId };
 export type MerchantCategoryResponse = { updated: number };
+export type SetMerchantCategoryResult = { kind: "updated"; updated: number } | { kind: "not_found" };
 
 export const CATEGORY_LABELS: Record<CategoryId, string> = {
   food: "식비",

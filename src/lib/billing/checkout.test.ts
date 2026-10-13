@@ -20,7 +20,8 @@ function setup(mode: BillingDeps["mode"] = "live") {
     } };
     return { kind: "saved", subscription: row.subscription };
   });
-  const deps: BillingDeps = { mode, origin, now: () => new Date(now), gateway: vi.fn(() => gateway), saveSubscription: save };
+  const deps: BillingDeps = { mode, origin, now: () => new Date(now), gateway: vi.fn(() => gateway), saveSubscription: save,
+    isProductionBilling: () => false, recordMetric: vi.fn() };
   return { deps, gateway, save, stored: () => row };
 }
 

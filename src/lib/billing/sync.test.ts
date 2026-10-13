@@ -27,6 +27,7 @@ function setup(state: PolarCustomerState = { kind: "no_customer" }) {
   const deps: BillingDeps = {
     mode: "live", origin: "https://assetomy.test", now: vi.fn(() => new Date(startedAt)),
     gateway: vi.fn(() => gateway), saveSubscription: save,
+    isProductionBilling: vi.fn(() => false), recordMetric: vi.fn(async () => ({ kind: "recorded" as const })),
   };
   return { deps, gateway, save, rows };
 }
@@ -36,13 +37,16 @@ afterEach(() => vi.restoreAllMocks());
 
 describe("syncFromPolar", () => {
   it("skips mock without calling the gateway, clock, or store", async () => {
-    const { deps, gateway, save } = setup();
+    const { deps, gateway, save } = setup({ kind: "customer", pro });
+    deps.isProductionBilling = vi.fn(() => true);
     deps.mode = "mock";
     expect(await syncFromPolar("user-a", deps)).toEqual({ kind: "skipped" });
     expect(deps.gateway).not.toHaveBeenCalled();
     expect(deps.now).not.toHaveBeenCalled();
     expect(gateway.calls).toEqual([]);
     expect(save).not.toHaveBeenCalled();
+    expect(deps.isProductionBilling).not.toHaveBeenCalled();
+    expect(deps.recordMetric).not.toHaveBeenCalled();
   });
 
   it.each([{ kind: "no_customer" }, { kind: "customer", pro: null }] as const)("confirms Free for %j", async (state) => {
@@ -53,6 +57,7 @@ describe("syncFromPolar", () => {
       userId: "user-a", syncedFrom: startedAt, plan: "free", subscriptionId: null,
       currentPeriodEnd: null, cancelAtPeriodEnd: false,
     });
+    expect(deps.recordMetric).not.toHaveBeenCalled();
   });
 
   it("saves all Pro fields from current Polar state", async () => {
@@ -89,6 +94,7 @@ describe("syncFromPolar", () => {
     expect(save).not.toHaveBeenCalled();
     expect(rows.get("user-a")?.subscription.plan).toBe("pro");
     expect(console.error).toHaveBeenCalledExactlyOnceWith("billing:sync:get_state:network", "user-a");
+    expect(deps.recordMetric).not.toHaveBeenCalled();
   });
 
   it("handles gateway factory throws without passing the error to logs", async () => {
@@ -108,6 +114,7 @@ describe("syncFromPolar", () => {
     expect(await syncFromPolar("user-a", deps)).toEqual({ kind: "failed" });
     expect(save).toHaveBeenCalledTimes(1);
     expect(console.error).toHaveBeenCalledExactlyOnceWith(`billing:sync:save_subscription:${code}`, "user-a");
+    expect(deps.recordMetric).not.toHaveBeenCalled();
   });
 
   it("does not log error messages or arbitrary fields", async () => {
@@ -127,12 +134,87 @@ describe("syncFromPolar", () => {
     rows.set("user-a", { syncedFrom, subscription: free });
     expect(await syncFromPolar("user-a", deps)).toEqual({ kind: "synced", subscription: free });
     expect(rows.get("user-a")).toEqual({ syncedFrom, subscription: free });
+    deps.isProductionBilling = vi.fn(() => true);
+    expect(await syncFromPolar("user-a", deps)).toEqual({ kind: "synced", subscription: free });
+    expect(deps.recordMetric).not.toHaveBeenCalled();
   });
 
   it("returns user_not_found for a deleted user", async () => {
-    const { deps, save } = setup();
+    const { deps, save } = setup({ kind: "customer", pro });
+    deps.isProductionBilling = vi.fn(() => true);
     save.mockResolvedValueOnce({ kind: "user_not_found" });
     expect(await syncFromPolar("user-a", deps)).toEqual({ kind: "user_not_found" });
     expect(console.error).not.toHaveBeenCalled();
+    expect(deps.recordMetric).not.toHaveBeenCalled();
+  });
+
+  it("records first_paid after saving Pro in production billing", async () => {
+    const { deps, save } = setup({ kind: "customer", pro });
+    deps.isProductionBilling = vi.fn(() => true);
+    expect(await syncFromPolar("user-a", deps)).toEqual({ kind: "synced", subscription: {
+      plan: "pro", currentPeriodEnd: pro.currentPeriodEnd, cancelAtPeriodEnd: true,
+    } });
+    expect(deps.isProductionBilling).toHaveBeenCalledExactlyOnceWith();
+    expect(deps.recordMetric).toHaveBeenCalledExactlyOnceWith("user-a", { event: "first_paid" });
+    expect(save.mock.invocationCallOrder[0]).toBeLessThan(vi.mocked(deps.recordMetric).mock.invocationCallOrder[0]);
+    expect(console.error).not.toHaveBeenCalled();
+  });
+
+  it("does not record sandbox Pro", async () => {
+    const { deps } = setup({ kind: "customer", pro });
+    expect(await syncFromPolar("user-a", deps)).toMatchObject({ kind: "synced", subscription: { plan: "pro" } });
+    expect(deps.isProductionBilling).toHaveBeenCalledExactlyOnceWith();
+    expect(deps.recordMetric).not.toHaveBeenCalled();
+  });
+
+  it.each(["gateway", "store"] as const)("does not record first_paid when production %s fails", async (operation) => {
+    const { deps, gateway, save } = setup({ kind: "customer", pro });
+    deps.isProductionBilling = vi.fn(() => true);
+    if (operation === "gateway") gateway.failNext("getCustomerState");
+    else save.mockRejectedValueOnce(new StoreError("save_subscription", "23514"));
+    expect(await syncFromPolar("user-a", deps)).toEqual({ kind: "failed" });
+    expect(deps.isProductionBilling).not.toHaveBeenCalled();
+    expect(deps.recordMetric).not.toHaveBeenCalled();
+  });
+
+  it.each([{ kind: "no_customer" }, { kind: "customer", pro: null }] as const)("does not record production Free for %j", async (state) => {
+    const { deps } = setup(state);
+    deps.isProductionBilling = vi.fn(() => true);
+    expect(await syncFromPolar("user-a", deps)).toEqual({ kind: "synced", subscription: free });
+    expect(deps.recordMetric).not.toHaveBeenCalled();
+    expect(deps.isProductionBilling).not.toHaveBeenCalled();
+  });
+
+  it("uses a stale save's stored Pro plan even when the queried state is Free", async () => {
+    const { deps, rows } = setup();
+    deps.isProductionBilling = vi.fn(() => true);
+    const subscription: StoredSubscription = { plan: "pro", currentPeriodEnd: pro.currentPeriodEnd, cancelAtPeriodEnd: true };
+    rows.set("user-a", { syncedFrom: "2026-10-13T06:01:00.000Z", subscription });
+    expect(await syncFromPolar("user-a", deps)).toEqual({ kind: "synced", subscription });
+    expect(deps.recordMetric).toHaveBeenCalledExactlyOnceWith("user-a", { event: "first_paid" });
+  });
+
+  it.each(["recorded", "unchanged", "user_not_found"] as const)("preserves synced Pro when the metric result is %s", async (kind) => {
+    const { deps } = setup({ kind: "customer", pro });
+    deps.isProductionBilling = vi.fn(() => true);
+    deps.recordMetric = vi.fn(async () => ({ kind }));
+    expect(await syncFromPolar("user-a", deps)).toMatchObject({ kind: "synced", subscription: { plan: "pro" } });
+    expect(deps.recordMetric).toHaveBeenCalledExactlyOnceWith("user-a", { event: "first_paid" });
+    expect(console.error).not.toHaveBeenCalled();
+  });
+
+  it.each([
+    [new StoreError("record_metric", "PGRST202"), "PGRST202"],
+    [new Error("private-value"), "unexpected_error"],
+    [new PolarGatewayError("get_state", "503"), "unexpected_error"],
+  ])("preserves synced Pro after a metric failure and logs only code and id: %#", async (error, code) => {
+    const { deps } = setup({ kind: "customer", pro });
+    deps.isProductionBilling = vi.fn(() => true);
+    deps.recordMetric = vi.fn().mockRejectedValue(error);
+    expect(await syncFromPolar("user-a", deps)).toEqual({ kind: "synced", subscription: {
+      plan: "pro", currentPeriodEnd: pro.currentPeriodEnd, cancelAtPeriodEnd: true,
+    } });
+    expect(console.error).toHaveBeenCalledExactlyOnceWith(`billing:first_paid:${code}`, "user-a");
+    expect(JSON.stringify(vi.mocked(console.error).mock.calls)).not.toContain("private-value");
   });
 });

@@ -26,6 +26,14 @@ export async function syncFromPolar(userId: string, deps: BillingDeps): Promise<
       cancelAtPeriodEnd: pro?.cancelAtPeriodEnd ?? false,
     });
     if (result.kind === "user_not_found") return result;
+    if (result.subscription.plan === "pro") {
+      try {
+        if (deps.isProductionBilling()) await deps.recordMetric(userId, { event: "first_paid" });
+      } catch (error) {
+        const code = error instanceof StoreError ? error.code : "unexpected_error";
+        console.error(`billing:first_paid:${code}`, userId);
+      }
+    }
     return { kind: "synced", subscription: result.subscription };
   } catch (error) {
     const code = error instanceof PolarGatewayError || error instanceof StoreError ? error.code : "unexpected_error";
