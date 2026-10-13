@@ -19,7 +19,8 @@ await fold.locator("summary").click();
 const allCategories = await texts(categories.locator("li"));
 check("S2 펼치면 10개·마지막 교통", allCategories.length === 10 && allCategories[9] === "교통 9,300원 1%", JSON.stringify(allCategories.slice(-1)));
 
-const merchants = await texts(section("가장 많이 쓴 곳").locator("li"));
+const merchantSection = section("가장 많이 쓴 곳");
+const merchants = await texts(merchantSection.locator(":scope > ul > li"));
 const expectedMerchants = [
   ["예시 별숲 가구실", "920,000원"],
   ["예시 바람결 장터", "150,000원"],
@@ -28,6 +29,11 @@ const expectedMerchants = [
   ["예시 둥근잎 공방", "64,000원"],
 ];
 check("S2 가장 많이 쓴 곳 5개", merchants.length === 5 && expectedMerchants.every(([name, amount], i) => merchants[i].includes(name) && merchants[i].endsWith(amount)), JSON.stringify(merchants));
+const merchantFold = merchantSection.locator("details");
+check("S2 나머지 가맹점 접힘", norm(await merchantFold.locator("summary").innerText()) === "나머지 7곳 보기" && (await merchantFold.getAttribute("open")) === null, "");
+await merchantFold.locator("summary").click();
+const allMerchants = await texts(merchantSection.locator("li"));
+check("S2 펼치면 가맹점 12곳", allMerchants.length === 12 && allMerchants[5].includes("예시 구름선 통신") && allMerchants[5].endsWith("55,000원"), JSON.stringify(allMerchants));
 
 const kinds = await texts(page.locator('ul[aria-label="탐지 종류별 요약"] li'));
 check("S2 탐지 요약", same(kinds, ["정기결제로 보여요 2건 · 69,900원", "중복 결제 의심 1건 · 64,000원", "고액 결제 1건 · 920,000원"]), JSON.stringify(kinds));

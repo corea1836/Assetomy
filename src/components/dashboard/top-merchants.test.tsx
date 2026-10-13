@@ -1,7 +1,9 @@
 import { render, screen, within } from "@testing-library/react";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { MerchantAmount } from "@/types/dashboard";
 import { TopMerchants } from "./top-merchants";
+
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 const merchants: MerchantAmount[] = [
   {
@@ -22,7 +24,7 @@ const merchants: MerchantAmount[] = [
 
 describe("TopMerchants", () => {
   it("shows merchant names, categories, counts and amounts in the DTO order", () => {
-    render(<TopMerchants merchants={merchants} />);
+    render(<TopMerchants merchants={merchants} otherMerchants={[]} />);
 
     expect(
       screen.getByRole("heading", { name: "가장 많이 쓴 곳" }),
@@ -40,15 +42,47 @@ describe("TopMerchants", () => {
     expect(within(rows[1]).getByText(/카페·간식/)).toBeInTheDocument();
     expect(within(rows[1]).getByText(/2건/)).toBeInTheDocument();
     expect(within(rows[1]).getByText("−12,000원")).toHaveClass("font-mono");
+    expect(screen.queryByRole("combobox")).not.toBeInTheDocument();
   });
 
   it("renders HTML-looking merchant names as text without creating an image", () => {
     const merchant = "<img src=x onerror=alert(1)>";
     const { container } = render(
-      <TopMerchants merchants={[{ ...merchants[0], merchant }]} />,
+      <TopMerchants merchants={[{ ...merchants[0], merchant }]} otherMerchants={[]} />,
     );
 
     expect(screen.getByText(merchant)).toBeInTheDocument();
     expect(container.querySelector("img")).toBeNull();
+  });
+
+  it("shows five merchants and folds the rest in a closed disclosure", () => {
+    const five = Array.from({ length: 5 }, (_, index) => ({ ...merchants[0], merchantKey: `key-${index}`, merchant: `가맹점 ${index}` }));
+    const { container } = render(<TopMerchants merchants={five} otherMerchants={[merchants[1]]} />);
+    expect(container.querySelectorAll("section > ul > li")).toHaveLength(5);
+    const details = container.querySelector("details");
+    expect(details).not.toHaveAttribute("open");
+    expect(details?.querySelector("summary")).toHaveTextContent("나머지 1곳 보기");
+    expect(details?.querySelector("summary")).toHaveClass("text-primary", "font-semibold", "focus-visible:outline-primary");
+    expect(details?.querySelectorAll("li")).toHaveLength(1);
+    expect(within(details as HTMLElement).getByText("−12,000원")).toHaveClass("text-body");
+    expect(container.querySelector("select")).toBeNull();
+  });
+
+  it("omits the disclosure when there are no other merchants", () => {
+    const { container } = render(<TopMerchants merchants={merchants} otherMerchants={[]} />);
+    expect(container.querySelector("details")).toBeNull();
+    expect(screen.queryByText("카테고리를 바꾸면 같은 가맹점의 모든 거래에 적용돼요")).not.toBeInTheDocument();
+  });
+
+  it("offers a category select for every merchant, including the folded rows", () => {
+    const { container } = render(<TopMerchants merchants={[merchants[0]]} otherMerchants={[merchants[1]]} editable />);
+    for (const row of merchants) {
+      const select = screen.getByLabelText(`${row.merchant} 카테고리`);
+      expect(select).toHaveValue(row.category);
+      expect(select).toHaveClass("h-9", "rounded-lg", "px-3", "text-sm");
+      expect(screen.getByText(`${row.count}건`)).toBeInTheDocument();
+    }
+    expect(container.querySelectorAll("select")).toHaveLength(2);
+    expect(screen.getByText("카테고리를 바꾸면 같은 가맹점의 모든 거래에 적용돼요")).toHaveClass("text-caption", "text-body");
   });
 });

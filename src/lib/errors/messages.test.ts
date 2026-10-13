@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { LOGIN_ERROR_MESSAGES, parseLoginErrorCode } from "./messages";
-import { billingErrorMessage, uploadErrorMessage } from "./messages";
+import { billingErrorMessage, categoryErrorMessage, uploadErrorMessage } from "./messages";
 import type { ApiErrorCode } from "@/types/upload";
 
 describe("parseLoginErrorCode", () => {
@@ -49,6 +49,22 @@ const uploadDefaults = {
   FORBIDDEN: "요청을 처리하지 못했어요. 새로고침한 뒤 다시 시도해 주세요.",
   NOT_FOUND: "요청을 처리하지 못했어요. 새로고침한 뒤 다시 시도해 주세요.",
 } satisfies Record<ApiErrorCode, string>;
+
+describe("categoryErrorMessage", () => {
+  it.each([
+    ["NOT_FOUND", "이 가맹점의 거래를 찾지 못했어요. 새로고침한 뒤 다시 시도해 주세요."],
+    ["UNAUTHORIZED", "로그인이 만료됐어요. 다시 로그인해 주세요."],
+  ] as const)("maps %s to a next action", (code, message) => {
+    expect(categoryErrorMessage(code)).toBe(message);
+  });
+
+  it("maps all other API codes to the category retry message", () => {
+    for (const code of Object.keys(uploadDefaults) as ApiErrorCode[]) {
+      if (code === "NOT_FOUND" || code === "UNAUTHORIZED") continue;
+      expect(categoryErrorMessage(code)).toBe("카테고리를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.");
+    }
+  });
+});
 
 describe("billingErrorMessage", () => {
   it.each([

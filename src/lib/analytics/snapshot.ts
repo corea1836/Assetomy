@@ -83,12 +83,10 @@ export function buildSnapshot(
       b.amount - a.amount || CATEGORY_IDS.indexOf(a.category) - CATEGORY_IDS.indexOf(b.category),
     );
 
-  const topMerchants = [...merchantTotals.values()]
-    .filter((merchant) => merchant.amount > 0)
+  const merchants = [...merchantTotals.values()]
     .sort((a, b) =>
       b.amount - a.amount || compareStrings(a.latest.merchantKey, b.latest.merchantKey),
     )
-    .slice(0, TOP_MERCHANT_LIMIT)
     .map(({ latest, amount, count }) => ({
       merchantKey: latest.merchantKey,
       merchant: latest.merchant,
@@ -96,6 +94,9 @@ export function buildSnapshot(
       amount,
       count,
     }));
+  const topMerchants = merchants.filter(({ amount }) => amount > 0).slice(0, TOP_MERCHANT_LIMIT);
+  const topKeys = new Set(topMerchants.map(({ merchantKey }) => merchantKey));
+  const otherMerchants = merchants.filter(({ merchantKey }) => !topKeys.has(merchantKey));
 
   return {
     month,
@@ -105,6 +106,7 @@ export function buildSnapshot(
     inProgress: month >= monthOf(today),
     categories,
     topMerchants,
+    otherMerchants,
     daily: datesOfMonth(month).map((date) => ({
       date,
       amount: dailyTotals.get(date) ?? 0,

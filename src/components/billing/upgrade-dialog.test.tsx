@@ -3,16 +3,22 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { FINDING_KIND_LABELS } from "@/components/dashboard/finding-labels";
 import { billingErrorMessage } from "@/lib/errors/messages";
 import { UpgradeDialog } from "./upgrade-dialog";
+import { UPGRADE_SOURCES } from "@/types/billing";
+import type { Teaser } from "@/types/dashboard";
 
 const fetchMock = vi.fn<typeof fetch>();
+const metricFetch = vi.fn<typeof fetch>();
 const assign = vi.fn();
 const onClose = vi.fn();
 
 beforeEach(() => {
   fetchMock.mockReset();
+  metricFetch.mockReset();
+  metricFetch.mockResolvedValue(Response.json({}));
   assign.mockReset();
   onClose.mockReset();
-  vi.stubGlobal("fetch", fetchMock);
+  vi.stubGlobal("fetch", (url: string, init: RequestInit) =>
+    url === "/api/metrics" ? metricFetch(url, init) : fetchMock(url, init));
   const testWindow = Object.create(window);
   Object.defineProperty(testWindow, "location", { value: { assign } });
   vi.stubGlobal("window", testWindow);
@@ -24,6 +30,47 @@ function open(opener: HTMLElement | null = null) {
 }
 
 describe("UpgradeDialog", () => {
+  const teaser: Teaser = {
+    byKind: { recurring: { count: 2, amount: 10_000 }, duplicate: { count: 1, amount: 20_000 }, large: { count: 1, amount: 30_000 } },
+    candidateTotal: 50_000,
+  };
+
+  it("places current candidate counts and total between the title and static examples", () => {
+    render(<UpgradeDialog source="teaser" opener={null} onClose={onClose} teaser={teaser} />);
+    const heading = screen.getByRole("heading");
+    const candidates = screen.getByText("내 이용내역에서 확인이 필요한 지출 4건 · 후보 합계 50,000원");
+    const examples = screen.getByRole("list");
+    expect(heading.compareDocumentPosition(candidates) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(candidates.compareDocumentPosition(examples) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it.each([undefined, null, {
+    byKind: { recurring: { count: 0, amount: 0 }, duplicate: { count: 0, amount: 0 }, large: { count: 0, amount: 0 } }, candidateTotal: 0,
+  } satisfies Teaser])("omits current candidates when teaser is absent or empty (%s)", (value) => {
+    render(<UpgradeDialog source="settings" opener={null} onClose={onClose} teaser={value} />);
+    expect(screen.queryByText(/내 이용내역에서/)).not.toBeInTheDocument();
+    expect(screen.getByRole("list")).toBeInTheDocument();
+  });
+
+  it.each(UPGRADE_SOURCES)("sends one opening metric with %s, without repeating on rerender", (source) => {
+    const view = render(<UpgradeDialog source={source} opener={null} onClose={onClose} />);
+    expect(metricFetch).toHaveBeenCalledExactlyOnceWith("/api/metrics", {
+      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ event: "upgrade_click", source }), keepalive: true,
+    });
+    view.rerender(<UpgradeDialog source={source} opener={null} onClose={onClose} teaser={teaser} />);
+    expect(metricFetch).toHaveBeenCalledOnce();
+    expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  it("keeps the dialog usable when the metric request fails", () => {
+    metricFetch.mockRejectedValue(new Error("private metric failure"));
+    open();
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "결제하기" })).toBeEnabled();
+    fireEvent.keyDown(screen.getByRole("dialog"), { key: "Escape" });
+    expect(onClose).toHaveBeenCalledOnce();
+  });
+
   it("orders static examples, price, cancellation notice, and buttons with honest copy", () => {
     const { container } = open();
     const dialog = screen.getByRole("dialog", { name: "Pro에서 확인할 지출 상세를 볼 수 있어요" });

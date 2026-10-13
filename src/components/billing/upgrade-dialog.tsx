@@ -3,13 +3,14 @@
 import { useEffect, useId, useRef, useState } from "react";
 import { z } from "zod";
 import { buttonClass } from "@/components/button-styles";
+import { sendMetric } from "@/components/send-metric";
 import { FINDING_KIND_LABELS } from "@/components/dashboard/finding-labels";
 import { fetchJson, responseError } from "@/components/upload/api-reply";
 import { billingErrorMessage } from "@/lib/errors/messages";
 import { formatWon } from "@/lib/format";
 import { PRO_PRICE_KRW, PRO_PRICE_USD_LABEL } from "@/lib/pricing";
 import type { UpgradeSource } from "@/types/billing";
-import type { FindingKind } from "@/types/dashboard";
+import type { FindingKind, Teaser } from "@/types/dashboard";
 import type { ApiErrorCode } from "@/types/upload";
 
 const EXAMPLES: { kind: FindingKind; merchant: string; amount: number }[] = [
@@ -18,10 +19,11 @@ const EXAMPLES: { kind: FindingKind; merchant: string; amount: number }[] = [
 ];
 const urlSchema = z.object({ url: z.string() });
 
-export function UpgradeDialog({ source, opener, onClose }: {
+export function UpgradeDialog({ source, opener, onClose, teaser }: {
   source: UpgradeSource;
   opener: HTMLElement | null;
   onClose: () => void;
+  teaser?: Teaser | null;
 }): React.JSX.Element {
   const titleId = useId();
   const descriptionId = useId();
@@ -29,6 +31,11 @@ export function UpgradeDialog({ source, opener, onClose }: {
   const paying = useRef(false);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<ApiErrorCode | null>(null);
+  const candidateCount = teaser ? Object.values(teaser.byKind).reduce((sum, { count }) => sum + count, 0) : 0;
+
+  useEffect(() => {
+    sendMetric({ event: "upgrade_click", source });
+  }, [source]);
 
   useEffect(() => {
     const previousOverflow = document.body.style.overflow;
@@ -82,6 +89,11 @@ export function UpgradeDialog({ source, opener, onClose }: {
         }}
       >
         <h2 id={titleId} className="text-lg font-semibold text-ink">Pro에서 확인할 지출 상세를 볼 수 있어요</h2>
+        {teaser && candidateCount > 0 && (
+          <p className="mt-4 text-sm tabular-nums text-ink">
+            {`내 이용내역에서 확인이 필요한 지출 ${candidateCount}건 · 후보 합계 ${formatWon(teaser.candidateTotal)}`}
+          </p>
+        )}
         <ul className="mt-5 space-y-3 rounded-3xl border border-amber-200 bg-amber-50 p-4 text-sm text-amber-900">
           {EXAMPLES.map(({ kind, merchant, amount }) => (
             <li key={kind} className="flex flex-wrap items-start justify-between gap-2">

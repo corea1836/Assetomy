@@ -17,6 +17,7 @@ const snapshot: Snapshot = {
     { category: "food", amount: 0, ratio: 0 },
   ],
   topMerchants: [],
+  otherMerchants: [],
   daily: [
     { date: "2026-08-01", amount: 12_000 },
     { date: "2026-08-02", amount: 32_000 },

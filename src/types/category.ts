@@ -17,6 +17,9 @@ export const CATEGORY_IDS = [
 
 export type CategoryId = (typeof CATEGORY_IDS)[number];
 
+export type MerchantCategoryRequest = { merchantKey: string; category: CategoryId };
+export type MerchantCategoryResponse = { updated: number };
+
 export const CATEGORY_LABELS: Record<CategoryId, string> = {
   food: "식비",
   cafe: "카페·간식",

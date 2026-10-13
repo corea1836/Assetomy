@@ -11,6 +11,7 @@ const snapshot: Snapshot = {
   inProgress: false,
   categories: [],
   topMerchants: [],
+  otherMerchants: [],
   daily: [],
 };
 

@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CATEGORY_IDS } from "@/types/category";
 import type { Transaction } from "@/types/transaction";
+import { DEMO_TODAY, DEMO_TRANSACTIONS } from "@/lib/demo/fixture";
 import { buildSnapshot, listDataMonths, TOP_MERCHANT_LIMIT } from "./snapshot";
 
 function transaction(overrides: Partial<Transaction> = {}): Transaction {
@@ -263,6 +264,47 @@ describe("buildSnapshot", () => {
     ]);
     expect(buildSnapshot([...transactions].reverse(), "2026-09", "2026-10-01"))
       .toEqual(snapshot);
+  });
+
+  it("partitions every monthly merchant once, retaining zero and refund-only sums in order", () => {
+    const transactions = ["f", "d", "b", "e", "c", "a"].map((merchantKey) =>
+      transaction({ id: merchantKey, merchantKey, amount: 1_001 }),
+    );
+    transactions.push(
+      transaction({ id: "zero-purchase", merchantKey: "zero", amount: 4_000 }),
+      transaction({ id: "zero-refund", merchantKey: "zero", amount: -4_000 }),
+      transaction({ id: "refund-old", merchantKey: "refund", amount: -5_001 }),
+      transaction({ id: "refund-latest-a", merchantKey: "refund", date: "2026-09-20", merchant: "같은 날 이전 이름", category: "cafe", amount: -100 }),
+      transaction({ id: "refund-latest-b", merchantKey: "refund", date: "2026-09-20", merchant: "최신 환불 가맹점", category: "shopping", amount: -200 }),
+      transaction({ id: "outside", merchantKey: "outside", date: "2026-08-31" }),
+    );
+    const snapshot = buildSnapshot(transactions, "2026-09", "2026-10-01");
+    const all = [...snapshot.topMerchants, ...snapshot.otherMerchants];
+    expect(all.map(({ merchantKey }) => merchantKey).sort()).toEqual(
+      [...new Set(transactions.filter(({ date }) => date.startsWith("2026-09-")).map(({ merchantKey }) => merchantKey))].sort(),
+    );
+    expect(snapshot.otherMerchants).toEqual([
+      { merchantKey: "f", merchant: "식당", category: "food", amount: 1_001, count: 1 },
+      { merchantKey: "zero", merchant: "식당", category: "food", amount: 0, count: 2 },
+      { merchantKey: "refund", merchant: "최신 환불 가맹점", category: "shopping", amount: -5_301, count: 3 },
+    ]);
+    expect(buildSnapshot([...transactions].reverse(), "2026-09", "2026-10-01")).toEqual(snapshot);
+  });
+
+  it("sorts other merchants with equal amounts by merchantKey", () => {
+    const transactions = ["h", "g", "f", "e", "d", "c", "b", "a"].map((merchantKey) =>
+      transaction({ id: merchantKey, merchantKey, amount: 100 }),
+    );
+    expect(buildSnapshot(transactions, "2026-09", "2026-10-01").otherMerchants.map(({ merchantKey }) => merchantKey))
+      .toEqual(["f", "g", "h"]);
+  });
+
+  it("has seven other merchants in the September demo, starting with telecom", () => {
+    const snapshot = buildSnapshot(DEMO_TRANSACTIONS, "2026-09", DEMO_TODAY);
+    expect(snapshot.otherMerchants).toHaveLength(7);
+    expect(snapshot.otherMerchants[0]).toEqual({
+      merchantKey: "demo-telecom", merchant: "예시 구름선 통신", category: "housing", amount: 55_000, count: 1,
+    });
   });
 
   it.each([

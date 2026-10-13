@@ -85,7 +85,7 @@ export default async function DemoPage({
         </div>
 
         <div className="grid gap-6 md:grid-cols-2">
-          <TopMerchants merchants={snapshot.topMerchants} />
+          <TopMerchants merchants={snapshot.topMerchants} otherMerchants={snapshot.otherMerchants} />
           <DailyChart daily={snapshot.daily} />
         </div>
 

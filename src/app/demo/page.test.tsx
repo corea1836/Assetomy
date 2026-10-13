@@ -26,6 +26,18 @@ describe("demo page", () => {
 
   afterEach(() => vi.restoreAllMocks());
 
+  it("shows five merchants and seven folded merchants without editable categories", async () => {
+    await renderDemo("2026-09");
+    const section = screen.getByRole("heading", { name: "가장 많이 쓴 곳" }).closest("section") as HTMLElement;
+    expect(section.querySelectorAll(":scope > ul > li")).toHaveLength(5);
+    expect(section.querySelector("select")).toBeNull();
+    const details = section.querySelector("details");
+    expect(details).not.toHaveAttribute("open");
+    expect(details?.querySelector("summary")).toHaveTextContent("나머지 7곳 보기");
+    expect(details?.querySelectorAll("li")).toHaveLength(7);
+    expect(details?.querySelector("li")).toHaveTextContent("예시 구름선 통신");
+  });
+
   it("offers the sign-up CTA in the header and again after the trend", async () => {
     await renderDemo();
 

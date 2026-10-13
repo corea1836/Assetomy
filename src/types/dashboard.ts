@@ -27,6 +27,7 @@ export type Snapshot = {
   inProgress: boolean; // 진행 중인 달
   categories: CategoryAmount[];
   topMerchants: MerchantAmount[];
+  otherMerchants: MerchantAmount[]; // 그 달의 topMerchants 밖 가맹점, 금액순
   daily: DailyAmount[]; // 그 달 1일~말일, 거래 없는 날은 0
 };
 
