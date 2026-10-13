@@ -15,5 +15,6 @@ export async function saveSummary(input: SaveSummaryInput): Promise<SaveSummaryR
     p_model: input.model,
     p_input_hash: input.inputHash,
     p_summary: input.summary,
+    p_tips: input.tips,
   }, saveSummaryResultSchema);
 }

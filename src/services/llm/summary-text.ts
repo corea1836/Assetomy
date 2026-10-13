@@ -1,22 +1,21 @@
 import "server-only";
-import type { SummaryInput } from "@/types/summary";
+import type { SummaryContent, SummaryInput } from "@/types/summary";
 
-export type SummaryTextCheck =
-  | { ok: true; text: string }
+export type SummaryContentCheck =
+  | ({ ok: true } & SummaryContent)
   | { ok: false; reason: "length" | "number" | "forbidden_phrase" | "markup" };
+type TextReason = Exclude<SummaryContentCheck, { ok: true }>["reason"];
 
 const FORBIDDEN_PHRASES = ["절감", "절약", "아낄", "부정 결제", "부정결제", "도용"];
+const SUMMARY_LENGTH = { min: 20, max: 300 };
+const TIP_LENGTH = { min: 10, max: 200 };
+const TIP_COUNT = { min: 1, max: 3 };
 
-export function checkSummaryText(raw: string, input: SummaryInput): SummaryTextCheck {
-  const text = raw.trim();
-  const length = Array.from(text).length;
-  if (length < 30 || length > 600) return { ok: false, reason: "length" };
-
-  const merchantNames = [
-    ...input.topMerchants.map(({ merchant }) => merchant),
-    ...(input.plan === "pro" ? input.findings.map(({ merchant }) => merchant) : []),
-  ].filter((merchant) => merchant.length > 0)
-    .sort((left, right) => Array.from(right).length - Array.from(left).length);
+function checkText(
+  text: string, merchantNames: string[], length: { min: number; max: number },
+): TextReason | null {
+  const size = Array.from(text).length;
+  if (size < length.min || size > length.max) return "length";
 
   let scrubbed = text;
   for (const merchant of merchantNames) {
@@ -29,19 +28,31 @@ export function checkSummaryText(raw: string, input: SummaryInput): SummaryTextC
     || scrubbed.includes("`")
     || /^(?:- |\* |• )/m.test(scrubbed)
   ) {
-    return { ok: false, reason: "markup" };
+    return "markup";
   }
 
   const withoutAllowedDates = scrubbed
     .replace(/(?<![0-9])(1[0-2]|[1-9])월/g, "")
     .replace(/(?<![0-9])[0-9]{4}년/g, "");
-  if (/[0-9０-９]/.test(withoutAllowedDates)) {
-    return { ok: false, reason: "number" };
-  }
+  if (/[0-9０-９]/.test(withoutAllowedDates)) return "number";
 
-  if (FORBIDDEN_PHRASES.some((phrase) => text.includes(phrase))) {
-    return { ok: false, reason: "forbidden_phrase" };
-  }
+  if (FORBIDDEN_PHRASES.some((phrase) => text.includes(phrase))) return "forbidden_phrase";
+  return null;
+}
 
-  return { ok: true, text };
+export function checkSummaryContent(raw: SummaryContent, input: SummaryInput): SummaryContentCheck {
+  const summary = raw.summary.trim();
+  const tips = raw.tips.map((tip) => tip.trim());
+  if (tips.length < TIP_COUNT.min || tips.length > TIP_COUNT.max) return { ok: false, reason: "length" };
+
+  const merchantNames = [
+    ...input.topMerchants.map(({ merchant }) => merchant),
+    ...(input.plan === "pro" ? input.findings.map(({ merchant }) => merchant) : []),
+  ].filter((merchant) => merchant.length > 0)
+    .sort((left, right) => Array.from(right).length - Array.from(left).length);
+
+  const reason = checkText(summary, merchantNames, SUMMARY_LENGTH)
+    ?? tips.map((tip) => checkText(tip, merchantNames, TIP_LENGTH)).find((tipReason) => tipReason !== null)
+    ?? null;
+  return reason === null ? { ok: true, summary, tips } : { ok: false, reason };
 }

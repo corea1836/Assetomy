@@ -15,12 +15,14 @@ function fakeClient(data: unknown, error: unknown = null) {
 
 describe("getStoredSummary", () => {
   it("selects only the summary fields and scopes the supplied user and month", async () => {
-    const { client, from, builder } = fakeClient({ input_hash: "a".repeat(64), summary: "이번 달은 식비 비중이 커요." });
+    const { client, from, builder } = fakeClient({
+      input_hash: "a".repeat(64), summary: "이번 달은 식비 비중이 커요.", tips: ["식비 예산을 정해 보세요."],
+    });
     expect(await getStoredSummary(client, "user-a", "2026-09")).toEqual({
-      inputHash: "a".repeat(64), summary: "이번 달은 식비 비중이 커요.",
+      inputHash: "a".repeat(64), summary: "이번 달은 식비 비중이 커요.", tips: ["식비 예산을 정해 보세요."],
     });
     expect(from).toHaveBeenCalledExactlyOnceWith("ai_summaries");
-    expect(builder.select).toHaveBeenCalledExactlyOnceWith("input_hash, summary");
+    expect(builder.select).toHaveBeenCalledExactlyOnceWith("input_hash, summary, tips");
     expect(builder.eq).toHaveBeenNthCalledWith(1, "user_id", "user-a");
     expect(builder.eq).toHaveBeenNthCalledWith(2, "month", "2026-09");
     expect(builder.maybeSingle).toHaveBeenCalledExactlyOnceWith();
@@ -29,13 +31,17 @@ describe("getStoredSummary", () => {
   it("returns null when no summary exists and strips unrelated columns", async () => {
     expect(await getStoredSummary(fakeClient(null).client, "user-a", "2026-09")).toBeNull();
     expect(await getStoredSummary(fakeClient({
-      input_hash: "b".repeat(64), summary: "요약", plan: "pro", merchant: "private-value",
-    }).client, "user-a", "2026-09")).toEqual({ inputHash: "b".repeat(64), summary: "요약" });
+      input_hash: "b".repeat(64), summary: "요약", tips: ["팁"], plan: "pro", merchant: "private-value",
+    }).client, "user-a", "2026-09")).toEqual({ inputHash: "b".repeat(64), summary: "요약", tips: ["팁"] });
   });
 
   it.each([
-    undefined, {}, { input_hash: "A".repeat(64), summary: "요약" }, { input_hash: "short", summary: "요약" },
-    { input_hash: "c".repeat(64), summary: "" }, { input_hash: "c".repeat(64), summary: 2 },
+    undefined, {}, { input_hash: "A".repeat(64), summary: "요약", tips: ["팁"] },
+    { input_hash: "short", summary: "요약", tips: ["팁"] },
+    { input_hash: "c".repeat(64), summary: "", tips: ["팁"] }, { input_hash: "c".repeat(64), summary: 2, tips: ["팁"] },
+    { input_hash: "c".repeat(64), summary: "요약" }, { input_hash: "c".repeat(64), summary: "요약", tips: [] },
+    { input_hash: "c".repeat(64), summary: "요약", tips: ["1", "2", "3", "4"] },
+    { input_hash: "c".repeat(64), summary: "요약", tips: [""] },
   ])("rejects malformed rows as QueryError: %#", async (data) => {
     const error = await getStoredSummary(fakeClient(data).client, "user-a", "2026-09").catch((caught: unknown) => caught);
     expect(error).toBeInstanceOf(QueryError);

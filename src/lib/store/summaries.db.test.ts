@@ -50,7 +50,7 @@ function row(month: string, suffix: string): IngestRow {
 
 function summary(month: string, inputHash: string, text: string): SaveSummaryInput {
   return {
-    userId: userA, month, plan: "free", model: "claude-sonnet-5-5", inputHash: inputHash.repeat(64), summary: text,
+    userId: userA, month, plan: "free", model: "claude-sonnet-5-5", inputHash: inputHash.repeat(64), summary: text, tips: [`${text} 팁`],
   };
 }
 
@@ -62,10 +62,10 @@ describe("summary persistence against the dev DB", () => {
 
     await upload("1", [row("2026-09", "1")]);
     expect(await saveSummary(summary("2026-09", "a", "첫 요약"))).toEqual({ kind: "saved" });
-    expect(await getStoredSummary(admin, userA, "2026-09")).toEqual({ inputHash: "a".repeat(64), summary: "첫 요약" });
+    expect(await getStoredSummary(admin, userA, "2026-09")).toEqual({ inputHash: "a".repeat(64), summary: "첫 요약", tips: ["첫 요약 팁"] });
 
     expect(await saveSummary(summary("2026-09", "b", "바뀐 요약"))).toEqual({ kind: "saved" });
-    expect(await getStoredSummary(admin, userA, "2026-09")).toEqual({ inputHash: "b".repeat(64), summary: "바뀐 요약" });
+    expect(await getStoredSummary(admin, userA, "2026-09")).toEqual({ inputHash: "b".repeat(64), summary: "바뀐 요약", tips: ["바뀐 요약 팁"] });
     expect(await getStoredSummary(admin, userB, "2026-09")).toBeNull();
   });
 
@@ -80,6 +80,6 @@ describe("summary persistence against the dev DB", () => {
     expect(await deleteUpload(userA, upload1)).toEqual({ kind: "deleted" });
     expect(await getStoredSummary(admin, userA, "2026-08")).toBeNull();
     expect(await getStoredSummary(admin, userA, "2026-09")).toBeNull();
-    expect(await getStoredSummary(admin, userA, "2026-10")).toEqual({ inputHash: "e".repeat(64), summary: "요약 2026-10" });
+    expect(await getStoredSummary(admin, userA, "2026-10")).toEqual({ inputHash: "e".repeat(64), summary: "요약 2026-10", tips: ["요약 2026-10 팁"] });
   });
 });

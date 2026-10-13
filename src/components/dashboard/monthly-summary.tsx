@@ -22,9 +22,10 @@ function FreeUpgradePrompt(): React.JSX.Element {
   );
 }
 
-export function MonthlySummary({ summary, source, upgrade }: {
+export function MonthlySummary({ summary, source, tips = [], upgrade }: {
   summary: string;
   source: "ai" | "example";
+  tips?: string[];
   upgrade?: boolean;
 }): React.JSX.Element {
   return (
@@ -33,6 +34,14 @@ export function MonthlySummary({ summary, source, upgrade }: {
       <p className="mt-4 whitespace-pre-line text-lg leading-relaxed text-ink">
         {summary}
       </p>
+      {tips.length > 0 && (
+        <>
+          <h3 className="mt-6 text-base font-semibold text-ink">이렇게 해 보세요</h3>
+          <ul className="mt-2 list-disc space-y-2 pl-5 text-base leading-relaxed text-ink">
+            {tips.map((tip, index) => <li key={index}>{tip}</li>)}
+          </ul>
+        </>
+      )}
       <p className="mt-3 text-caption text-body">
         {source === "ai"
           ? "AI가 가맹점명과 집계로 쓴 요약이에요. 금액은 코드로 계산해요."

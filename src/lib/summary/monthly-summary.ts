@@ -20,11 +20,12 @@ export type PreparedSummary = {
 
 export function prepareSummary(
   dashboard: Dashboard,
-  summarizer: Pick<MonthlySummarizer, "modelFor">,
+  summarizer: Pick<MonthlySummarizer, "modelFor" | "promptFor">,
 ): PreparedSummary {
   const input = buildSummaryInput(dashboard);
   const model = summarizer.modelFor(dashboard.plan);
-  const inputHash = createHash("sha256").update(JSON.stringify({ model, input })).digest("hex");
+  const prompt = summarizer.promptFor(dashboard.plan);
+  const inputHash = createHash("sha256").update(JSON.stringify({ model, prompt, input })).digest("hex");
   return { month: dashboard.month, plan: dashboard.plan, model, input, inputHash };
 }
 
@@ -52,7 +53,7 @@ export async function resolveMonthlySummary(
     return { kind: "failed" };
   }
 
-  if (stored?.inputHash === prepared.inputHash) return { kind: "ready", text: stored.summary };
+  if (stored?.inputHash === prepared.inputHash) return { kind: "ready", summary: stored.summary, tips: stored.tips };
 
   let result;
   try {
@@ -67,7 +68,7 @@ export async function resolveMonthlySummary(
     return { kind: "failed" };
   }
 
-  const text = result.text;
+  const { summary, tips } = result;
   try {
     const saved = await deps.save({
       userId,
@@ -75,13 +76,14 @@ export async function resolveMonthlySummary(
       plan: prepared.plan,
       model: prepared.model,
       inputHash: prepared.inputHash,
-      summary: text,
+      summary,
+      tips,
     });
-    if (saved.kind === "saved") return { kind: "ready", text };
+    if (saved.kind === "saved") return { kind: "ready", summary, tips };
     console.error("summary:save:no_transactions", userId);
     return { kind: "failed" };
   } catch (error) {
     console.error(`summary:save:${errorCode(error)}`, userId);
-    return { kind: "ready", text };
+    return { kind: "ready", summary, tips };
   }
 }

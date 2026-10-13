@@ -64,6 +64,35 @@ describe("MonthlySummary", () => {
     expect(screen.queryByText("Pro에서는 확인할 지출 상세와 여러 달 추세까지 요약해요")).not.toBeInTheDocument();
   });
 
+  it("lists tips under their heading between the summary and the source line", () => {
+    const tips = ["카드사 앱에서 같은 결제가 두 번 청구됐는지 확인해 보세요.", "다음 달 식비 예산을 먼저 정해 보세요."];
+    render(<MonthlySummary summary="이번 달은 식비 비중이 가장 커요." source="ai" tips={tips} />);
+
+    const heading = screen.getByRole("heading", { name: "이렇게 해 보세요", level: 3 });
+    expect(heading).toHaveClass("mt-6", "text-base", "font-semibold", "text-ink");
+    const list = screen.getByRole("list");
+    expect(list).toHaveClass("mt-2", "list-disc", "space-y-2", "pl-5", "text-base", "leading-relaxed", "text-ink");
+    expect(screen.getAllByRole("listitem").map((item) => item.textContent)).toEqual(tips);
+    const source = screen.getByText("AI가 가맹점명과 집계로 쓴 요약이에요. 금액은 코드로 계산해요.");
+    const summary = screen.getByText("이번 달은 식비 비중이 가장 커요.");
+    expect(summary.compareDocumentPosition(heading) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(list.compareDocumentPosition(source) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
+
+  it("renders no tip heading without tips, as on the demo and landing", () => {
+    const { rerender } = render(<MonthlySummary summary="예시 요약 문장이에요." source="example" />);
+    expect(screen.queryByRole("heading", { name: "이렇게 해 보세요" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("list")).not.toBeInTheDocument();
+    rerender(<MonthlySummary summary="예시 요약 문장이에요." source="ai" tips={[]} />);
+    expect(screen.queryByRole("heading", { name: "이렇게 해 보세요" })).not.toBeInTheDocument();
+  });
+
+  it("renders markup-looking tips literally", () => {
+    render(<MonthlySummary summary="요약이에요." source="ai" tips={["<i>팁</i>"]} />);
+    expect(screen.getByText("<i>팁</i>")).toBeInTheDocument();
+    expect(document.querySelector("i")).toBeNull();
+  });
+
   it("shows the Free upgrade prompt and opens the summary upgrade dialog", () => {
     render(<MonthlySummary summary="저장된 요약 문장이에요." source="ai" upgrade />);
 

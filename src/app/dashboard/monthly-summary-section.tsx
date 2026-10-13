@@ -12,5 +12,5 @@ export async function MonthlySummarySection({ userId, prepared, deps }: {
     return <MonthlySummaryStatus state="failed" upgrade={prepared.plan === "free"} />;
   }
 
-  return <MonthlySummary summary={summary.text} source="ai" upgrade={prepared.plan === "free"} />;
+  return <MonthlySummary summary={summary.summary} tips={summary.tips} source="ai" upgrade={prepared.plan === "free"} />;
 }

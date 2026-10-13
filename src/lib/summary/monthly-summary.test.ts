@@ -11,7 +11,9 @@ import { prepareSummary, resolveMonthlySummary, type PreparedSummary, type Summa
 
 const userId = "user-a";
 const storedText = "지난 요약 문장";
+const storedTips = ["지난 팁 문장"];
 const generatedText = "이번 달에는 식비 비중이 커졌어요.";
+const generatedTips = ["다음 달에는 식비 예산을 먼저 정해 보세요."];
 
 function transaction(overrides: Partial<Transaction> = {}): Transaction {
   return {
@@ -34,7 +36,8 @@ function dashboard(plan: "free" | "pro" = "free", items = transactions): Dashboa
 function makeSummarizer(overrides: Partial<MonthlySummarizer> = {}): MonthlySummarizer {
   return {
     modelFor: vi.fn((plan) => plan === "free" ? "claude-sonnet-5-5" : "claude-opus-5-5"),
-    summarize: vi.fn(async (): Promise<SummaryResult> => ({ ok: true, text: generatedText })),
+    promptFor: vi.fn((plan) => `${plan} prompt`),
+    summarize: vi.fn(async (): Promise<SummaryResult> => ({ ok: true, summary: generatedText, tips: generatedTips })),
     ...overrides,
   };
 }
@@ -60,7 +63,16 @@ describe("prepareSummary", () => {
     expect(result.input).toEqual(buildSummaryInput(dto));
     expect(result).toMatchObject({ month: "2026-09", plan: "free", model: "claude-sonnet-5-5" });
     expect(summarizer.modelFor).toHaveBeenCalledExactlyOnceWith("free");
+    expect(summarizer.promptFor).toHaveBeenCalledExactlyOnceWith("free");
     expect(result.inputHash).toMatch(/^[0-9a-f]{64}$/);
+  });
+
+  it("changes when only the prompt changes", () => {
+    const dto = dashboard();
+    const before = makeSummarizer({ promptFor: () => "첫 프롬프트" });
+    const after = makeSummarizer({ promptFor: () => "고친 프롬프트" });
+    expect(prepareSummary(dto, before).inputHash).toBe(prepareSummary(dto, before).inputHash);
+    expect(prepareSummary(dto, before).inputHash).not.toBe(prepareSummary(dto, after).inputHash);
   });
 
   it("is deterministic for the same DTO and model, and changes when only the model changes", () => {
@@ -104,9 +116,9 @@ describe("resolveMonthlySummary", () => {
   it("returns a matching stored summary without generating or saving", async () => {
     const prep = prepared();
     const { deps, summarizer } = makeDeps({
-      loadStored: vi.fn(async () => ({ inputHash: prep.inputHash, summary: storedText } satisfies StoredSummary)),
+      loadStored: vi.fn(async () => ({ inputHash: prep.inputHash, summary: storedText, tips: storedTips } satisfies StoredSummary)),
     });
-    expect(await resolveMonthlySummary(userId, prep, deps)).toEqual({ kind: "ready", text: storedText });
+    expect(await resolveMonthlySummary(userId, prep, deps)).toEqual({ kind: "ready", summary: storedText, tips: storedTips });
     expect(summarizer.summarize).not.toHaveBeenCalled();
     expect(deps.save).not.toHaveBeenCalled();
     expect(console.error).not.toHaveBeenCalled();
@@ -115,7 +127,7 @@ describe("resolveMonthlySummary", () => {
   it("fails when generation returns a failure and never leaks a stale stored summary", async () => {
     const prep = prepared();
     const { deps, summarizer } = makeDeps({
-      loadStored: vi.fn(async () => ({ inputHash: "f".repeat(64), summary: storedText })),
+      loadStored: vi.fn(async () => ({ inputHash: "f".repeat(64), summary: storedText, tips: storedTips })),
     });
     vi.mocked(summarizer.summarize).mockResolvedValue({ ok: false, reason: "number" });
     expect(await resolveMonthlySummary(userId, prep, deps)).toEqual({ kind: "failed" });
@@ -127,10 +139,11 @@ describe("resolveMonthlySummary", () => {
   it("saves a generated summary and returns it", async () => {
     const prep = prepared("pro");
     const { deps, summarizer } = makeDeps();
-    expect(await resolveMonthlySummary(userId, prep, deps)).toEqual({ kind: "ready", text: generatedText });
+    expect(await resolveMonthlySummary(userId, prep, deps)).toEqual({ kind: "ready", summary: generatedText, tips: generatedTips });
     expect(summarizer.summarize).toHaveBeenCalledExactlyOnceWith(prep.input);
     expect(deps.save).toHaveBeenCalledExactlyOnceWith({
-      userId, month: prep.month, plan: prep.plan, model: prep.model, inputHash: prep.inputHash, summary: generatedText,
+      userId, month: prep.month, plan: prep.plan, model: prep.model, inputHash: prep.inputHash,
+      summary: generatedText, tips: generatedTips,
     } satisfies SaveSummaryInput);
     expect(console.error).not.toHaveBeenCalled();
   });
@@ -143,7 +156,7 @@ describe("resolveMonthlySummary", () => {
 
   it("returns verified text when saving throws and logs only the store code", async () => {
     const { deps } = makeDeps({ save: vi.fn().mockRejectedValue(new StoreError("save_ai_summary", "PGRST202")) });
-    expect(await resolveMonthlySummary(userId, prepared(), deps)).toEqual({ kind: "ready", text: generatedText });
+    expect(await resolveMonthlySummary(userId, prepared(), deps)).toEqual({ kind: "ready", summary: generatedText, tips: generatedTips });
     expect(console.error).toHaveBeenCalledExactlyOnceWith("summary:save:PGRST202", userId);
   });
 
@@ -165,6 +178,7 @@ describe("resolveMonthlySummary", () => {
       expect(call).toHaveLength(2);
       expect(call[1]).toBe(userId);
       expect(JSON.stringify(call)).not.toContain(generatedText);
+      expect(JSON.stringify(call)).not.toContain(generatedTips[0]);
       expect(JSON.stringify(call)).not.toContain("예시 가맹점");
     }
   });

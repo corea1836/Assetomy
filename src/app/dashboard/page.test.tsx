@@ -69,7 +69,10 @@ vi.mock("@/components/billing/pricing-upgrade", async (importOriginal) => {
 const supabase = {} as SupabaseClient;
 const deps = {} as BillingDeps;
 const summaryDeps = {
-  summarizer: { modelFor: (plan: "free" | "pro") => plan === "free" ? "test-free-model" : "test-pro-model" },
+  summarizer: {
+    modelFor: (plan: "free" | "pro") => plan === "free" ? "test-free-model" : "test-pro-model",
+    promptFor: (plan: "free" | "pro") => `${plan} prompt`,
+  },
 } as unknown as SummaryDeps;
 const cards = [{ id: "card-a", label: "현대 생활비" }];
 const freeDashboard = buildDashboard({ transactions: DEMO_TRANSACTIONS, plan: "free", today: DEMO_TODAY }) as FreeDashboard;

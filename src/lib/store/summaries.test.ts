@@ -10,7 +10,7 @@ beforeEach(() => { vi.clearAllMocks(); rpc.mockReset(); });
 
 const input: SaveSummaryInput = {
   userId: "user-a", month: "2026-09", plan: "free", model: "claude-sonnet-5-5",
-  inputHash: "a".repeat(64), summary: "식비 비중이 커졌어요.",
+  inputHash: "a".repeat(64), summary: "식비 비중이 커졌어요.", tips: ["식비 예산을 정해 보세요."],
 };
 
 describe("saveSummary", () => {
@@ -20,7 +20,7 @@ describe("saveSummary", () => {
     expect(createSupabaseAdminClient).toHaveBeenCalledExactlyOnceWith();
     expect(rpc).toHaveBeenCalledExactlyOnceWith("save_ai_summary", {
       p_user_id: input.userId, p_month: input.month, p_plan: input.plan, p_model: input.model,
-      p_input_hash: input.inputHash, p_summary: input.summary,
+      p_input_hash: input.inputHash, p_summary: input.summary, p_tips: input.tips,
     });
   });
 

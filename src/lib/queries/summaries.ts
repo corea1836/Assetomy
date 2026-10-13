@@ -9,7 +9,8 @@ const storedSummaryResponseSchema = z.object({
   data: z.object({
     input_hash: z.string().regex(/^[0-9a-f]{64}$/),
     summary: z.string().min(1),
-  }).transform((row) => ({ inputHash: row.input_hash, summary: row.summary })).nullable(),
+    tips: z.array(z.string().min(1)).min(1).max(3),
+  }).transform((row) => ({ inputHash: row.input_hash, summary: row.summary, tips: row.tips })).nullable(),
 });
 
 export async function getStoredSummary(
@@ -18,7 +19,7 @@ export async function getStoredSummary(
   month: YearMonth,
 ): Promise<StoredSummary | null> {
   const { data } = await readQuery("getStoredSummary", () => supabase.from("ai_summaries")
-    .select("input_hash, summary")
+    .select("input_hash, summary, tips")
     .eq("user_id", userId).eq("month", month).maybeSingle(), storedSummaryResponseSchema);
   return data;
 }

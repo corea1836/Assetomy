@@ -14,7 +14,7 @@ beforeEach(() => vi.clearAllMocks());
 describe("defaultSummaryDeps", () => {
   it("wires stored-summary reads, the selected summarizer, and the summary store", async () => {
     const supabase = {} as SupabaseClient;
-    const summarizer = { modelFor: vi.fn(), summarize: vi.fn() };
+    const summarizer = { modelFor: vi.fn(), promptFor: vi.fn(), summarize: vi.fn() };
     vi.mocked(getMonthlySummarizer).mockReturnValue(summarizer);
     const deps = defaultSummaryDeps(supabase);
 
@@ -24,12 +24,12 @@ describe("defaultSummaryDeps", () => {
     expect(getStoredSummary).toHaveBeenCalledExactlyOnceWith(supabase, "user-a", "2026-09");
     await deps.save({
       userId: "user-a", month: "2026-09", plan: "free", model: "mock",
-      inputHash: "a".repeat(64), summary: "요약",
+      inputHash: "a".repeat(64), summary: "요약", tips: ["팁"],
     });
     expect(deps.save).toBe(saveSummary);
     expect(saveSummary).toHaveBeenCalledExactlyOnceWith({
       userId: "user-a", month: "2026-09", plan: "free", model: "mock",
-      inputHash: "a".repeat(64), summary: "요약",
+      inputHash: "a".repeat(64), summary: "요약", tips: ["팁"],
     });
   });
 });
