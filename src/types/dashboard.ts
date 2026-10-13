@@ -85,6 +85,7 @@ type DashboardBase = {
   lastDate: IsoDate; // 전체 거래의 마지막 이용일
   snapshot: Snapshot;
   mom: MonthOverMonth | null;
+  partialMonth: YearMonth | null; // 카드 내역이 일부만 있어 전월 비교를 건너뛴 달
 };
 export type FreeDashboard = DashboardBase & {
   plan: "free";

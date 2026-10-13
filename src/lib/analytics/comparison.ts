@@ -7,7 +7,7 @@ import type {
   TrendMonth,
 } from "@/types/dashboard";
 import type { IsoDate, Transaction, YearMonth } from "@/types/transaction";
-import { addMonths, monthOf } from "./dates";
+import { addMonths, daysBetween, daysInMonth, monthOf } from "./dates";
 import { buildSnapshot, listDataMonths } from "./snapshot";
 
 export const TREND_MAX_MONTHS = 12;
@@ -22,23 +22,66 @@ function snapshotForMonth(
     : null;
 }
 
+// 명세서 이용 기간은 카드·결제일마다 다르고 파일에 없어서, 카드별 첫·마지막 거래일로 내역이 있는 기간을 본다.
+// 달 경계와 이만큼 어긋나는 것은 덮은 것으로 본다(그날 거래가 없었거나 이용 기간이 하루 이틀 어긋나는 결제일).
+export const COVERAGE_SLACK_DAYS = 3;
+
+// 두 달에 거래가 있는 카드 중 지난달 1일 또는 선택한 달 말일까지 내역이 닿지 않는 카드가 있으면 그 달을 돌려준다.
+function findPartialMonth(transactions: Transaction[], month: YearMonth): YearMonth | null {
+  const previousMonth = addMonths(month, -1);
+  const ranges = new Map<string, { from: IsoDate; to: IsoDate; active: boolean }>();
+  for (const { cardId, date } of transactions) {
+    const range = ranges.get(cardId) ?? { from: date, to: date, active: false };
+    if (date < range.from) range.from = date;
+    if (date > range.to) range.to = date;
+    if (monthOf(date) === month || monthOf(date) === previousMonth) range.active = true;
+    ranges.set(cardId, range);
+  }
+
+  const active = [...ranges.values()].filter((range) => range.active);
+  const start = `${previousMonth}-01`;
+  const end = `${month}-${String(daysInMonth(month)).padStart(2, "0")}`;
+  if (active.some(({ from }) => daysBetween(start, from) > COVERAGE_SLACK_DAYS)) return previousMonth;
+  if (active.some(({ to }) => daysBetween(to, end) > COVERAGE_SLACK_DAYS)) return month;
+  return null;
+}
+
+export type MonthComparison = {
+  mom: MonthOverMonth | null;
+  partialMonth: YearMonth | null; // 내역이 일부만 있어 비교하지 않은 달
+};
+
+export function buildMonthComparison(
+  transactions: Transaction[],
+  month: YearMonth,
+  today: IsoDate,
+): MonthComparison {
+  if (month >= monthOf(today)) return { mom: null, partialMonth: null };
+
+  const previousMonth = addMonths(month, -1);
+  const previous = snapshotForMonth(transactions, previousMonth, today);
+  if (previous === null) return { mom: null, partialMonth: null };
+
+  const partialMonth = findPartialMonth(transactions, month);
+  if (partialMonth !== null) return { mom: null, partialMonth };
+
+  const current = snapshotForMonth(transactions, month, today);
+  return {
+    mom: {
+      previousMonth,
+      previousTotal: previous.total,
+      diff: (current?.total ?? 0) - previous.total,
+    },
+    partialMonth: null,
+  };
+}
+
 export function buildMonthOverMonth(
   transactions: Transaction[],
   month: YearMonth,
   today: IsoDate,
 ): MonthOverMonth | null {
-  if (month >= monthOf(today)) return null;
-
-  const previousMonth = addMonths(month, -1);
-  const previous = snapshotForMonth(transactions, previousMonth, today);
-  if (previous === null) return null;
-
-  const current = snapshotForMonth(transactions, month, today);
-  return {
-    previousMonth,
-    previousTotal: previous.total,
-    diff: (current?.total ?? 0) - previous.total,
-  };
+  return buildMonthComparison(transactions, month, today).mom;
 }
 
 function buildCategoryChanges(

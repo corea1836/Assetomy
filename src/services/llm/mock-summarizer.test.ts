@@ -8,7 +8,7 @@ function inputs() {
   const shared = {
     month: "2026-09", inProgress: false,
     period: { from: "2026-09-01", to: "2026-09-30" }, total: 1000, transactionCount: 1,
-    categories: [], topMerchants: [], monthOverMonth: null,
+    categories: [], topMerchants: [], monthOverMonth: null, partialMonth: null,
     candidates: {
       recurring: { count: 0, amount: 0 }, duplicate: { count: 0, amount: 0 },
       large: { count: 0, amount: 0 }, candidateTotal: 0,

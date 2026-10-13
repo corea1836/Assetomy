@@ -36,7 +36,7 @@ export default async function DemoPage({
   });
   if (dashboard === null || dashboard.plan !== "pro") notFound();
 
-  const { month, months, lastDate, snapshot, mom, findings, trend } = dashboard;
+  const { month, months, lastDate, snapshot, mom, partialMonth, findings, trend } = dashboard;
 
   return (
     <div className="mx-auto max-w-5xl px-4 pb-12 sm:px-6">
@@ -72,7 +72,7 @@ export default async function DemoPage({
 
         <div className="grid gap-6 md:grid-cols-2">
           <div className="flex flex-col gap-6">
-            <TotalCard snapshot={snapshot} mom={mom} />
+            <TotalCard snapshot={snapshot} mom={mom} partialMonth={partialMonth} />
             {month === DEMO_SUMMARY_MONTH ? (
               <MonthlySummary summary={DEMO_SUMMARY} source="example" />
             ) : (

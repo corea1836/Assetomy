@@ -112,7 +112,7 @@ export default async function DashboardPage({ searchParams }: {
                 )}
 
                 <div className="grid gap-6 md:grid-cols-2">
-                  <TotalCard snapshot={dashboard.snapshot} mom={dashboard.mom} />
+                  <TotalCard snapshot={dashboard.snapshot} mom={dashboard.mom} partialMonth={dashboard.partialMonth} />
                   <CategoryList categories={dashboard.snapshot.categories} />
                 </div>
 

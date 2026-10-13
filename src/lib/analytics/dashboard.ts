@@ -1,6 +1,6 @@
 import type { Dashboard, Plan } from "@/types/dashboard";
 import type { IsoDate, Transaction } from "@/types/transaction";
-import { buildMonthOverMonth, buildTrend } from "./comparison";
+import { buildMonthComparison, buildTrend } from "./comparison";
 import { detectFindings, summarizeFindings } from "./detection";
 import { buildSnapshot, listDataMonths } from "./snapshot";
 
@@ -23,7 +23,7 @@ export function buildDashboard(input: BuildDashboardInput): Dashboard | null {
     months,
     lastDate: months[0].period.to,
     snapshot: buildSnapshot(transactions, month, today),
-    mom: buildMonthOverMonth(transactions, month, today),
+    ...buildMonthComparison(transactions, month, today),
   };
   const items = detectFindings(transactions, month);
   const { byKind, candidateTotal } = summarizeFindings(items);

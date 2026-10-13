@@ -11,7 +11,7 @@ function freeInput(): FreeSummaryInput {
   return {
     plan: "free", month: "2026-09", inProgress: false,
     period: { from: "2026-09-01", to: "2026-09-30" }, total: 1000, transactionCount: 1,
-    categories: [], topMerchants: [], monthOverMonth: null,
+    categories: [], topMerchants: [], monthOverMonth: null, partialMonth: null,
     candidates: {
       recurring: { count: 0, amount: 0 }, duplicate: { count: 0, amount: 0 },
       large: { count: 0, amount: 0 }, candidateTotal: 0,
@@ -71,6 +71,7 @@ describe("createClaudeSummarizer", () => {
     expect(request.system).toContain("정상 지출일 수 있다고 함께 말합니다");
     expect(request.system).toContain("가맹점명과 카테고리명은 입력에 적힌 그대로 씁니다");
     expect(request.system).toContain("tips는 절약 팁 3~5개");
+    expect(request.system).toContain("partialMonth가 있으면 그 달 카드 내역이 일부만 있어 지난달과 비교하지 않았다는 점을");
     expect(request.system).toContain("\"기타\" 카테고리는 요약이나 팁의 근거로 쓰지 않습니다");
     expect(request.system).toContain("금융상품을 추천하지 않습니다");
     if (input.plan === "free") {

@@ -25,7 +25,7 @@ const plans = ["free", "pro"] as const;
 const monthlyTransactions: Transaction[] = [
   transaction({ id: "tx-id-september", date: "2026-09-20", amount: 12_001 }),
   transaction({ id: "tx-id-august", date: "2026-08-01", amount: 3_001 }),
-  transaction({ id: "tx-id-july-refund", date: "2026-07-05", amount: -5_003 }),
+  transaction({ id: "tx-id-july-refund", date: "2026-07-01", amount: -5_003 }),
   transaction({ id: "tx-id-august-refund", date: "2026-08-31", amount: -101 }),
   transaction({ id: "tx-id-september-refund", date: "2026-09-30", amount: -2_003 }),
   transaction({
@@ -35,6 +35,9 @@ const monthlyTransactions: Transaction[] = [
     date: "2026-08-10",
     amount: 4_003,
   }),
+  // 전월 비교는 두 달에 거래가 있는 카드마다 두 달을 다 덮어야 한다.
+  transaction({ id: "tx-id-july-other-card", cardId: "card-b", cardLabel: "다른 카드", date: "2026-07-01", amount: 1_000 }),
+  transaction({ id: "tx-id-september-other-card", cardId: "card-b", cardLabel: "다른 카드", date: "2026-09-30", amount: 1_000 }),
 ];
 
 const mixedTransactions: Transaction[] = [
@@ -100,10 +103,11 @@ describe("buildDashboard", () => {
       months: [
         { month: "2026-09", period: { from: "2026-09-20", to: "2026-09-30" } },
         { month: "2026-08", period: { from: "2026-08-01", to: "2026-08-31" } },
-        { month: "2026-07", period: { from: "2026-07-05", to: "2026-07-05" } },
+        { month: "2026-07", period: { from: "2026-07-01", to: "2026-07-01" } },
       ],
       lastDate: "2026-09-30",
-      mom: { previousMonth: "2026-07", previousTotal: -5_003, diff: 11_906 },
+      mom: { previousMonth: "2026-07", previousTotal: -4_003, diff: 10_906 },
+      partialMonth: null,
     });
     expect(dto?.months).toEqual(listDataMonths(monthlyTransactions));
     expect(dto?.snapshot).toEqual(buildSnapshot(monthlyTransactions, "2026-08", today));
@@ -127,7 +131,7 @@ describe("buildDashboard", () => {
     if (dto?.plan !== "free") throw new Error("Expected a Free dashboard");
 
     expect(Object.keys(dto).sort()).toEqual([
-      "lastDate", "mom", "month", "months", "plan", "snapshot", "teaser", "trendAvailable",
+      "lastDate", "mom", "month", "months", "partialMonth", "plan", "snapshot", "teaser", "trendAvailable",
     ]);
     expect(Object.keys(dto.teaser).sort()).toEqual(["byKind", "candidateTotal"]);
     expect(dto.teaser).toEqual({
@@ -166,7 +170,7 @@ describe("buildDashboard", () => {
     if (dto?.plan !== "pro") throw new Error("Expected a Pro dashboard");
 
     expect(Object.keys(dto).sort()).toEqual([
-      "findings", "lastDate", "mom", "month", "months", "plan", "snapshot", "trend",
+      "findings", "lastDate", "mom", "month", "months", "partialMonth", "plan", "snapshot", "trend",
     ]);
     expect(Object.keys(dto.findings).sort()).toEqual(["byKind", "candidateTotal", "items"]);
     expect(dto.findings.items).toEqual(detectFindings(mixedTransactions, "2026-09"));
@@ -238,8 +242,21 @@ describe("buildDashboard", () => {
     });
     expect(buildDashboard({ ...input, today: "2026-10-01" })).toMatchObject({
       snapshot: { inProgress: false },
-      mom: { previousMonth: "2026-08", previousTotal: 6_903, diff: 3_095 },
+      mom: { previousMonth: "2026-08", previousTotal: 6_903, diff: 4_095 },
+      partialMonth: null,
     });
+  });
+
+  it.each(plans)("names the partial month instead of comparing on the %s plan", (plan) => {
+    const transactions = [
+      transaction({ id: "first", date: "2026-08-12" }),
+      transaction({ id: "middle", date: "2026-09-15" }),
+      transaction({ id: "last", date: "2026-10-11" }),
+    ];
+    const dto = buildDashboard({ transactions, plan, month: "2026-09", today });
+
+    expect(dto).toMatchObject({ mom: null, partialMonth: "2026-08" });
+    if (dto?.plan === "pro") expect(dto.trend?.categoryChanges).toBeNull();
   });
 
   it.each(plans)("keeps reordered results identical without mutating input on the %s plan", (plan) => {

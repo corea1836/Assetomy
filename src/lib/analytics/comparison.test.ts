@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CATEGORY_IDS } from "@/types/category";
 import type { Transaction } from "@/types/transaction";
-import { buildMonthOverMonth, buildTrend, TREND_MAX_MONTHS } from "./comparison";
+import { buildMonthComparison, buildMonthOverMonth, buildTrend, TREND_MAX_MONTHS } from "./comparison";
 import { addMonths } from "./dates";
 import { buildSnapshot } from "./snapshot";
 
@@ -17,6 +17,14 @@ function transaction(overrides: Partial<Transaction> = {}): Transaction {
     category: "food",
     ...overrides,
   };
+}
+
+// 카드 내역이 2026년 8·9월을 다 덮도록 두 달 바깥에 거래를 둔다(전월 비교 조건이고 두 달 합계에는 영향이 없다).
+function coverAugustToSeptember(cardId = "card-a"): Transaction[] {
+  return [
+    transaction({ id: `${cardId}-before`, cardId, date: "2026-07-31", amount: 1 }),
+    transaction({ id: `${cardId}-after`, cardId, date: "2026-10-01", amount: 1 }),
+  ];
 }
 
 describe("buildMonthOverMonth", () => {
@@ -67,6 +75,8 @@ describe("buildMonthOverMonth", () => {
       transaction({ id: "card-a-purchase", amount: 12_001 }),
       transaction({ id: "card-b-purchase", cardId: "card-b", amount: 12_001 }),
       transaction({ amount: -4_003 }),
+      ...coverAugustToSeptember("card-a"),
+      ...coverAugustToSeptember("card-b"),
     ];
     const previous = buildSnapshot(transactions, "2026-08", "2026-10-01");
     const current = buildSnapshot(transactions, "2026-09", "2026-10-01");
@@ -86,6 +96,7 @@ describe("buildMonthOverMonth", () => {
       transaction({ date: "2026-08-01", amount: 1_001 }),
       transaction({ date: "2026-08-31", amount: -1_001 }),
       transaction({ amount: 2_003 }),
+      ...coverAugustToSeptember(),
     ], "2026-09", "2026-10-01")).toEqual({
       previousMonth: "2026-08",
       previousTotal: 0,
@@ -97,6 +108,7 @@ describe("buildMonthOverMonth", () => {
     expect(buildMonthOverMonth([
       transaction({ date: "2026-08-01", amount: -1_001 }),
       transaction({ amount: -2_003 }),
+      ...coverAugustToSeptember(),
     ], "2026-09", "2026-10-01")).toEqual({
       previousMonth: "2026-08",
       previousTotal: -1_001,
@@ -108,6 +120,8 @@ describe("buildMonthOverMonth", () => {
     expect(buildMonthOverMonth([
       transaction({ date: "2025-12-31", amount: 1_001 }),
       transaction({ date: "2026-01-01", amount: 2_003 }),
+      transaction({ id: "before", date: "2025-11-30" }),
+      transaction({ id: "after", date: "2026-02-01" }),
     ], "2026-01", "2026-02-01")).toEqual({
       previousMonth: "2025-12",
       previousTotal: 1_001,
@@ -118,11 +132,81 @@ describe("buildMonthOverMonth", () => {
   it("uses zero for a selected month without transactions", () => {
     expect(buildMonthOverMonth([
       transaction({ date: "2026-08-31", amount: 1_001 }),
+      ...coverAugustToSeptember(),
     ], "2026-09", "2026-10-01")).toEqual({
       previousMonth: "2026-08",
       previousTotal: 1_001,
       diff: -1_001,
     });
+  });
+});
+
+describe("buildMonthComparison", () => {
+  const today = "2026-10-14";
+  function span(cardId: string, from: string, to: string): Transaction[] {
+    return [
+      transaction({ id: `${cardId}-from`, cardId, date: from, amount: 1_000 }),
+      transaction({ id: `${cardId}-to`, cardId, date: to, amount: 2_000 }),
+    ];
+  }
+
+  it("skips the comparison and names the previous month when a card starts more than three days into it", () => {
+    expect(buildMonthComparison(span("card-a", "2026-08-12", "2026-10-11"), "2026-09", today))
+      .toEqual({ mom: null, partialMonth: "2026-08" });
+  });
+
+  it("compares when every active card covers both months", () => {
+    const transactions = [
+      ...span("card-a", "2026-07-12", "2026-10-11"),
+      transaction({ id: "aug", date: "2026-08-20", amount: 5_000 }),
+      transaction({ id: "sep", date: "2026-09-20", amount: 8_000 }),
+    ];
+    expect(buildMonthComparison(transactions, "2026-09", today)).toEqual({
+      mom: { previousMonth: "2026-08", previousTotal: 5_000, diff: 3_000 },
+      partialMonth: null,
+    });
+  });
+
+  it.each([
+    ["2026-08-04", "2026-09-27", null],
+    ["2026-08-05", "2026-09-27", "2026-08"],
+    ["2026-08-04", "2026-09-26", "2026-09"],
+  ])("treats up to three missing days at a month edge as covered: %s~%s", (from, to, partialMonth) => {
+    expect(buildMonthComparison(span("card-a", from, to), "2026-09", today).partialMonth).toBe(partialMonth);
+  });
+
+  it("checks every card with transactions in either month", () => {
+    const transactions = [...span("card-a", "2026-07-12", "2026-10-11"), ...span("card-b", "2026-08-12", "2026-09-30")];
+    expect(buildMonthComparison(transactions, "2026-09", today)).toEqual({ mom: null, partialMonth: "2026-08" });
+  });
+
+  it("names the selected month when a card stops more than three days before its end", () => {
+    const transactions = [...span("card-a", "2026-07-01", "2026-09-20"), transaction({ id: "aug", date: "2026-08-15" })];
+    expect(buildMonthComparison(transactions, "2026-09", today)).toEqual({ mom: null, partialMonth: "2026-09" });
+  });
+
+  it("ignores cards without transactions in either month", () => {
+    const transactions = [
+      ...span("card-a", "2026-07-12", "2026-10-11"),
+      transaction({ id: "june-only", cardId: "card-c", date: "2026-06-15" }),
+      ...span("card-d", "2026-07-20", "2026-10-02"),
+    ];
+    expect(buildMonthComparison(transactions, "2026-09", today).partialMonth).toBeNull();
+  });
+
+  it("reports no partial month for an unfinished month or a previous month without data", () => {
+    expect(buildMonthComparison(span("card-a", "2026-09-12", "2026-10-11"), "2026-10", today))
+      .toEqual({ mom: null, partialMonth: null });
+    expect(buildMonthComparison(span("card-a", "2026-09-12", "2026-09-30"), "2026-09", today))
+      .toEqual({ mom: null, partialMonth: null });
+  });
+
+  it("keeps buildMonthOverMonth and the trend category changes in line with the comparison", () => {
+    const transactions = [...span("card-a", "2026-08-12", "2026-10-11"), transaction({ id: "sep", date: "2026-09-15" })];
+    expect(buildMonthOverMonth(transactions, "2026-09", today)).toBeNull();
+    const trend = buildTrend(transactions, "2026-09", today);
+    expect(trend?.months.map(({ month }) => month)).toEqual(["2026-08", "2026-09"]);
+    expect(trend?.categoryChanges).toBeNull();
   });
 });
 
@@ -184,6 +268,7 @@ describe("buildTrend", () => {
     const trend = buildTrend([
       transaction({ date: "2026-07-01", amount: 1_001 }),
       transaction({ date: "2026-08-01", amount: 2_003 }),
+      transaction({ id: "after", date: "2026-10-01" }),
     ], "2026-09", "2026-10-01");
 
     expect(trend).toEqual({
@@ -289,7 +374,7 @@ describe("buildTrend", () => {
     const transactions = [...CATEGORY_IDS].reverse().flatMap((category, index) => [
       transaction({ date: "2026-08-31", category, amount: 201 }),
       transaction({ category, amount: index % 2 === 0 ? 100 : 302 }),
-    ]);
+    ]).concat(coverAugustToSeptember());
 
     expect(buildTrend(transactions, "2026-09", "2026-10-01")?.categoryChanges
       ?.map((change) => change.category)).toEqual(CATEGORY_IDS);
@@ -299,6 +384,7 @@ describe("buildTrend", () => {
     expect(buildTrend([
       transaction({ date: "2026-08-31" }),
       transaction(),
+      ...coverAugustToSeptember(),
     ], "2026-09", "2026-10-01")?.categoryChanges).toEqual([]);
   });
 
@@ -308,7 +394,9 @@ describe("buildTrend", () => {
       transaction({ id: "previous", date: "2026-08-01", amount: 1_001 }),
       transaction({ id: "refund", amount: -101 }),
       transaction({ id: "earliest", date: "2026-07-31", category: "cafe" }),
+      transaction({ id: "latest", date: "2026-10-01" }),
     ];
+    expect(buildMonthOverMonth(transactions, "2026-09", "2026-10-01")).not.toBeNull();
     const original = transactions.map((item) => ({ ...item }));
     transactions.forEach(Object.freeze);
     Object.freeze(transactions);

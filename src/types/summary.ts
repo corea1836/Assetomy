@@ -38,6 +38,7 @@ type SummaryBase = {
   categories: SummaryCategory[];
   topMerchants: SummaryMerchant[];
   monthOverMonth: SummaryMonthOverMonth | null;
+  partialMonth: YearMonth | null;
   candidates: SummaryCandidates;
 };
 export type FreeSummaryInput = { plan: "free" } & SummaryBase;

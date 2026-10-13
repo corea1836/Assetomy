@@ -5,13 +5,16 @@ import {
   formatWon,
 } from "@/lib/format";
 import type { MonthOverMonth, Snapshot } from "@/types/dashboard";
+import type { YearMonth } from "@/types/transaction";
 
 export function TotalCard({
   snapshot,
   mom,
+  partialMonth = null,
 }: {
   snapshot: Snapshot;
   mom: MonthOverMonth | null;
+  partialMonth?: YearMonth | null;
 }): React.JSX.Element {
   return (
     <section className="flex flex-col rounded-3xl border border-hairline bg-canvas p-6 sm:p-8">
@@ -37,6 +40,11 @@ export function TotalCard({
               )}
             </>
           )}
+        </p>
+      )}
+      {mom === null && partialMonth !== null && (
+        <p className="mt-3 text-sm text-body">
+          {`${formatMonthShort(partialMonth)} 내역이 일부만 있어 지난달과 비교하지 않았어요`}
         </p>
       )}
       {/* 카드가 옆 카드 높이로 늘어나면 근거 줄을 아래로 붙인다 */}

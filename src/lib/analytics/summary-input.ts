@@ -42,6 +42,7 @@ export function buildSummaryInput(dashboard: Dashboard): SummaryInput {
             ? "down" as const
             : "same" as const,
       },
+    partialMonth: dashboard.partialMonth,
   };
 
   if (dashboard.plan === "free") {

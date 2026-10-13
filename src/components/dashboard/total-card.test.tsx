@@ -83,6 +83,15 @@ describe("TotalCard", () => {
     expect(screen.queryByText(/늘었어요|줄었어요|같아요/)).not.toBeInTheDocument();
   });
 
+  it.each([
+    ["2026-08", "8월 내역이 일부만 있어 지난달과 비교하지 않았어요"],
+    ["2026-09", "9월 내역이 일부만 있어 지난달과 비교하지 않았어요"],
+  ] as const)("explains a comparison skipped for the partial month %s", (partialMonth, sentence) => {
+    render(<TotalCard snapshot={snapshot} mom={null} partialMonth={partialMonth} />);
+
+    expect(screen.getByText(sentence)).toHaveClass("mt-3", "text-sm", "text-body");
+  });
+
   it("marks an in-progress month", () => {
     render(<TotalCard snapshot={{ ...snapshot, inProgress: true }} mom={null} />);
 

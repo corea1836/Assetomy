@@ -39,6 +39,9 @@ function inputForMonthOverMonth(
   const transactions = [
     transaction({ id: "previous", date: "2026-08-15", amount: previousAmount }),
     transaction({ id: "current", date: "2026-09-15", amount: currentAmount }),
+    // 카드 내역이 8·9월을 다 덮어야 전월 비교를 한다.
+    transaction({ id: "before", date: "2026-07-31" }),
+    transaction({ id: "after", date: "2026-10-01" }),
   ];
   return buildSummaryInput(getDashboard("free", transactions));
 }
@@ -53,6 +56,7 @@ const freeKeys = [
   "categories",
   "topMerchants",
   "monthOverMonth",
+  "partialMonth",
   "candidates",
 ];
 
@@ -161,6 +165,7 @@ describe("buildSummaryInput", () => {
       categories: free.categories,
       topMerchants: free.topMerchants,
       monthOverMonth: free.monthOverMonth,
+      partialMonth: free.partialMonth,
       candidates: free.candidates,
     }).toEqual({
       month: pro.month,
@@ -171,6 +176,7 @@ describe("buildSummaryInput", () => {
       categories: pro.categories,
       topMerchants: pro.topMerchants,
       monthOverMonth: pro.monthOverMonth,
+      partialMonth: pro.partialMonth,
       candidates: pro.candidates,
     });
   });
@@ -227,6 +233,21 @@ describe("buildSummaryInput", () => {
     expect(free.monthOverMonth).toBeNull();
     if (pro.plan !== "pro") throw new Error("Expected a Pro summary input");
     expect(pro.trend).toBeNull();
+  });
+
+  it("passes the partial month instead of a comparison when a card covers only part of the previous month", () => {
+    const transactions = [
+      transaction({ id: "first", date: "2026-08-12" }),
+      transaction({ id: "current", date: "2026-09-15" }),
+      transaction({ id: "last", date: "2026-10-01" }),
+    ];
+    for (const plan of ["free", "pro"] as const) {
+      const input = buildSummaryInput(getDashboard(plan, transactions));
+      expect(input.monthOverMonth).toBeNull();
+      expect(input.partialMonth).toBe("2026-08");
+      if (input.plan === "pro") expect(input.trend?.categoryChanges).toBeNull();
+    }
+    expect(buildSummaryInput(getDashboard("free")).partialMonth).toBeNull();
   });
 
   it("preserves the DTO nested key order", () => {

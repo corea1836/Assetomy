@@ -14,6 +14,7 @@ function freeInput(overrides: Partial<FreeSummaryInput> = {}): FreeSummaryInput 
     categories: [],
     topMerchants: [],
     monthOverMonth: null,
+    partialMonth: null,
     candidates: {
       recurring: { count: 0, amount: 0 },
       duplicate: { count: 0, amount: 0 },
