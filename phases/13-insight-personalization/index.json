@@ -39,7 +39,10 @@
     {
       "step": 3,
       "name": "cancel-pairing",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T20:17:44+0900",
+      "summary": "pairCancellations가 같은 카드·정규화 가맹점의 정확한 반대 금액을 날짜·id 순으로 짝짓고, 스냅샷 transactionCount·가맹점 count는 짝 양쪽을 제외하며 cancelCount를 추가했다. detectLarge는 전체 입력에서 짝지은 결제를 표본·후보에서 제외한다. 데모 9월 총액 1,517,200원은 그대로, 24건·취소 1건이며 대시보드 26→24건·랜딩 기대값을 ADR-025에 맞춰 갱신했다.",
+      "completed_at": "2026-10-14T20:22:11+0900"
     },
     {
       "step": 4,
