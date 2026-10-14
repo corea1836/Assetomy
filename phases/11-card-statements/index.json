@@ -23,7 +23,10 @@
     {
       "step": 1,
       "name": "statement-parse",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T14:10:33+0900",
+      "summary": "parseHyundaiStatement(rows, savedAt)·parsePdfDate·StatementInfo·ParseSuccess.issuer·CARD_ISSUERS/CARD_ISSUER_LABELS 추가; no_transactions→too_many_rows→multiple_cards→total_mismatch→청구일 검증 순서 적용, 테스트 26개 케이스 추가.",
+      "completed_at": "2026-10-14T14:16:01+0900"
     },
     {
       "step": 2,
