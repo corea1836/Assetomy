@@ -254,7 +254,7 @@ insert into _rpc select 'product_upload_second', public.begin_upload(
   'product-second.pdf', repeat('d', 64), 100
 ) from _rpc where name = 'card_product';
 insert into _rpc select 'product_ingest_second', public.ingest_upload(
-  '00000000-0000-4000-8000-000000000051', (result->>'upload_id')::uuid,
+  '00000000-0000-4000-8000-000000000051', (u.result->>'upload_id')::uuid,
   'content', 'negative_amount', r.result, 0, null, null, null, null
 ) from _rpc as u cross join _rpc as r where u.name = 'product_upload_second' and r.name = 'rows_product_two';
 insert into _tap(line) select is((select result->>'kind' from _rpc where name = 'product_ingest_second'), 'done', '상품을 다시 모르는 업로드도 done이다');
@@ -268,7 +268,7 @@ insert into _rpc select 'null_upload', public.begin_upload(
   'null-metadata.pdf', repeat('e', 64), 100
 ) from _rpc where name = 'card_null';
 insert into _rpc select 'null_ingest', public.ingest_upload(
-  '00000000-0000-4000-8000-000000000051', (result->>'upload_id')::uuid,
+  '00000000-0000-4000-8000-000000000051', (u.result->>'upload_id')::uuid,
   'content', 'negative_amount', r.result, 0, null, null, null, null
 ) from _rpc as u cross join _rpc as r where u.name = 'null_upload' and r.name = 'rows_null_card';
 insert into _tap(line) select is((select result->>'kind' from _rpc where name = 'null_ingest'), 'done', '카드사·상품명을 모르는 ingest는 검사 없이 done이다');
@@ -278,7 +278,7 @@ insert into _rpc select 'no_new_first_upload', public.begin_upload(
   'no-new-first.pdf', repeat('f', 64), 100
 ) from _rpc where name = 'card_no_new';
 insert into _rpc select 'no_new_first_ingest', public.ingest_upload(
-  '00000000-0000-4000-8000-000000000051', (result->>'upload_id')::uuid,
+  '00000000-0000-4000-8000-000000000051', (u.result->>'upload_id')::uuid,
   'content', 'negative_amount', r.result, 0, null, null, null, null
 ) from _rpc as u cross join _rpc as r where u.name = 'no_new_first_upload' and r.name = 'rows_no_new';
 insert into _rpc select 'no_new_second_upload', public.begin_upload(
@@ -300,7 +300,7 @@ insert into _rpc select 'upload_statement_first', public.begin_upload(
   'statement-first.pdf', repeat('1', 64), 100
 ) from _rpc where name = 'card_month';
 insert into _rpc select 'ingest_statement_first', public.ingest_upload(
-  '00000000-0000-4000-8000-000000000051', (result->>'upload_id')::uuid,
+  '00000000-0000-4000-8000-000000000051', (u.result->>'upload_id')::uuid,
   'content', 'negative_amount', r.result, 0, 'hyundai', '현대카드MM', '2026-10-23', '2026-10-12 06:15:05+00'
 ) from _rpc as u cross join _rpc as r where u.name = 'upload_statement_first' and r.name = 'rows_statement_first';
 insert into _tap(line) select is((select result->>'kind' from _rpc where name = 'ingest_statement_first'), 'done', '첫 청구서 업로드가 done이다');
@@ -322,7 +322,7 @@ insert into _rpc select 'upload_user_b', public.begin_upload(
   'user-b.pdf', repeat('2', 64), 100
 ) from _rpc where name = 'card_b';
 insert into _rpc select 'ingest_user_b', public.ingest_upload(
-  '00000000-0000-4000-8000-000000000052', (result->>'upload_id')::uuid,
+  '00000000-0000-4000-8000-000000000052', (u.result->>'upload_id')::uuid,
   'content', 'negative_amount', r.result, 0, null, null, null, null
 ) from _rpc as u cross join _rpc as r where u.name = 'upload_user_b' and r.name = 'rows_user_b';
 insert into _tap(line) select is(
@@ -385,7 +385,7 @@ insert into _rpc select 'upload_statement_older', public.begin_upload(
   'statement-older.pdf', repeat('4', 64), 100
 ) from _rpc where name = 'card_month';
 insert into _rpc select 'ingest_statement_older', public.ingest_upload(
-  '00000000-0000-4000-8000-000000000051', (result->>'upload_id')::uuid,
+  '00000000-0000-4000-8000-000000000051', (u.result->>'upload_id')::uuid,
   'content', 'negative_amount', r.result, 0, 'hyundai', '현대카드MM', '2026-10-23', '2026-10-01 00:00:00+00'
 ) from _rpc as u cross join _rpc as r where u.name = 'upload_statement_older' and r.name = 'rows_statement_other';
 insert into _tap(line) select is(
@@ -412,7 +412,7 @@ insert into _rpc select 'upload_statement_equal', public.begin_upload(
   'statement-equal.pdf', repeat('5', 64), 100
 ) from _rpc where name = 'card_month';
 insert into _rpc select 'ingest_statement_equal', public.ingest_upload(
-  '00000000-0000-4000-8000-000000000051', (result->>'upload_id')::uuid,
+  '00000000-0000-4000-8000-000000000051', (u.result->>'upload_id')::uuid,
   'content', 'negative_amount', r.result, 0, 'hyundai', '현대카드MM', '2026-10-23', '2026-10-13 22:39:44+00'
 ) from _rpc as u cross join _rpc as r where u.name = 'upload_statement_equal' and r.name = 'rows_statement_other';
 insert into _tap(line) select is(
@@ -425,7 +425,7 @@ insert into _rpc select 'upload_statement_null_previous', public.begin_upload(
   'statement-null-previous.pdf', repeat('6', 64), 100
 ) from _rpc where name = 'card_month';
 insert into _rpc select 'ingest_statement_null_previous', public.ingest_upload(
-  '00000000-0000-4000-8000-000000000051', (result->>'upload_id')::uuid,
+  '00000000-0000-4000-8000-000000000051', (u.result->>'upload_id')::uuid,
   'content', 'negative_amount', r.result, 0, 'hyundai', '현대카드MM', '2026-10-24', '2026-10-13 22:39:44+00'
 ) from _rpc as u cross join _rpc as r where u.name = 'upload_statement_null_previous' and r.name = 'rows_statement_other';
 insert into _rpc select 'upload_statement_null_newer', public.begin_upload(
@@ -433,7 +433,7 @@ insert into _rpc select 'upload_statement_null_newer', public.begin_upload(
   'statement-null-newer.pdf', repeat('7', 64), 100
 ) from _rpc where name = 'card_month';
 insert into _rpc select 'ingest_statement_null_newer', public.ingest_upload(
-  '00000000-0000-4000-8000-000000000051', (result->>'upload_id')::uuid,
+  '00000000-0000-4000-8000-000000000051', (u.result->>'upload_id')::uuid,
   'content', 'negative_amount', r.result, 0, 'hyundai', '현대카드MM', '2026-10-24', null
 ) from _rpc as u cross join _rpc as r where u.name = 'upload_statement_null_newer' and r.name = 'rows_statement_null_newer';
 insert into _tap(line) select is((select result->>'kind' from _rpc where name = 'ingest_statement_null_newer'), 'done', '저장 시각이 없는 새 업로드는 현재 업로드 시각으로 비교해 교체한다');
@@ -448,7 +448,7 @@ insert into _rpc select 'upload_statement_future', public.begin_upload(
   'statement-future.pdf', repeat('8', 64), 100
 ) from _rpc where name = 'card_month';
 insert into _rpc select 'ingest_statement_future', public.ingest_upload(
-  '00000000-0000-4000-8000-000000000051', (result->>'upload_id')::uuid,
+  '00000000-0000-4000-8000-000000000051', (u.result->>'upload_id')::uuid,
   'content', 'negative_amount', r.result, 0, 'hyundai', '현대카드MM', '2026-10-25', '2099-01-01 00:00:00+00'
 ) from _rpc as u cross join _rpc as r where u.name = 'upload_statement_future' and r.name = 'rows_statement_future_previous';
 reset role;
@@ -460,7 +460,7 @@ insert into _rpc select 'upload_statement_future_newer', public.begin_upload(
   'statement-future-newer.pdf', repeat('9', 64), 100
 ) from _rpc where name = 'card_month';
 insert into _rpc select 'ingest_statement_future_newer', public.ingest_upload(
-  '00000000-0000-4000-8000-000000000051', (result->>'upload_id')::uuid,
+  '00000000-0000-4000-8000-000000000051', (u.result->>'upload_id')::uuid,
   'content', 'negative_amount', r.result, 0, 'hyundai', '현대카드MM', '2026-10-25', '2026-10-13 22:39:44+00'
 ) from _rpc as u cross join _rpc as r where u.name = 'upload_statement_future_newer' and r.name = 'rows_statement_future_newer';
 insert into _tap(line) select is((select result->>'kind' from _rpc where name = 'ingest_statement_future_newer'), 'done', '미래 PDF 저장 시각은 업로드 시각으로 제한해 더 늦은 업로드가 교체한다');
@@ -475,17 +475,17 @@ insert into _rpc select 'upload_statement_other_date', public.begin_upload(
   'statement-other-date.pdf', repeat('0', 64), 100
 ) from _rpc where name = 'card_month';
 insert into _rpc select 'ingest_statement_other_date', public.ingest_upload(
-  '00000000-0000-4000-8000-000000000051', (result->>'upload_id')::uuid,
+  '00000000-0000-4000-8000-000000000051', (u.result->>'upload_id')::uuid,
   'content', 'negative_amount', r.result, 0, 'hyundai', '현대카드MM', '2026-09-23', '2026-10-12 06:15:05+00'
 ) from _rpc as u cross join _rpc as r where u.name = 'upload_statement_other_date' and r.name = 'rows_statement_other_date';
 insert into _tap(line) select is((select result->>'kind' from _rpc where name = 'ingest_statement_other_date'), 'done', '다른 청구일은 기존 청구서와 별도로 done이다');
 
 insert into _rpc select 'upload_statement_other_card', public.begin_upload(
   '00000000-0000-4000-8000-000000000051', (result->>'card_id')::uuid,
-  'statement-other-card.pdf', repeat('3', 64), 100
+  'statement-other-card.pdf', repeat('3', 63) || 'e', 100
 ) from _rpc where name = 'card_cycle';
 insert into _rpc select 'ingest_statement_other_card', public.ingest_upload(
-  '00000000-0000-4000-8000-000000000051', (result->>'upload_id')::uuid,
+  '00000000-0000-4000-8000-000000000051', (u.result->>'upload_id')::uuid,
   'content', 'negative_amount', r.result, 0, 'hyundai', null, '2026-10-23', '2026-10-12 06:15:05+00'
 ) from _rpc as u cross join _rpc as r where u.name = 'upload_statement_other_card' and r.name = 'rows_statement_other_card';
 insert into _tap(line) select is((select result->>'kind' from _rpc where name = 'ingest_statement_other_card'), 'done', '같은 청구일이어도 다른 카드는 done이다');
@@ -495,7 +495,7 @@ insert into _rpc select 'upload_statement_no_date', public.begin_upload(
   'statement-no-date.pdf', repeat('4', 64), 100
 ) from _rpc where name = 'card_month';
 insert into _rpc select 'ingest_statement_no_date', public.ingest_upload(
-  '00000000-0000-4000-8000-000000000051', (result->>'upload_id')::uuid,
+  '00000000-0000-4000-8000-000000000051', (u.result->>'upload_id')::uuid,
   'content', 'negative_amount', r.result, 0, null, null, null, null
 ) from _rpc as u cross join _rpc as r where u.name = 'upload_statement_no_date' and r.name = 'rows_statement_no_date';
 insert into _tap(line) select is((select result->>'kind' from _rpc where name = 'ingest_statement_no_date'), 'done', '청구일이 없는 형식은 교체 검사 없이 done이다');
