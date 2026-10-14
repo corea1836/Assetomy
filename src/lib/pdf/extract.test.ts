@@ -37,9 +37,19 @@ describe("extractPdfTextItems with synthetic PDFs", () => {
       { page: 1, x: 72, y: 700, str: "HELLO" },
       { page: 1, x: 272, y: 700, str: "1,000" },
     ]));
+    expect(result.savedAt).toBeNull();
     expect(result.items.some((item) => item.str === "")).toBe(false);
     expect(bytes.byteLength).toBe(original.byteLength);
     expect(bytes).toEqual(original);
+  });
+
+  it("extracts and normalizes the PDF CreationDate metadata", async () => {
+    const result = await extractPdfTextItems(makeTestPdf([TEST_TEXT_STREAM], false, {
+      creationDate: "D:20261013223944Z00'00'",
+    }));
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("Expected extracted text");
+    expect(result.savedAt).toBe("2026-10-13T22:39:44Z");
   });
 
   it("numbers pages from one and retains their own coordinates", async () => {
@@ -92,7 +102,7 @@ describe("extractPdfTextItems resource and error boundaries", () => {
     expect(await extractPdfTextItems(bytes)).toEqual({ ok: true, items: [
       { page: 1, x: 72, y: 700, str: "HELLO" },
       { page: 1, x: 200, y: 700, str: " " },
-    ] });
+    ], savedAt: null });
 
     const packageDir = dirname(createRequire(import.meta.url).resolve("pdfjs-dist/package.json"));
     const options = vi.mocked(getDocument).mock.calls[0][0];
@@ -152,6 +162,22 @@ describe("extractPdfTextItems resource and error boundaries", () => {
     expect(getPage).toHaveBeenCalledTimes(100);
     expect(getPage).toHaveBeenNthCalledWith(100, 100);
     expect(destroy).toHaveBeenCalledOnce();
+  });
+
+  it("continues with null savedAt when PDF metadata cannot be read", async () => {
+    const getMetadata = vi.fn().mockRejectedValue(new Error("METADATA_FAILED"));
+    const getTextContent = vi.fn().mockResolvedValue({
+      items: [{ str: "HELLO", transform: [1, 0, 0, 1, 72, 700] }],
+    });
+    mockLoadingTask(Promise.resolve({
+      numPages: 1,
+      getMetadata,
+      getPage: vi.fn().mockResolvedValue({ getTextContent }),
+    }));
+
+    expect(await extractPdfTextItems(makeTestPdf([TEST_TEXT_STREAM]))).toEqual({
+      ok: true, savedAt: null, items: [{ page: 1, x: 72, y: 700, str: "HELLO" }],
+    });
   });
 
   it.each(["getPage", "getTextContent"])("cleans up and rethrows unexpected %s errors", async (method) => {

@@ -26,8 +26,9 @@ const baseTransactions = [
 ].map((transaction) => ({ ...transaction, merchantKey: normalizeMerchantKey(transaction.merchant) }));
 const sourceEventKeys = contentEventKeys(baseTransactions);
 const parsed: ParseSuccess = {
-  ok: true, profile: "hyundai_statement_pdf", identityScope: "content", cancelStyle: "negative_amount",
+  ok: true, profile: "hyundai_statement_pdf", issuer: "hyundai", identityScope: "content", cancelStyle: "negative_amount",
   statementTotal: baseTransactions.reduce((total, transaction) => total + transaction.amount, 0),
+  statement: { date: "2026-10-23", productName: "현대카드MM", savedAt: null },
   transactions: baseTransactions.map((transaction, index) => ({
     ...transaction, eventKind: "purchase", sourceEventKey: sourceEventKeys[index],
   })),

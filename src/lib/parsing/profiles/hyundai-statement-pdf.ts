@@ -11,7 +11,7 @@ import { contentEventKeys, normalizeMerchantKey, parseWonAmount } from "../norma
 
 export const MAX_TRANSACTIONS = 5000;
 
-const HEADER = /^\d{1,2}월 \d{1,2}일 명세서$/;
+const HEADER = /^(\d{1,2})월 (\d{1,2})일 명세서$/;
 const WON_AMOUNT = /^(-?\d{1,3}(?:,\d{3})*)원$/;
 const DATE_ROW = /^(\d{2})\. (\d{1,2})\. (\d{1,2}) \([월화수목금토일]\)$/;
 const CURRENCY_ROW = /^\([A-Z]{3}\s*:\s*[\d,.]+\)$/;
@@ -31,6 +31,30 @@ function isHeader(row: PdfRow): boolean {
 
 function unreadable(reason: UnreadableReason): ParseFailure {
   return { ok: false, code: "UNREADABLE", reason };
+}
+
+export function statementDate(month: number, day: number, lastDate: IsoDate): IsoDate | null {
+  if (!Number.isInteger(month) || !Number.isInteger(day) || month < 1 || month > 12 || day < 1) {
+    return null;
+  }
+
+  const monthDay = String(month).padStart(2, "0") + "-" + String(day).padStart(2, "0");
+  const lastMonthDay = lastDate.slice(5);
+  const year = Number(lastDate.slice(0, 4)) + (monthDay < lastMonthDay ? 1 : 0);
+  const yearMonth = String(year).padStart(4, "0") + "-" + String(month).padStart(2, "0");
+  if (day > daysInMonth(yearMonth)) return null;
+  return yearMonth + "-" + String(day).padStart(2, "0");
+}
+
+function readProductName(row: PdfRow): string | null {
+  const lastCell = row.cells.at(-1)?.str.trim();
+  let productCells = row.cells;
+  if (lastCell === "원") productCells = row.cells.slice(0, -2);
+  else if (/^-?[\d,]+원$/.test(lastCell ?? "")) productCells = row.cells.slice(0, -1);
+
+  const product = productCells.map((cell) => cell.str).join("")
+    .replace(/\s+/g, " ").trim().replace(/^일시불\s+/, "");
+  return product.startsWith("현대카드") && Array.from(product).length <= 40 ? product : null;
 }
 
 function readTransaction(row: PdfRow): { merchant: string; amount: number } | null {
@@ -78,7 +102,7 @@ export function detectHyundaiStatement(rows: PdfRow[]): boolean {
   return rows.some(isHeader) && rows.some((row) => row.text.includes("현대카드"));
 }
 
-export function parseHyundaiStatement(rows: PdfRow[]): ParseResult {
+export function parseHyundaiStatement(rows: PdfRow[], savedAt: string | null = null): ParseResult {
   const headerIndex = rows.findIndex(isHeader);
   if (headerIndex === -1) {
     return { ok: false, code: "UNSUPPORTED_FILE", reason: "unknown_format" };
@@ -88,11 +112,16 @@ export function parseHyundaiStatement(rows: PdfRow[]): ParseResult {
   if (!totalMatch) return unreadable("broken_layout");
   const statementTotal = parseWonAmount(totalMatch[1]);
   if (statementTotal === null) return unreadable("broken_layout");
+  const headerMatch = rows[headerIndex].text.match(HEADER);
+  if (!headerMatch) return unreadable("broken_layout");
+  const statementMonth = Number(headerMatch[1]);
+  const statementDay = Number(headerMatch[2]);
 
   let currentDate: IsoDate | undefined;
   // 같은 날짜 아래 바로 앞 거래. "결제 취소" 줄은 이 거래의 취소다.
   let previousMerchant: string | null = null;
   const transactions: Omit<ParsedTransaction, "sourceEventKey">[] = [];
+  const productNames = new Set<string>();
   for (let index = headerIndex + 2; index < rows.length; index += 1) {
     const row = rows[index];
     const dateMatch = row.text.match(DATE_ROW);
@@ -148,6 +177,9 @@ export function parseHyundaiStatement(rows: PdfRow[]): ParseResult {
     if (amount > 0 && (row.text.includes("취소") || payment.text.includes("취소"))) {
       return unreadable("cancel_label");
     }
+    const productName = readProductName(payment);
+    if (!productName) return unreadable("broken_layout");
+    productNames.add(productName);
 
     if (amount !== 0) {
       transactions.push({
@@ -164,6 +196,8 @@ export function parseHyundaiStatement(rows: PdfRow[]): ParseResult {
 
   if (transactions.length === 0) return unreadable("no_transactions");
   if (transactions.length > MAX_TRANSACTIONS) return unreadable("too_many_rows");
+  if (productNames.size > 1) return unreadable("multiple_cards");
+  if (productNames.size === 0) return unreadable("broken_layout");
 
   // 중간 합계가 안전한 정수 범위를 넘더라도 대조하는 합계는 정확하게 유지한다.
   const total = transactions.reduce(
@@ -171,13 +205,22 @@ export function parseHyundaiStatement(rows: PdfRow[]): ParseResult {
   );
   if (total !== BigInt(statementTotal)) return unreadable("total_mismatch");
 
+  const lastDate = transactions.reduce<IsoDate>(
+    (last, transaction) => transaction.date > last ? transaction.date : last,
+    transactions[0].date,
+  );
+  const billingDate = statementDate(statementMonth, statementDay, lastDate);
+  if (!billingDate) return unreadable("broken_layout");
+
   const eventKeys = contentEventKeys(transactions);
   return {
     ok: true,
     profile: "hyundai_statement_pdf",
+    issuer: "hyundai",
     identityScope: "content",
     cancelStyle: "negative_amount",
     statementTotal,
+    statement: { date: billingDate, productName: productNames.values().next().value!, savedAt },
     transactions: transactions.map((transaction, index) => ({
       ...transaction,
       sourceEventKey: eventKeys[index],

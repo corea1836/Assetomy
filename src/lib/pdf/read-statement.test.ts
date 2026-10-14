@@ -30,14 +30,25 @@ describe("readPdfStatement", () => {
 
   it("groups extracted fixture fragments and returns the profile result", async () => {
     const items: PdfTextItem[] = fixture;
-    vi.mocked(extractPdfTextItems).mockResolvedValueOnce({ ok: true, items });
+    vi.mocked(extractPdfTextItems).mockResolvedValueOnce({ ok: true, items, savedAt: null });
     const bytes = makeTestPdf([TEST_TEXT_STREAM]);
     expect(await readPdfStatement(bytes)).toEqual(parseHyundaiStatement(groupPdfRows(items)));
     expect(extractPdfTextItems).toHaveBeenCalledWith(bytes);
   });
 
+  it("passes PDF metadata through to the statement parser", async () => {
+    const items: PdfTextItem[] = fixture;
+    vi.mocked(extractPdfTextItems).mockResolvedValueOnce({
+      ok: true, items, savedAt: "2026-10-13T22:39:44Z",
+    });
+    const result = await readPdfStatement(makeTestPdf([TEST_TEXT_STREAM]));
+    expect(result.ok).toBe(true);
+    if (!result.ok) throw new Error("Expected a successfully parsed statement");
+    expect(result.statement.savedAt).toBe("2026-10-13T22:39:44Z");
+  });
+
   it("requires detection of the Hyundai marker before parsing", async () => {
-    vi.mocked(extractPdfTextItems).mockResolvedValueOnce({ ok: true, items: [
+    vi.mocked(extractPdfTextItems).mockResolvedValueOnce({ ok: true, savedAt: null, items: [
       { page: 1, x: 0, y: 700, str: "10월 23일 명세서" },
       { page: 1, x: 0, y: 600, str: "1,000원" },
     ] });
@@ -50,7 +61,7 @@ describe("readPdfStatement", () => {
     const items = fixture.map((item) => ({
       ...item, str: item.str === "1,820,075" ? "1,820,076" : item.str,
     }));
-    vi.mocked(extractPdfTextItems).mockResolvedValueOnce({ ok: true, items });
+    vi.mocked(extractPdfTextItems).mockResolvedValueOnce({ ok: true, items, savedAt: null });
     expect(await readPdfStatement(new Uint8Array())).toEqual({
       ok: false, code: "UNREADABLE", reason: "total_mismatch",
     });
@@ -80,5 +91,8 @@ describe.skipIf(!process.env.ASSETOMY_SAMPLE_PDF)("readPdfStatement with a local
     expect(result.statementTotal).toBe(1_820_075);
     expect(result.transactions.map(({ date, amount }) => [date, amount]))
       .toEqual(expected.transactions.map(({ date, amount }) => [date, amount]));
+    expect(result.statement.date).toBe("2026-10-23");
+    expect(result.statement.productName).toBe("현대카드MM");
+    expect(result.statement.savedAt).toMatch(/^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}(Z|[+-]\d{2}:\d{2})$/);
   });
 });

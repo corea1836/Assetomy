@@ -16,5 +16,5 @@ export async function readPdfStatement(bytes: Uint8Array): Promise<ParseResult> 
   if (!detectHyundaiStatement(rows)) {
     return { ok: false, code: "UNSUPPORTED_FILE", reason: "unknown_format" };
   }
-  return parseHyundaiStatement(rows);
+  return parseHyundaiStatement(rows, extraction.savedAt);
 }

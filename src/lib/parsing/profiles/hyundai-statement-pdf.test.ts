@@ -6,6 +6,7 @@ import {
   detectHyundaiStatement,
   MAX_TRANSACTIONS,
   parseHyundaiStatement,
+  statementDate,
 } from "./hyundai-statement-pdf";
 
 const fixtureItems: PdfTextItem[] = fixture;
@@ -44,8 +45,8 @@ function statementRows(total: string, ...body: string[][]): PdfRow[] {
   ];
 }
 
-function parseSuccess(rows: PdfRow[]) {
-  const result = parseHyundaiStatement(rows);
+function parseSuccess(rows: PdfRow[], savedAt: string | null = null) {
+  const result = parseHyundaiStatement(rows, savedAt);
   expect(result.ok).toBe(true);
   if (!result.ok) throw new Error("Expected a successfully parsed statement");
   return result;
@@ -101,9 +102,11 @@ describe("parseHyundaiStatement with the anonymized fixture", () => {
     expect(result).toMatchObject({
       ok: true,
       profile: "hyundai_statement_pdf",
+      issuer: "hyundai",
       identityScope: "content",
       cancelStyle: "negative_amount",
       statementTotal: 1_820_075,
+      statement: { date: "2026-10-23", productName: "현대카드MM", savedAt: null },
     });
     expect(result.transactions).toHaveLength(78);
     expect(result.transactions.every((transaction) => transaction.eventKind === "purchase"))
@@ -117,6 +120,12 @@ describe("parseHyundaiStatement with the anonymized fixture", () => {
     const dates = result.transactions.map((transaction) => transaction.date).sort();
     expect(dates[0]).toBe("2026-09-12");
     expect(dates[dates.length - 1]).toBe("2026-10-11");
+  });
+
+  it("preserves the extracted PDF save time", () => {
+    const savedAt = "2026-10-13T22:39:44Z";
+    const result = parseSuccess(groupPdfRows(fixtureItems), savedAt);
+    expect(result.statement.savedAt).toBe(savedAt);
   });
 
   it("preserves file order and derives content keys from normalized merchants", () => {
@@ -252,6 +261,57 @@ describe("parseHyundaiStatement layout and limits", () => {
     });
     expect(parseHyundaiStatement([row(["10월 23일 명세서"])]))
       .toEqual({ ok: false, code: "UNREADABLE", reason: "broken_layout" });
+  });
+
+  it("collects a product name from a payment line with a zero amount and an annual-fee line", () => {
+    const result = parseSuccess(statementRows(
+      "2,000",
+      ["QS25", "1,000원"], ["일시불", " ", "현대카드", "MM", "0", "원"],
+      ["연회비", "1,000원"], ["현대카드", "MM"],
+    ));
+    expect(result.statement.productName).toBe("현대카드MM");
+    expect(result.transactions).toHaveLength(2);
+  });
+
+  it("rejects a statement that contains more than one card product", () => {
+    expect(parseHyundaiStatement(statementRows(
+      "2,000",
+      ["QS25", "1,000원"], ["일시불", " ", "현대카드", "MM"],
+      ["QS26", "1,000원"], ["일시불", " ", "현대카드", "ZERO"],
+    ))).toEqual({ ok: false, code: "UNREADABLE", reason: "multiple_cards" });
+  });
+
+  it("rejects a payment line with a malformed product name", () => {
+    expect(parseHyundaiStatement(statementRows(
+      "1,000", ["QS25", "1,000원"], ["일시불", " ", "신한카드", "MM"],
+    ))).toEqual({ ok: false, code: "UNREADABLE", reason: "broken_layout" });
+  });
+
+  it("derives the statement date from the last transaction date", () => {
+    const rows = [
+      row(["1월 23일 명세서"]), row(["1,000원"]), row(["26. 12. 11 (금)"]),
+      row(["QS25", "1,000원"]), row(["일시불", " ", "현대카드", "MM"]),
+    ];
+    expect(parseSuccess(rows).statement.date).toBe("2027-01-23");
+
+    const sameDayRows = [
+      row(["10월 11일 명세서"]), row(["1,000원"]), row(["26. 10. 11 (일)"]),
+      row(["QS25", "1,000원"]), row(["일시불", " ", "현대카드", "MM"]),
+    ];
+    expect(parseSuccess(sameDayRows).statement.date).toBe("2026-10-11");
+  });
+
+  it("rejects a statement date that does not exist in the derived year", () => {
+    const rows = [
+      row(["2월 30일 명세서"]), row(["1,000원"]), row(["26. 10. 11 (일)"]),
+      row(["QS25", "1,000원"]), row(["일시불", " ", "현대카드", "MM"]),
+    ];
+    expect(parseHyundaiStatement(rows)).toEqual({ ok: false, code: "UNREADABLE", reason: "broken_layout" });
+  });
+
+  it("calculates leap-day statement dates without Date objects", () => {
+    expect(statementDate(2, 29, "2027-01-10")).toBeNull();
+    expect(statementDate(2, 29, "2028-01-10")).toBe("2028-02-29");
   });
 
   it.each([

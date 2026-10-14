@@ -1,5 +1,9 @@
 // 합성 PDF만 만든다. 원본 카드 이용내역은 테스트 파일에 저장하지 않는다.
-export function makeTestPdf(streams: string[], encrypted = false): Uint8Array {
+export function makeTestPdf(
+  streams: string[],
+  encrypted = false,
+  info?: { creationDate?: string },
+): Uint8Array {
   const pages = streams.map((_, index) => `${4 + index * 2} 0 R`).join(" ");
   const objects = [
     "<< /Type /Catalog /Pages 2 0 R >>",
@@ -12,8 +16,17 @@ export function makeTestPdf(streams: string[], encrypted = false): Uint8Array {
       `<< /Length ${Buffer.byteLength(stream)} >>\nstream\n${stream}\nendstream`,
     );
   }
+  let infoRef: number | undefined;
+  if (info?.creationDate !== undefined) {
+    infoRef = objects.length + 1;
+    objects.push("<< /CreationDate (" + info.creationDate + ") >>");
+  }
+
+  let encryptionRef: number | undefined;
   if (encrypted) {
-    objects.push(`<< /Filter /Standard /V 1 /R 2 /O <${"00".repeat(32)}> /U <${"00".repeat(32)}> /P -4 >>`);
+    encryptionRef = objects.length + 1;
+    objects.push("<< /Filter /Standard /V 1 /R 2 /O <" + "00".repeat(32)
+      + "> /U <" + "00".repeat(32) + "> /P -4 >>");
   }
 
   let pdf = "%PDF-1.4\n";
@@ -25,10 +38,12 @@ export function makeTestPdf(streams: string[], encrypted = false): Uint8Array {
   const xref = Buffer.byteLength(pdf);
   pdf += `xref\n0 ${objects.length + 1}\n0000000000 65535 f \n`;
   pdf += offsets.slice(1).map((offset) => `${String(offset).padStart(10, "0")} 00000 n \n`).join("");
-  const encryption = encrypted
-    ? ` /Encrypt ${objects.length} 0 R /ID [<${"00".repeat(16)}> <${"00".repeat(16)}>]`
+  const encryption = encryptionRef
+    ? " /Encrypt " + encryptionRef + " 0 R /ID [<" + "00".repeat(16) + "> <" + "00".repeat(16) + ">]"
     : "";
-  pdf += `trailer\n<< /Size ${objects.length + 1} /Root 1 0 R${encryption} >>\nstartxref\n${xref}\n%%EOF\n`;
+  const metadata = infoRef ? " /Info " + infoRef + " 0 R" : "";
+  pdf += "trailer\n<< /Size " + (objects.length + 1) + " /Root 1 0 R" + encryption + metadata
+    + " >>\nstartxref\n" + xref + "\n%%EOF\n";
   return new TextEncoder().encode(pdf);
 }
 

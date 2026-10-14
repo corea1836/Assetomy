@@ -21,8 +21,9 @@ const transactions: ParsedTransaction[] = [
     amount: -500, eventKind: "cancel", sourceEventKey: "2026-09-03|A|-500|0" },
 ];
 const parsed: ParseSuccess = {
-  ok: true, profile: "hyundai_statement_pdf", identityScope: "content",
+  ok: true, profile: "hyundai_statement_pdf", issuer: "hyundai", identityScope: "content",
   cancelStyle: "negative_amount", statementTotal: 15000, transactions,
+  statement: { date: "2026-10-23", productName: "현대카드MM", savedAt: null },
 };
 const summary: UploadSummary = {
   inserted: 3, duplicates: 0, skipped: 0,

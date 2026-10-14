@@ -8,11 +8,12 @@ import {
   type PDFDocumentProxy,
 } from "pdfjs-dist/legacy/build/pdf.mjs";
 import type { ParseFailure, PdfTextItem } from "@/types/parsing";
+import { parsePdfDate } from "./pdf-date";
 
 export const MAX_PDF_PAGES = 100;
 
 export type PdfExtraction =
-  | { ok: true; items: PdfTextItem[] }
+  | { ok: true; items: PdfTextItem[]; savedAt: string | null }
   | Extract<ParseFailure, { code: "UNSUPPORTED_FILE" }>;
 
 // Node의 실제 파일 경로를 유지한다. Turbopack의 모듈 ID로 치환되면 dirname이 실패한다.
@@ -62,6 +63,14 @@ export async function extractPdfTextItems(bytes: Uint8Array): Promise<PdfExtract
       return { ok: false, code: "UNSUPPORTED_FILE", reason: "too_many_pages" };
     }
 
+    let savedAt: string | null = null;
+    try {
+      const metadata = await document.getMetadata();
+      savedAt = parsePdfDate((metadata.info as Record<string, unknown>).CreationDate);
+    } catch {
+      // 손상되었거나 없는 메타데이터는 업로드 실패 사유가 아니다.
+    }
+
     const items: PdfTextItem[] = [];
     for (let page = 1; page <= document.numPages; page += 1) {
       const pdfPage = await document.getPage(page);
@@ -76,7 +85,7 @@ export async function extractPdfTextItems(bytes: Uint8Array): Promise<PdfExtract
     if (!items.some((item) => item.str.trim() !== "")) {
       return { ok: false, code: "UNSUPPORTED_FILE", reason: "no_text" };
     }
-    return { ok: true, items };
+    return { ok: true, items, savedAt };
   } finally {
     await loadingTask.destroy();
   }
