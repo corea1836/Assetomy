@@ -1,5 +1,5 @@
 import { CATEGORY_IDS, type CategoryId } from "@/types/category";
-import type { MonthOption, Period, Snapshot } from "@/types/dashboard";
+import type { MonthOption, Period, PeriodSnapshot, Snapshot } from "@/types/dashboard";
 import type { IsoDate, Transaction, YearMonth } from "@/types/transaction";
 import { datesOfMonth, monthOf } from "./dates";
 
@@ -43,7 +43,29 @@ export function buildSnapshot(
     throw new Error("Cannot build a snapshot for a month without transactions");
   }
 
-  const firstDate = monthlyTransactions[0].date;
+  const periodSnapshot = buildPeriodSnapshot(monthlyTransactions, datesOfMonth(month));
+  return {
+    month,
+    period: periodSnapshot.period,
+    total: periodSnapshot.total,
+    transactionCount: periodSnapshot.transactionCount,
+    inProgress: month >= monthOf(today),
+    categories: periodSnapshot.categories,
+    topMerchants: periodSnapshot.topMerchants,
+    otherMerchants: periodSnapshot.otherMerchants,
+    daily: periodSnapshot.daily,
+  };
+}
+
+export function buildPeriodSnapshot(
+  transactions: Transaction[],
+  dates: IsoDate[],
+): PeriodSnapshot {
+  if (transactions.length === 0) {
+    throw new Error("Cannot build a snapshot without transactions");
+  }
+
+  const firstDate = transactions[0].date;
   const period: Period = { from: firstDate, to: firstDate };
   let total = 0;
   const categoryTotals = new Map<CategoryId, number>();
@@ -54,7 +76,7 @@ export function buildSnapshot(
     count: number;
   }>();
 
-  for (const transaction of monthlyTransactions) {
+  for (const transaction of transactions) {
     const { date, category, merchantKey, amount } = transaction;
     total += amount;
     extendPeriod(period, date);
@@ -99,15 +121,13 @@ export function buildSnapshot(
   const otherMerchants = merchants.filter(({ merchantKey }) => !topKeys.has(merchantKey));
 
   return {
-    month,
     period,
     total,
-    transactionCount: monthlyTransactions.length,
-    inProgress: month >= monthOf(today),
+    transactionCount: transactions.length,
     categories,
     topMerchants,
     otherMerchants,
-    daily: datesOfMonth(month).map((date) => ({
+    daily: dates.map((date) => ({
       date,
       amount: dailyTotals.get(date) ?? 0,
     })),

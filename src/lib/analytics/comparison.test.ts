@@ -1,7 +1,7 @@
 import { describe, expect, it } from "vitest";
 import { CATEGORY_IDS } from "@/types/category";
 import type { Transaction } from "@/types/transaction";
-import { buildMonthComparison, buildMonthOverMonth, buildTrend, TREND_MAX_MONTHS } from "./comparison";
+import { buildCategoryChanges, buildMonthComparison, buildMonthOverMonth, buildTrend, TREND_MAX_MONTHS } from "./comparison";
 import { addMonths } from "./dates";
 import { buildSnapshot } from "./snapshot";
 
@@ -407,5 +407,31 @@ describe("buildTrend", () => {
     expect(buildTrend([...transactions].reverse(), "2026-09", "2026-10-01"))
       .toEqual(buildTrend(transactions, "2026-09", "2026-10-01"));
     expect(transactions).toEqual(original);
+  });
+});
+
+describe("buildCategoryChanges", () => {
+  it("accepts period snapshot category data, omits zero changes and uses fixed tie order", () => {
+    const changes = buildCategoryChanges(
+      { categories: [
+        { category: "cafe", amount: 200, ratio: null },
+        { category: "food", amount: 100, ratio: null },
+      ] },
+      { categories: [
+        { category: "food", amount: 200, ratio: null },
+        { category: "cafe", amount: 100, ratio: null },
+        { category: "delivery", amount: 0, ratio: null },
+      ] },
+    );
+
+    expect(changes).toEqual([
+      { category: "food", current: 100, previous: 200, diff: -100 },
+      { category: "cafe", current: 200, previous: 100, diff: 100 },
+    ]);
+  });
+
+  it("treats an undefined snapshot as zero categories", () => {
+    expect(buildCategoryChanges(undefined, { categories: [{ category: "food", amount: 1_000, ratio: null }] }))
+      .toEqual([{ category: "food", current: 0, previous: 1_000, diff: -1_000 }]);
   });
 });

@@ -1,4 +1,5 @@
 import type { CategoryId } from "./category";
+import type { CardOption } from "./upload";
 import type { IsoDate, YearMonth } from "./transaction";
 
 export type Plan = "free" | "pro";
@@ -19,16 +20,18 @@ export type MerchantAmount = {
 };
 export type DailyAmount = { date: IsoDate; amount: number };
 
-export type Snapshot = {
-  month: YearMonth;
-  period: Period; // 그 달 거래의 첫·마지막 이용일(반영 기간)
-  total: number; // 그 달 거래 금액 합(취소·환불 포함)
+export type PeriodSnapshot = {
+  period: Period; // 선택한 거래의 첫·마지막 이용일(반영 기간)
+  total: number; // 선택한 거래의 금액 합(취소·환불 포함)
   transactionCount: number;
-  inProgress: boolean; // 진행 중인 달
   categories: CategoryAmount[];
   topMerchants: MerchantAmount[];
-  otherMerchants: MerchantAmount[]; // 그 달의 topMerchants 밖 가맹점, 금액순
-  daily: DailyAmount[]; // 그 달 1일~말일, 거래 없는 날은 0
+  otherMerchants: MerchantAmount[]; // topMerchants 밖 가맹점, 금액순
+  daily: DailyAmount[]; // 요청한 기간의 날마다, 거래 없는 날은 0
+};
+export type Snapshot = PeriodSnapshot & {
+  month: YearMonth;
+  inProgress: boolean; // 진행 중인 달
 };
 
 export type MonthOverMonth = {
@@ -98,3 +101,37 @@ export type ProDashboard = DashboardBase & {
   trend: Trend | null;
 };
 export type Dashboard = FreeDashboard | ProDashboard;
+
+export type CardStatementOption = { statementDate: IsoDate; cyclePeriod: Period };
+export type StatementComparison = {
+  previousStatementDate: IsoDate;
+  previousTotal: number;
+  diff: number;
+};
+
+export type CardMonthView = {
+  basis: "month";
+  month: YearMonth;
+  months: MonthOption[];
+  lastDate: IsoDate;
+  snapshot: Snapshot;
+  mom: MonthOverMonth | null;
+  partialMonth: YearMonth | null;
+};
+export type CardStatementView = {
+  basis: "cycle";
+  statementDate: IsoDate;
+  statements: CardStatementOption[];
+  cyclePeriod: Period;
+  complete: boolean;
+  snapshot: PeriodSnapshot;
+  comparison: StatementComparison | null;
+  comparisonSkipped: boolean;
+};
+type CardDashboardBase = { card: CardOption } & (CardMonthView | CardStatementView);
+export type FreeCardDashboard = CardDashboardBase & { plan: "free" };
+export type ProCardDashboard = CardDashboardBase & {
+  plan: "pro";
+  categoryChanges: CategoryChange[] | null;
+};
+export type CardDashboard = FreeCardDashboard | ProCardDashboard;

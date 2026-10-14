@@ -2,6 +2,7 @@ import { CATEGORY_IDS } from "@/types/category";
 import type {
   CategoryChange,
   MonthOverMonth,
+  PeriodSnapshot,
   Snapshot,
   Trend,
   TrendMonth,
@@ -84,9 +85,9 @@ export function buildMonthOverMonth(
   return buildMonthComparison(transactions, month, today).mom;
 }
 
-function buildCategoryChanges(
-  current: Snapshot | undefined,
-  previous: Snapshot | undefined,
+export function buildCategoryChanges(
+  current: Pick<PeriodSnapshot, "categories"> | undefined,
+  previous: Pick<PeriodSnapshot, "categories"> | undefined,
 ): CategoryChange[] {
   const currentTotals = new Map(
     current?.categories.map(({ category, amount }) => [category, amount]),

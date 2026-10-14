@@ -1,9 +1,11 @@
 import { describe, expect, it } from "vitest";
 import { CATEGORY_LABELS } from "@/types/category";
+import type { StatementRecord } from "@/types/card";
+import type { CardOption } from "@/types/upload";
 import type { Transaction } from "@/types/transaction";
 import { DEMO_TODAY, DEMO_TRANSACTIONS } from "@/lib/demo/fixture";
-import { buildDashboard } from "./dashboard";
-import { buildSummaryInput } from "./summary-input";
+import { buildCardDashboard, buildDashboard } from "./dashboard";
+import { buildCardSummaryInput, buildSummaryInput } from "./summary-input";
 
 const month = "2026-09";
 
@@ -286,5 +288,120 @@ describe("buildSummaryInput", () => {
     );
     const changed = buildSummaryInput(getDashboard("free", changedTransactions));
     expect(JSON.stringify(changed)).not.toBe(JSON.stringify(first));
+  });
+});
+
+function summaryCard(analysisBasis: "month" | "cycle"): CardOption {
+  return {
+    id: "private-card-id",
+    label: "비공개 카드 라벨",
+    issuer: "hyundai",
+    analysisBasis,
+    cycleStartDay: analysisBasis === "cycle" ? 12 : null,
+  };
+}
+
+function buildCardInput(
+  plan: "free" | "pro",
+  analysisBasis: "month" | "cycle",
+  transactions: Transaction[],
+  statements: StatementRecord[] = [],
+  selection: { month?: string; statement?: string } = {},
+) {
+  const dashboard = buildCardDashboard({
+    card: summaryCard(analysisBasis),
+    transactions,
+    statements,
+    plan,
+    ...selection,
+    today: "2026-10-14",
+  });
+  if (!dashboard) throw new Error("Expected a card dashboard");
+  return buildCardSummaryInput(dashboard);
+}
+
+describe("buildCardSummaryInput", () => {
+  it("maps a monthly card comparison and Pro category changes from the card DTO", () => {
+    const transactions = [
+      transaction({ id: "card-month-previous", cardId: "private-card-id", date: "2026-08-15", amount: 100, category: "food" }),
+      transaction({ id: "card-month-current", cardId: "private-card-id", date: "2026-09-15", amount: 130, category: "cafe" }),
+      transaction({ id: "card-month-before", cardId: "private-card-id", date: "2026-07-31", amount: 1 }),
+      transaction({ id: "card-month-after", cardId: "private-card-id", date: "2026-10-01", amount: 1 }),
+    ];
+    const free = buildCardInput("free", "month", transactions, [], { month: "2026-09" });
+    const pro = buildCardInput("pro", "month", transactions, [], { month: "2026-09" });
+
+    expect(free).toMatchObject({
+      plan: "free",
+      scope: "month",
+      inProgress: false,
+      period: { from: "2026-09-15", to: "2026-09-15" },
+      total: 130,
+      transactionCount: 1,
+      comparison: { previousTotal: 100, diff: 30, direction: "up" },
+      comparisonSkipped: false,
+    });
+    expect(free).not.toHaveProperty("categoryChanges");
+    if (pro.plan !== "pro") throw new Error("Expected a Pro card summary input");
+    expect(pro.categoryChanges).toEqual([
+      { category: CATEGORY_LABELS.cafe, current: 130, previous: 0, diff: 130 },
+      { category: CATEGORY_LABELS.food, current: 0, previous: 100, diff: -100 },
+    ]);
+  });
+
+  it("maps statement completion, comparison, and category labels without exposing card or statement identifiers", () => {
+    const transactions = [
+      transaction({ id: "private-previous-transaction", cardId: "private-card-id", cardLabel: "비공개 카드 라벨", statementDate: "2026-09-23", date: "2026-09-10", amount: 100, category: "food" }),
+      transaction({ id: "private-current-transaction", cardId: "private-card-id", cardLabel: "비공개 카드 라벨", statementDate: "2026-10-23", date: "2026-09-20", amount: 130, category: "cafe" }),
+    ];
+    const statements: StatementRecord[] = [
+      { cardId: "private-card-id", statementDate: "2026-09-23", savedOn: "2026-10-14" },
+      { cardId: "private-card-id", statementDate: "2026-10-23", savedOn: "2026-10-14" },
+    ];
+    const free = buildCardInput("free", "cycle", transactions, statements, { statement: "2026-10-23" });
+    const pro = buildCardInput("pro", "cycle", transactions, statements, { statement: "2026-10-23" });
+
+    expect(free).toMatchObject({
+      plan: "free",
+      scope: "statement",
+      inProgress: false,
+      period: { from: "2026-09-20", to: "2026-09-20" },
+      total: 130,
+      transactionCount: 1,
+      comparison: { previousTotal: 100, diff: 30, direction: "up" },
+      comparisonSkipped: false,
+    });
+    expect(free).not.toHaveProperty("categoryChanges");
+    if (pro.plan !== "pro") throw new Error("Expected a Pro card summary input");
+    expect(pro.categoryChanges).toEqual([
+      { category: CATEGORY_LABELS.cafe, current: 130, previous: 0, diff: 130 },
+      { category: CATEGORY_LABELS.food, current: 0, previous: 100, diff: -100 },
+    ]);
+
+    const serialized = JSON.stringify(free);
+    for (const excluded of [
+      "private-card-id", "비공개 카드 라벨", "2026-10-23",
+      "private-current-transaction", "private-previous-transaction",
+    ]) {
+      expect(serialized).not.toContain(excluded);
+    }
+  });
+
+  it("marks incomplete statement and partial monthly comparisons as skipped", () => {
+    const statementTransactions = [
+      transaction({ cardId: "private-card-id", statementDate: "2026-09-23", date: "2026-09-10" }),
+      transaction({ id: "incomplete-current", cardId: "private-card-id", statementDate: "2026-10-23", date: "2026-09-20" }),
+    ];
+    const incomplete = buildCardInput("free", "cycle", statementTransactions, [
+      { cardId: "private-card-id", statementDate: "2026-09-23", savedOn: "2026-10-14" },
+      { cardId: "private-card-id", statementDate: "2026-10-23", savedOn: "2026-10-11" },
+    ], { statement: "2026-10-23" });
+    const partialMonth = buildCardInput("free", "month", [
+      transaction({ cardId: "private-card-id", date: "2026-08-15" }),
+      transaction({ id: "partial-current", cardId: "private-card-id", date: "2026-09-15" }),
+    ], [], { month: "2026-09" });
+
+    expect(incomplete).toMatchObject({ scope: "statement", inProgress: true, comparison: null, comparisonSkipped: true });
+    expect(partialMonth).toMatchObject({ scope: "month", comparison: null, comparisonSkipped: true });
   });
 });

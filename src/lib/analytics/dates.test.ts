@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   addMonths,
+  datesBetween,
   datesOfMonth,
   daysBetween,
   daysInMonth,
@@ -77,6 +78,17 @@ describe("datesOfMonth", () => {
     expect(dates[0]).toBe(`${month}-01`);
     expect(dates[count - 1]).toBe(last);
     expect(new Set(dates).size).toBe(count);
+  });
+});
+
+describe("datesBetween", () => {
+  it.each([
+    ["2026-09-15", "2026-09-15", ["2026-09-15"]],
+    ["2026-01-30", "2026-02-02", ["2026-01-30", "2026-01-31", "2026-02-01", "2026-02-02"]],
+    ["2024-02-28", "2024-03-01", ["2024-02-28", "2024-02-29", "2024-03-01"]],
+    ["2026-03-02", "2026-03-01", []],
+  ] as const)("lists dates from %s through %s", (from, to, expected) => {
+    expect(datesBetween(from, to)).toEqual(expected);
   });
 });
 

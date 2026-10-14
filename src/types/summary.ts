@@ -72,3 +72,25 @@ export type ProSummaryInput = { plan: "pro" } & SummaryBase & {
   trend: SummaryTrend | null;
 };
 export type SummaryInput = FreeSummaryInput | ProSummaryInput;
+
+export type CardSummaryComparison = {
+  previousTotal: number;
+  diff: number;
+  direction: "up" | "down" | "same";
+};
+type CardSummaryBase = {
+  scope: "month" | "statement";
+  period: Period;
+  inProgress: boolean;
+  total: number;
+  transactionCount: number;
+  categories: SummaryCategory[];
+  topMerchants: SummaryMerchant[];
+  comparison: CardSummaryComparison | null;
+  comparisonSkipped: boolean;
+};
+export type FreeCardSummaryInput = { plan: "free" } & CardSummaryBase;
+export type ProCardSummaryInput = { plan: "pro" } & CardSummaryBase & {
+  categoryChanges: { category: string; current: number; previous: number; diff: number }[] | null;
+};
+export type CardSummaryInput = FreeCardSummaryInput | ProCardSummaryInput;

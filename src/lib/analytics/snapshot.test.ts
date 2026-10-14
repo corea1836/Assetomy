@@ -2,7 +2,7 @@ import { describe, expect, it } from "vitest";
 import { CATEGORY_IDS } from "@/types/category";
 import type { Transaction } from "@/types/transaction";
 import { DEMO_TODAY, DEMO_TRANSACTIONS } from "@/lib/demo/fixture";
-import { buildSnapshot, listDataMonths, TOP_MERCHANT_LIMIT } from "./snapshot";
+import { buildPeriodSnapshot, buildSnapshot, listDataMonths, TOP_MERCHANT_LIMIT } from "./snapshot";
 
 function transaction(overrides: Partial<Transaction> = {}): Transaction {
   return {
@@ -371,5 +371,30 @@ describe("buildSnapshot", () => {
       expect(listDataMonths(reordered)).toEqual(listDataMonths(transactions));
     }
     expect(transactions).toEqual(original);
+  });
+});
+
+describe("buildPeriodSnapshot", () => {
+  it("uses the requested inclusive daily range and keeps days without transactions at zero", () => {
+    const snapshot = buildPeriodSnapshot([
+      transaction({ id: "first", date: "2026-09-30", amount: 2_000 }),
+      transaction({ id: "second", date: "2026-10-02", amount: 3_000, category: "cafe" }),
+    ], ["2026-09-29", "2026-09-30", "2026-10-01", "2026-10-02"]);
+
+    expect(snapshot).toMatchObject({
+      period: { from: "2026-09-30", to: "2026-10-02" },
+      total: 5_000,
+      transactionCount: 2,
+    });
+    expect(snapshot.daily).toEqual([
+      { date: "2026-09-29", amount: 0 },
+      { date: "2026-09-30", amount: 2_000 },
+      { date: "2026-10-01", amount: 0 },
+      { date: "2026-10-02", amount: 3_000 },
+    ]);
+  });
+
+  it("throws when the selected period has no transactions", () => {
+    expect(() => buildPeriodSnapshot([], ["2026-09-01"])).toThrow();
   });
 });

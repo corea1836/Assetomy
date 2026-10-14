@@ -1,9 +1,12 @@
 import { describe, expect, it } from "vitest";
+import type { StatementRecord } from "@/types/card";
+import type { CardOption } from "@/types/upload";
 import type { Transaction } from "@/types/transaction";
 import { buildMonthOverMonth, buildTrend } from "./comparison";
-import { buildDashboard } from "./dashboard";
+import { buildCardDashboard, buildDashboard } from "./dashboard";
 import { detectFindings } from "./detection";
 import { buildSnapshot, listDataMonths } from "./snapshot";
+import { datesBetween } from "./dates";
 
 function transaction(overrides: Partial<Transaction> = {}): Transaction {
   return {
@@ -269,5 +272,235 @@ describe("buildDashboard", () => {
     expect(buildDashboard({ transactions: [...transactions].reverse(), plan, today }))
       .toEqual(buildDashboard({ transactions, plan, today }));
     expect(transactions).toEqual(original);
+  });
+});
+
+function cardOption(overrides: Partial<CardOption> = {}): CardOption {
+  return {
+    id: "card-a",
+    label: "생활비 카드",
+    issuer: "hyundai",
+    analysisBasis: "month",
+    cycleStartDay: null,
+    ...overrides,
+  };
+}
+
+function cardStatementTransactions(
+  statementDate: string,
+  from: string,
+  to: string,
+  count: number,
+  amount: number,
+  category: "food" | "cafe",
+  cardId = "card-a",
+): Transaction[] {
+  const dates = datesBetween(from, to);
+  return Array.from({ length: count }, (_, index) => transaction({
+    id: `${cardId}-${statementDate}-${index}`,
+    cardId,
+    cardLabel: cardId === "card-a" ? "생활비 카드" : "다른 카드",
+    statementDate,
+    date: dates[Math.floor(index * dates.length / count)],
+    amount,
+    category,
+  }));
+}
+
+const cycleCard = cardOption({ analysisBasis: "cycle", cycleStartDay: 12 });
+const cycleTransactions = [
+  ...cardStatementTransactions("2026-09-23", "2026-08-12", "2026-09-12", 109, 1_000, "food"),
+  ...cardStatementTransactions("2026-10-23", "2026-09-12", "2026-10-11", 80, 2_000, "cafe"),
+  transaction({
+    id: "other-card-statement",
+    cardId: "card-b",
+    cardLabel: "다른 카드",
+    statementDate: "2026-10-23",
+    date: "2026-10-10",
+    amount: 900_000,
+  }),
+];
+const cycleRecords: StatementRecord[] = [
+  { cardId: "card-a", statementDate: "2026-09-23", savedOn: "2026-10-14" },
+  { cardId: "card-a", statementDate: "2026-10-23", savedOn: "2026-10-14" },
+];
+
+describe("buildCardDashboard", () => {
+  it("uses only this card for a calendar month and chooses a valid requested month", () => {
+    const transactions = [
+      transaction({ id: "a-august", cardId: "card-a", date: "2026-08-15", amount: 1_000 }),
+      transaction({ id: "a-september", cardId: "card-a", date: "2026-09-15", amount: 2_000 }),
+      transaction({ id: "b-august", cardId: "card-b", date: "2026-08-01", amount: 900_000 }),
+      transaction({ id: "b-september", cardId: "card-b", date: "2026-09-30", amount: 900_000 }),
+    ];
+
+    const selected = buildCardDashboard({
+      card: cardOption(), transactions, statements: [], plan: "free", month: "2026-08", today: "2026-10-14",
+    });
+    const fallback = buildCardDashboard({
+      card: cardOption(), transactions, statements: [], plan: "free", month: "not-a-month", today: "2026-10-14",
+    });
+
+    expect(selected).toMatchObject({
+      basis: "month",
+      month: "2026-08",
+      snapshot: { total: 1_000, transactionCount: 1 },
+      mom: null,
+      partialMonth: null,
+    });
+    expect(fallback).toMatchObject({
+      basis: "month",
+      month: "2026-09",
+      snapshot: { total: 2_000, transactionCount: 1 },
+      lastDate: "2026-09-15",
+    });
+  });
+
+  it("compares only this card's monthly coverage and gives Pro category changes only with a comparison", () => {
+    const partialTransactions = [
+      transaction({ id: "a-august", cardId: "card-a", date: "2026-08-15", amount: 1_000, category: "food" }),
+      transaction({ id: "a-september", cardId: "card-a", date: "2026-09-15", amount: 2_000, category: "cafe" }),
+      transaction({ id: "b-before", cardId: "card-b", date: "2026-07-31" }),
+      transaction({ id: "b-after", cardId: "card-b", date: "2026-10-01" }),
+    ];
+    const partial = buildCardDashboard({
+      card: cardOption(), transactions: partialTransactions, statements: [], plan: "pro", month: "2026-09", today: "2026-10-14",
+    });
+    const covered = buildCardDashboard({
+      card: cardOption(),
+      transactions: [
+        ...partialTransactions,
+        transaction({ id: "a-before", date: "2026-07-31", amount: 1 }),
+        transaction({ id: "a-after", date: "2026-10-01", amount: 1 }),
+      ],
+      statements: [], plan: "pro", month: "2026-09", today: "2026-10-14",
+    });
+
+    expect(partial).toMatchObject({ mom: null, partialMonth: "2026-08", categoryChanges: null });
+    expect(covered).toMatchObject({
+      mom: { previousMonth: "2026-08", previousTotal: 1_000, diff: 1_000 },
+      partialMonth: null,
+      categoryChanges: [
+        { category: "cafe", current: 2_000, previous: 0, diff: 2_000 },
+        { category: "food", current: 0, previous: 1_000, diff: -1_000 },
+      ],
+    });
+  });
+
+  it("builds the October statement view from its statementDate rows and compares with the prior completed statement", () => {
+    const result = buildCardDashboard({
+      card: cycleCard,
+      transactions: cycleTransactions,
+      statements: cycleRecords,
+      plan: "pro",
+      statement: "2026-10-23",
+      today: "2026-10-14",
+    });
+
+    expect(result).toMatchObject({
+      basis: "cycle",
+      statementDate: "2026-10-23",
+      statements: [
+        { statementDate: "2026-10-23", cyclePeriod: { from: "2026-09-12", to: "2026-10-11" } },
+        { statementDate: "2026-09-23", cyclePeriod: { from: "2026-08-12", to: "2026-09-11" } },
+      ],
+      cyclePeriod: { from: "2026-09-12", to: "2026-10-11" },
+      complete: true,
+      snapshot: {
+        period: { from: "2026-09-12", to: "2026-10-11" },
+        total: 160_000,
+        transactionCount: 80,
+      },
+      comparison: { previousStatementDate: "2026-09-23", previousTotal: 109_000, diff: 51_000 },
+      comparisonSkipped: false,
+      categoryChanges: [
+        { category: "cafe", current: 160_000, previous: 0, diff: 160_000 },
+        { category: "food", current: 0, previous: 109_000, diff: -109_000 },
+      ],
+    });
+    expect(result?.snapshot.daily[0].date).toBe("2026-09-12");
+    expect(result?.snapshot.daily.at(-1)?.date).toBe("2026-10-11");
+  });
+
+  it("keeps the September statement's September 12 annual-fee date beyond the displayed cycle end", () => {
+    const result = buildCardDashboard({
+      card: cycleCard, transactions: cycleTransactions, statements: cycleRecords,
+      plan: "free", statement: "2026-09-23", today: "2026-10-14",
+    });
+
+    expect(result).toMatchObject({
+      basis: "cycle",
+      statementDate: "2026-09-23",
+      cyclePeriod: { from: "2026-08-12", to: "2026-09-11" },
+      complete: true,
+      snapshot: {
+        period: { from: "2026-08-12", to: "2026-09-12" },
+        total: 109_000,
+        transactionCount: 109,
+      },
+      comparison: null,
+      comparisonSkipped: false,
+    });
+    expect(result?.snapshot.daily.at(-1)?.date).toBe("2026-09-12");
+    expect(result && "categoryChanges" in result).toBe(false);
+  });
+
+  it.each([
+    ["selected statement saved on cycle end", false, [{ cardId: "card-a", statementDate: "2026-09-23", savedOn: "2026-10-14" }, { cardId: "card-a", statementDate: "2026-10-23", savedOn: "2026-10-11" }]],
+    ["previous statement saved on cycle end", true, [{ cardId: "card-a", statementDate: "2026-09-23", savedOn: "2026-09-11" }, { cardId: "card-a", statementDate: "2026-10-23", savedOn: "2026-10-14" }]],
+    ["selected statement has no record", false, [
+      { cardId: "card-a", statementDate: "2026-09-23", savedOn: "2026-10-14" },
+      { cardId: "card-b", statementDate: "2026-10-23", savedOn: "2026-10-14" },
+    ]],
+  ] as const)("skips comparison when %s", (_label, complete, statements) => {
+    const result = buildCardDashboard({
+      card: cycleCard, transactions: cycleTransactions, statements: [...statements], plan: "pro",
+      statement: "2026-10-23", today: "2026-10-14",
+    });
+
+    expect(result).toMatchObject({ complete, comparison: null, comparisonSkipped: true, categoryChanges: null });
+  });
+
+  it("does not compare statements when the immediately previous payment month is missing", () => {
+    const transactions = [
+      ...cardStatementTransactions("2026-08-23", "2026-07-12", "2026-08-11", 2, 1_000, "food"),
+      ...cardStatementTransactions("2026-10-23", "2026-09-12", "2026-10-11", 2, 2_000, "cafe"),
+    ];
+    const result = buildCardDashboard({
+      card: cycleCard, transactions,
+      statements: [
+        { cardId: "card-a", statementDate: "2026-08-23", savedOn: "2026-08-12" },
+        { cardId: "card-a", statementDate: "2026-10-23", savedOn: "2026-10-14" },
+      ],
+      plan: "pro", today: "2026-10-14",
+    });
+
+    expect(result).toMatchObject({ statementDate: "2026-10-23", comparison: null, comparisonSkipped: false, categoryChanges: null });
+  });
+
+  it("falls back to the newest statement and returns null when only undated transactions exist", () => {
+    const latest = buildCardDashboard({
+      card: cycleCard, transactions: cycleTransactions, statements: cycleRecords,
+      plan: "free", statement: "2026-07-01", today: "2026-10-14",
+    });
+    const undated = buildCardDashboard({
+      card: cycleCard,
+      transactions: [transaction({ statementDate: null })],
+      statements: cycleRecords,
+      plan: "pro", today: "2026-10-14",
+    });
+
+    expect(latest).toMatchObject({ statementDate: "2026-10-23" });
+    expect(undated).toBeNull();
+  });
+
+  it("throws when a cycle card has no cycle start day", () => {
+    expect(() => buildCardDashboard({
+      card: cardOption({ analysisBasis: "cycle", cycleStartDay: null }),
+      transactions: [],
+      statements: [],
+      plan: "free",
+      today: "2026-10-14",
+    })).toThrow("Cycle card is missing its cycle start day");
   });
 });

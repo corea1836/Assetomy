@@ -31,6 +31,22 @@ export function datesOfMonth(month: YearMonth): IsoDate[] {
   );
 }
 
+export function datesBetween(from: IsoDate, to: IsoDate): IsoDate[] {
+  if (from > to) return [];
+
+  const dates: IsoDate[] = [];
+  let date = from;
+  while (date <= to) {
+    dates.push(date);
+    const month = monthOf(date);
+    const day = Number(date.slice(8, 10));
+    date = day < daysInMonth(month)
+      ? `${month}-${String(day + 1).padStart(2, "0")}`
+      : `${addMonths(month, 1)}-01`;
+  }
+  return dates;
+}
+
 function dayNumber(date: IsoDate): number {
   const [year, month, day] = date.split("-").map(Number);
   const completedYears = year - 1;
