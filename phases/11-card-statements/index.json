@@ -12,10 +12,34 @@
     }
   ],
   "steps": [
-    { "step": 0, "name": "card-statement-schema", "status": "pending" },
-    { "step": 1, "name": "statement-parse", "status": "pending" },
-    { "step": 2, "name": "card-api", "status": "pending" },
-    { "step": 3, "name": "statement-ingest", "status": "pending" },
-    { "step": 4, "name": "card-form", "status": "pending" }
-  ]
+    {
+      "step": 0,
+      "name": "card-statement-schema",
+      "status": "completed",
+      "started_at": "2026-10-14T14:03:03+0900",
+      "summary": "supabase/migrations/20261017000000_card_statements.sql: cards(issuer, analysis_basis, cycle_start_day, product_name) 제약과 uploads(statement_date, statement_saved_at)·uploads_done_statement_key; create_card(uuid,text,text,text,integer)·ingest_upload(uuid,uuid,text,text,jsonb,integer,text,text,date,timestamptz) (CARD_MISMATCH issuer/product, older_statement, done의 statement_date/replaced_upload_id). supabase/tests/upload_schema.test.sql·upload_rpc.test.sql·dashboard.test.sql·ai_summaries.test.sql 갱신, supabase/tests/card_statements.test.sql 76개 단언. dev DB 미적용(사용자 쪽에서 push·pgtap.sh 필요).",
+      "completed_at": "2026-10-14T14:10:33+0900"
+    },
+    {
+      "step": 1,
+      "name": "statement-parse",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "card-api",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "statement-ingest",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "card-form",
+      "status": "pending"
+    }
+  ],
+  "created_at": "2026-10-14T14:03:03+0900"
 }
