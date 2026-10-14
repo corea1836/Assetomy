@@ -1,16 +1,22 @@
 import "server-only";
 import { formatDate, formatRatio, formatWon } from "@/lib/format";
-import type { CardSummaryInput, SummaryContent, SummaryInput } from "@/types/summary";
+import { CATEGORY_LABELS, type CategoryId } from "@/types/category";
+import type { CardSummaryInput, SummaryContent, SummaryDraft, SummaryInput } from "@/types/summary";
 
 export type SummaryContentCheck =
   | ({ ok: true } & SummaryContent)
-  | { ok: false; reason: "length" | "number" | "forbidden_phrase" | "markup" | "placeholder" };
+  | { ok: false; reason: "length" | "number" | "forbidden_phrase" | "markup" | "placeholder" | "tip_category" };
 type TextReason = Exclude<SummaryContentCheck, { ok: true }>["reason"];
 
 const FORBIDDEN_PHRASES = ["절감", "아낄", "부정 결제", "부정결제", "도용"];
 const SUMMARY_LENGTH = { min: 20, max: 500 };
+const COMPARISON_LENGTH = { min: 5, max: 400 };
 const TIP_LENGTH = { min: 10, max: 300 };
 const TIP_COUNT = { min: 1, max: 5 };
+
+const CATEGORY_IDS_BY_LABEL: Record<string, CategoryId> = Object.fromEntries(
+  Object.entries(CATEGORY_LABELS).map(([id, label]) => [label, id]),
+) as Record<string, CategoryId>;
 
 const PLACEHOLDER = /\{([^{}]*)\}/g;
 const PATH_SEGMENT = /^([A-Za-z]+)(?:\[(0|[1-9][0-9]*)\])?$/;
@@ -115,10 +121,13 @@ function renderText(
   return { text: rendered };
 }
 
-// 검증을 통과하면 자리표시자를 입력 값으로 채운 요약·팁을 돌려준다.
-export function checkSummaryContent(raw: SummaryContent, input: SummaryInput | CardSummaryInput): SummaryContentCheck {
-  const tips = raw.tips.map((tip) => tip.trim());
-  if (tips.length < TIP_COUNT.min || tips.length > TIP_COUNT.max) return { ok: false, reason: "length" };
+function cleanText(text: string): string {
+  return text.replace(/\s+/g, " ").trim();
+}
+
+// 검증을 통과하면 자리표시자를 입력 값으로 채우고 문단·팁 카테고리를 정규화해 돌려준다.
+export function checkSummaryContent(raw: SummaryDraft, input: SummaryInput | CardSummaryInput): SummaryContentCheck {
+  if (raw.tips.length < TIP_COUNT.min || raw.tips.length > TIP_COUNT.max) return { ok: false, reason: "length" };
 
   const merchantNames = [
     ...input.topMerchants.map(({ merchant }) => merchant),
@@ -126,14 +135,39 @@ export function checkSummaryContent(raw: SummaryContent, input: SummaryInput | C
   ].filter((merchant) => merchant.length > 0)
     .sort((left, right) => Array.from(right).length - Array.from(left).length);
 
-  const summary = renderText(raw.summary.trim(), input, merchantNames, SUMMARY_LENGTH);
+  const summaryDraft = cleanText(raw.summary);
+  const comparisonDraft = cleanText(raw.comparison);
+  const summary = renderText(summaryDraft, input, merchantNames, SUMMARY_LENGTH);
   if ("reason" in summary) return { ok: false, reason: summary.reason };
 
+  let comparison = "";
+  if (comparisonDraft !== "") {
+    const renderedComparison = renderText(comparisonDraft, input, merchantNames, COMPARISON_LENGTH);
+    if ("reason" in renderedComparison) return { ok: false, reason: renderedComparison.reason };
+    comparison = renderedComparison.text;
+  }
+
   const renderedTips: string[] = [];
-  for (const tip of tips) {
-    const rendered = renderText(tip, input, merchantNames, TIP_LENGTH);
+  const tipCategories: CategoryId[] = [];
+  for (const tip of raw.tips) {
+    const category = tip.category.trim();
+    if (!input.categories.some(({ category: inputCategory }) => inputCategory === category)) {
+      return { ok: false, reason: "tip_category" };
+    }
+    const text = cleanText(tip.text);
+    if (!text.includes(category)) return { ok: false, reason: "tip_category" };
+    const categoryId = CATEGORY_IDS_BY_LABEL[category];
+    if (categoryId === undefined) return { ok: false, reason: "tip_category" };
+
+    const rendered = renderText(text, input, merchantNames, TIP_LENGTH);
     if ("reason" in rendered) return { ok: false, reason: rendered.reason };
     renderedTips.push(rendered.text);
+    tipCategories.push(categoryId);
   }
-  return { ok: true, summary: summary.text, tips: renderedTips };
+  return {
+    ok: true,
+    summary: comparison === "" ? summary.text : `${summary.text}\n\n${comparison}`,
+    tips: renderedTips,
+    tipCategories,
+  };
 }

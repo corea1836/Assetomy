@@ -10,12 +10,12 @@ beforeEach(() => { vi.clearAllMocks(); rpc.mockReset(); });
 
 const input: SaveSummaryInput = {
   userId: "user-a", month: "2026-09", plan: "free", model: "claude-sonnet-5-5",
-  inputHash: "a".repeat(64), summary: "식비 비중이 커졌어요.", tips: ["식비 예산을 정해 보세요."],
+  inputHash: "a".repeat(64), summary: "식비 비중이 커졌어요.", tips: ["식비 예산을 정해 보세요."], tipCategories: ["food"],
 };
 const cardInput: SaveCardSummaryInput = {
   userId: "user-a", cardId: "11111111-1111-4111-8111-111111111111", period: "2026-10-23",
   plan: "pro", model: "claude-opus-5-5", inputHash: "b".repeat(64), summary: "이번 명세서는 식비가 늘었어요.",
-  tips: ["다음 달 식비 예산을 정해 보세요."],
+  tips: ["다음 달 식비 예산을 정해 보세요."], tipCategories: ["food"],
 };
 
 describe("saveSummary", () => {
@@ -25,7 +25,7 @@ describe("saveSummary", () => {
     expect(createSupabaseAdminClient).toHaveBeenCalledExactlyOnceWith();
     expect(rpc).toHaveBeenCalledExactlyOnceWith("save_ai_summary", {
       p_user_id: input.userId, p_month: input.month, p_plan: input.plan, p_model: input.model,
-      p_input_hash: input.inputHash, p_summary: input.summary, p_tips: input.tips,
+      p_input_hash: input.inputHash, p_summary: input.summary, p_tips: input.tips, p_tip_categories: input.tipCategories,
     });
   });
 
@@ -68,7 +68,7 @@ describe("saveCardSummary", () => {
       expect(rpc).toHaveBeenCalledExactlyOnceWith("save_card_summary", {
         p_user_id: cardInput.userId, p_card_id: cardInput.cardId, p_period: cardInput.period,
         p_plan: cardInput.plan, p_model: cardInput.model, p_input_hash: cardInput.inputHash,
-        p_summary: cardInput.summary, p_tips: cardInput.tips,
+        p_summary: cardInput.summary, p_tips: cardInput.tips, p_tip_categories: cardInput.tipCategories,
       });
     },
   );

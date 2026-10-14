@@ -12,7 +12,11 @@ export const SUMMARY_MODELS = {
   pro: "claude-opus-5-5",
 } as const satisfies Record<Plan, string>;
 
-const responseSchema = z.object({ summary: z.string(), tips: z.array(z.string()) });
+const responseSchema = z.object({
+  summary: z.string(),
+  comparison: z.string(),
+  tips: z.array(z.object({ category: z.string(), text: z.string() })),
+});
 const outputFormat = betaZodOutputFormat(responseSchema);
 
 const COMMON_SYSTEM = [

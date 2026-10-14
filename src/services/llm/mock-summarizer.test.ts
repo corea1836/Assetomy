@@ -1,14 +1,21 @@
 import "server-only";
 import { describe, expect, it } from "vitest";
-import type { CardSummaryInput, FreeSummaryInput, ProSummaryInput } from "@/types/summary";
-import { checkSummaryContent } from "./summary-text";
-import { createMockCardSummarizer, createMockSummarizer, MOCK_SUMMARY_MODEL, MOCK_CARD_SUMMARY_MODEL } from "./mock-summarizer";
+import type { CardSummaryInput, FreeSummaryInput, ProSummaryInput, SummaryCategory } from "@/types/summary";
+import { createMockCardSummarizer, createMockSummarizer, MOCK_CARD_SUMMARY_MODEL, MOCK_SUMMARY_MODEL } from "./mock-summarizer";
 
-function inputs() {
+function categories(values: SummaryCategory[] = [
+  { category: "식비", amount: 1000, ratio: 0.5 },
+  { category: "카페·간식", amount: 500, ratio: 0.25 },
+  { category: "기타", amount: 500, ratio: 0.25 },
+]): SummaryCategory[] {
+  return values;
+}
+
+function monthlyInputs() {
   const shared = {
-    month: "2026-09", inProgress: false,
+    month: "2026-09" as const, inProgress: false,
     period: { from: "2026-09-01", to: "2026-09-30" }, total: 1000, transactionCount: 1,
-    categories: [], topMerchants: [], monthOverMonth: null, partialMonth: null,
+    categories: categories(), topMerchants: [], monthOverMonth: null, partialMonth: null,
     candidates: {
       recurring: { count: 0, amount: 0 }, duplicate: { count: 0, amount: 0 },
       large: { count: 0, amount: 0 }, candidateTotal: 0,
@@ -20,78 +27,105 @@ function inputs() {
   };
 }
 
+function cardInput(plan: "free" | "pro", overrides: Partial<CardSummaryInput> = {}): CardSummaryInput {
+  const base = {
+    scope: "month" as const,
+    period: { from: "2026-09-01", to: "2026-09-30" }, inProgress: false,
+    total: 10_000, transactionCount: 4, categories: categories(),
+    topMerchants: [], comparison: null, comparisonSkipped: false,
+  };
+  return (plan === "free"
+    ? { ...base, plan, ...overrides }
+    : { ...base, plan, categoryChanges: null, ...overrides }) as CardSummaryInput;
+}
+
+function expectedTips(categoryRows: SummaryCategory[], count: number): { tips: string[]; ids: string[] } {
+  const selected = categoryRows.map((row, i) => ({ ...row, i }))
+    .filter(({ category }) => category !== "기타");
+  const chosen = (selected.length ? selected : categoryRows.map((row, i) => ({ ...row, i }))).slice(0, count);
+  const tips = chosen.map((item, i) => {
+    if (i === 0) return `${item.category} 지출은 ${item.amount.toLocaleString("ko-KR")}원이에요. 다음 달 예산을 먼저 정해 보세요.`;
+    if (i === 1) return `${item.category} 지출은 자주 가는 곳부터 한 주에 갈 횟수를 정해 보세요.`;
+    return `${item.category} 지출이 지난번과 달라졌다면 그 이유를 살펴보세요.`;
+  });
+  return { tips, ids: chosen.map(({ category }) => ({
+    "식비": "food", "카페·간식": "cafe", "기타": "etc",
+  }[category] ?? "etc")) };
+}
+
 describe("createMockSummarizer", () => {
-  it("uses the fixed mock model for either plan", () => {
+  it("uses the fixed model and returns plan-specific validated summaries with category-bound tips", async () => {
     const summarizer = createMockSummarizer();
+    const inputs = monthlyInputs();
     expect(MOCK_SUMMARY_MODEL).toBe("mock");
     expect(summarizer.modelFor("free")).toBe("mock");
     expect(summarizer.modelFor("pro")).toBe("mock");
-  });
 
-  it("returns fixed plan-specific content with placeholders filled from the input", async () => {
-    const summarizer = createMockSummarizer();
-    const input = inputs();
-    const free = await summarizer.summarize(input.free);
-    const pro = await summarizer.summarize(input.pro);
-    expect(free).toEqual({
-      ok: true,
-      summary: "9월 1일~9월 30일 동안 1건, 1,000원을 썼어요. 가장 많이 쓴 곳과 카테고리 비중을 함께 보면 지출 흐름을 파악하기 쉬워요.",
-      tips: [
-        "비중이 가장 큰 카테고리는 다음 달 예산을 먼저 정해 두세요. 지출이 한꺼번에 몰리는 걸 막을 수 있어요.",
-        "자주 결제한 가맹점은 한 주에 몇 번까지 쓸지 정해 보세요. 작은 결제도 쌓이면 커져요.",
-        "확인이 필요한 지출 후보가 있다면 카드사 앱 승인 내역에서 같은 결제가 두 번 청구되지 않았는지 확인해 보세요. 정상 지출일 수도 있어요.",
-      ],
-    });
-    expect(pro).toEqual({
-      ok: true,
-      summary: "9월 1일~9월 30일 동안 1건, 1,000원을 썼어요. 확인이 필요한 지출 후보와 여러 달의 흐름을 함께 정리했어요.",
-      tips: [
-        "후보 상세의 정기결제가 아직 쓰는 서비스인지 하나씩 점검해 보세요. 쓰지 않는 구독은 해지하면 다음 달부터 결제되지 않아요.",
-        "중복 결제 의심은 카드사 앱 승인 내역에서 같은 결제가 두 번 청구됐는지 확인해 보세요. 정상 지출일 수도 있어요.",
-        "비중이 가장 큰 카테고리는 다음 달 예산을 먼저 정해 두세요.",
-      ],
-    });
-  });
-
-  it("uses the fixed template as the prompt so changing it regenerates stored summaries", () => {
-    const summarizer = createMockSummarizer();
-    for (const plan of ["free", "pro"] as const) {
-      const template = JSON.parse(summarizer.promptFor(plan)) as { summary: string; tips: string[] };
-      expect(template.summary).toContain("{total}");
-      expect(checkSummaryContent(template, inputs()[plan])).toMatchObject({ ok: true });
+    for (const input of [inputs.free, inputs.pro]) {
+      const result = await summarizer.summarize(input);
+      const { tips, ids } = expectedTips(input.categories, 3);
+      expect(result).toMatchObject({ ok: true, tips, tipCategories: ids });
+      if (!result.ok) throw new Error("Expected mock monthly summary to validate");
+      expect(result.summary).toContain("9월 1일~9월 30일");
+      for (let i = 0; i < result.tips.length; i++) {
+        expect(result.tips[i]).toContain(input.categories.find(({ category }) =>
+          result.tipCategories[i] === ({ "식비": "food", "카페·간식": "cafe", "기타": "etc" }[category] ?? "etc"))?.category ?? "기타");
+      }
     }
+  });
+
+  it("limits tips to available categories and keeps prompt content independent of input", async () => {
+    const summarizer = createMockSummarizer();
+    const fixedPrompt = summarizer.promptFor("free");
+    const oneCategory = monthlyInputs().free;
+    oneCategory.categories = categories([{ category: "식비", amount: 400, ratio: 1 }]);
+    const single = await summarizer.summarize(oneCategory);
+    expect(single).toMatchObject({ ok: true, tips: [expect.stringContaining("식비")], tipCategories: ["food"] });
+
+    const onlyOther = { ...oneCategory, categories: categories([{ category: "기타", amount: 400, ratio: 1 }]) };
+    expect(await summarizer.summarize(onlyOther)).toMatchObject({ ok: true, tips: [expect.stringContaining("기타")], tipCategories: ["etc"] });
+
+    const changed = { ...oneCategory, categories: categories([{ category: "카페·간식", amount: 50, ratio: 1 }]) };
+    await summarizer.summarize(changed);
+    expect(summarizer.promptFor("free")).toBe(fixedPrompt);
+    const template = JSON.parse(fixedPrompt) as { summary: string; comparison: string; tips: { category: string; text: string }[] };
+    expect(template).toMatchObject({ comparison: "", tips: [
+      { category: "<카테고리>", text: expect.stringContaining("0원") },
+      { category: "<카테고리>", text: expect.stringContaining("<카테고리>") },
+      { category: "<카테고리>", text: expect.stringContaining("<카테고리>") },
+    ] });
+    expect(template.summary).toContain("{total}");
     expect(summarizer.promptFor("free")).not.toBe(summarizer.promptFor("pro"));
   });
 });
 
 describe("createMockCardSummarizer", () => {
   it.each([
-    { plan: "free", scope: "month" },
-    { plan: "free", scope: "statement" },
-    { plan: "pro", scope: "month" },
-    { plan: "pro", scope: "statement" },
-  ] as const)("returns validated card content for $plan/$scope", async ({ plan, scope }) => {
-    const shared = {
-      scope, period: { from: "2026-09-12", to: "2026-10-11" }, inProgress: false,
-      total: 10_000, transactionCount: 4,
-      categories: [{ category: "식비", amount: 8_000, ratio: 0.8 }],
-      topMerchants: [{ merchant: "가게", category: "식비", amount: 8_000, count: 2 }],
-      comparison: null, comparisonSkipped: false,
-    };
-    const input: CardSummaryInput = plan === "free"
-      ? { ...shared, plan }
-      : { ...shared, plan, categoryChanges: null };
+    { plan: "free", count: 2 }, { plan: "pro", count: 3 },
+  ] as const)("returns category-bound card tips for $plan", async ({ plan, count }) => {
+    const input = cardInput(plan, { categories: categories() });
     const summarizer = createMockCardSummarizer();
     const result = await summarizer.summarize(input);
+    const { tips, ids } = expectedTips(input.categories, count);
     expect(MOCK_CARD_SUMMARY_MODEL).toBe("mock");
     expect(summarizer.modelFor(plan)).toBe("mock");
-    expect(result).toMatchObject({ ok: true });
+    expect(result).toMatchObject({ ok: true, tips, tipCategories: ids });
     if (!result.ok) throw new Error("Expected mock card summary to validate");
-    expect(result.summary).toContain("9월 12일~10월 11일");
-    expect(result.summary).toContain("4건");
-    expect(result.summary).toContain("10,000원");
-    expect(checkSummaryContent(JSON.parse(summarizer.promptFor(plan)), input)).toMatchObject({ ok: true });
-    expect(result.tips.length).toBeGreaterThanOrEqual(2);
-    expect(result.tips.length).toBeLessThanOrEqual(3);
+    expect(result.summary).toContain("9월 1일~9월 30일");
+  });
+
+  it("supports both scopes, only 기타, and a single available category", async () => {
+    const summarizer = createMockCardSummarizer();
+    for (const scope of ["month", "statement"] as const) {
+      const input = cardInput("free", {
+        scope,
+        period: { from: "2026-09-12", to: "2026-10-11" },
+        categories: categories([{ category: "기타", amount: 400, ratio: 1 }]),
+      });
+      expect(await summarizer.summarize(input)).toMatchObject({ ok: true, tips: [expect.stringContaining("기타")], tipCategories: ["etc"] });
+    }
+    const one = cardInput("pro", { categories: categories([{ category: "식비", amount: 400, ratio: 1 }]) });
+    expect(await summarizer.summarize(one)).toMatchObject({ ok: true, tips: [expect.stringContaining("식비")], tipCategories: ["food"] });
+    expect(summarizer.promptFor("free")).not.toBe(summarizer.promptFor("pro"));
   });
 });

@@ -24,12 +24,12 @@ describe("defaultSummaryDeps", () => {
     expect(getStoredSummary).toHaveBeenCalledExactlyOnceWith(supabase, "user-a", "2026-09");
     await deps.save({
       userId: "user-a", month: "2026-09", plan: "free", model: "mock",
-      inputHash: "a".repeat(64), summary: "요약", tips: ["팁"],
+      inputHash: "a".repeat(64), summary: "요약", tips: ["팁"], tipCategories: ["food"],
     });
     expect(deps.save).toBe(saveSummary);
     expect(saveSummary).toHaveBeenCalledExactlyOnceWith({
       userId: "user-a", month: "2026-09", plan: "free", model: "mock",
-      inputHash: "a".repeat(64), summary: "요약", tips: ["팁"],
+      inputHash: "a".repeat(64), summary: "요약", tips: ["팁"], tipCategories: ["food"],
     });
   });
 });

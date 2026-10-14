@@ -15,7 +15,7 @@ function freeInput(): FreeSummaryInput {
   return {
     plan: "free", month: "2026-09", inProgress: false,
     period: { from: "2026-09-01", to: "2026-09-30" }, total: 1000, transactionCount: 1,
-    categories: [], topMerchants: [], monthOverMonth: null, partialMonth: null,
+    categories: [{ category: "식비", amount: 1000, ratio: 1 }], topMerchants: [], monthOverMonth: null, partialMonth: null,
     candidates: {
       recurring: { count: 0, amount: 0 }, duplicate: { count: 0, amount: 0 },
       large: { count: 0, amount: 0 }, candidateTotal: 0,
@@ -47,7 +47,11 @@ function cardInputs(): { freeMonth: FreeCardSummaryInput; freeStatement: FreeCar
 function validContent() {
   return {
     summary: "이번 달에는 식비 비중이 가장 크게 나타났어요.",
-    tips: ["다음 달에는 식비 예산을 먼저 정해 보세요.", "카드사 앱 승인 내역에서 같은 결제가 두 번 청구됐는지 확인해 보세요."],
+    comparison: "",
+    tips: [
+      { category: "식비", text: "다음 달에는 식비 예산을 먼저 정해 보세요." },
+      { category: "식비", text: "식비 지출 중 같은 결제가 두 번 청구됐는지 카드사 앱에서 확인해 보세요." },
+    ],
   };
 }
 
@@ -77,7 +81,12 @@ describe("createClaudeSummarizer", () => {
     parse.mockResolvedValue(response(validContent()));
     const summarizer = createClaudeSummarizer(() => client);
 
-    await expect(summarizer.summarize(input)).resolves.toEqual({ ok: true, ...validContent() });
+    await expect(summarizer.summarize(input)).resolves.toEqual({
+      ok: true,
+      summary: validContent().summary,
+      tips: validContent().tips.map(({ text }) => text),
+      tipCategories: ["food", "food"],
+    });
     expect(summarizer.modelFor(input.plan)).toBe(model);
     expect(summarizer.promptFor(input.plan)).toBe(input.plan === "free" ? FREE_SYSTEM : PRO_SYSTEM);
     const request = parse.mock.calls[0][0];
@@ -123,9 +132,10 @@ describe("createClaudeSummarizer", () => {
       throw new Error("Expected an SDK structured-output parser");
     }
     const parseOutput = format.parse;
-    expect(parseOutput(JSON.stringify({ summary: "요약", tips: ["팁"] }))).toEqual({ summary: "요약", tips: ["팁"] });
-    expect(() => parseOutput(JSON.stringify({ summary: 2, tips: [] }))).toThrow();
-    expect(() => parseOutput(JSON.stringify({ summary: "요약" }))).toThrow();
+    expect(parseOutput(JSON.stringify({ summary: "요약", comparison: "", tips: [{ category: "식비", text: "팁" }] })))
+      .toEqual({ summary: "요약", comparison: "", tips: [{ category: "식비", text: "팁" }] });
+    expect(() => parseOutput(JSON.stringify({ summary: 2, comparison: "", tips: [] }))).toThrow();
+    expect(() => parseOutput(JSON.stringify({ summary: "요약", tips: [] }))).toThrow();
   });
 
   it.each([
@@ -133,9 +143,10 @@ describe("createClaudeSummarizer", () => {
     ["max_tokens", response(validContent(), "max_tokens"), "max_tokens"],
     ["null parsed output", response(null), "invalid_output"],
     ["empty parsed output", response({}), "invalid_output"],
-    ["non-string summary", response({ summary: 1, tips: [] }), "invalid_output"],
-    ["missing tips", response({ summary: validContent().summary }), "invalid_output"],
-    ["non-string tip", response({ summary: validContent().summary, tips: [1] }), "invalid_output"],
+    ["non-string summary", response({ summary: 1, comparison: "", tips: [] }), "invalid_output"],
+    ["missing comparison", response({ summary: validContent().summary, tips: validContent().tips }), "invalid_output"],
+    ["missing tips", response({ summary: validContent().summary, comparison: "" }), "invalid_output"],
+    ["non-string tip", response({ summary: validContent().summary, comparison: "", tips: [{ category: "식비", text: 1 }] }), "invalid_output"],
   ] as const)("returns %s without rejecting", async (_name, result, reason) => {
     const { client } = fakeClient();
     client.beta.messages.parse = vi.fn().mockResolvedValue(result) as typeof client.beta.messages.parse;
@@ -147,17 +158,19 @@ describe("createClaudeSummarizer", () => {
     const { parse, client } = fakeClient();
     parse.mockResolvedValue(response({
       summary: "{period} 동안 {transactionCount}, {total}을 썼어요.",
-      tips: validContent().tips,
+      comparison: "",
+      tips: [{ category: "식비", text: "식비 예산을 먼저 정하고 카드 지출을 살펴보세요." }],
     }));
     await expect(createClaudeSummarizer(() => client).summarize(freeInput())).resolves.toEqual({
       ok: true,
       summary: "9월 1일~9월 30일 동안 1건, 1,000원을 썼어요.",
-      tips: validContent().tips,
+      tips: ["식비 예산을 먼저 정하고 카드 지출을 살펴보세요."],
+      tipCategories: ["food"],
     });
   });
 
   it("maps invalid content to the content check result without rewriting", async () => {
-    const invalid = { summary: validContent().summary, tips: ["식비를 3번 줄이도록 예산을 정해 보세요."] };
+    const invalid = { summary: validContent().summary, comparison: "", tips: [{ category: "식비", text: "식비를 3번 줄이도록 예산을 정해 보세요." }] };
     const { parse, client } = fakeClient();
     parse.mockResolvedValue(response(invalid));
     await expect(createClaudeSummarizer(() => client).summarize(freeInput()))
@@ -192,7 +205,8 @@ describe("createClaudeCardSummarizer", () => {
   ])("uses the plan's model, card prompt, and structured request for $input.plan/$input.scope", async ({ input, model }) => {
     const content = {
       summary: "{period} 동안 {transactionCount}, {total}을 썼어요. 식비가 {categories[0].ratio}로 큰 비중을 차지해요.",
-      tips: ["식비 예산을 정하고 다음 달 지출 흐름을 살펴보세요."],
+      comparison: "",
+      tips: [{ category: "식비", text: "식비 예산을 정하고 다음 달 지출 흐름을 살펴보세요." }],
     };
     const { parse, client } = fakeClient();
     parse.mockResolvedValue(response(content));
@@ -201,7 +215,8 @@ describe("createClaudeCardSummarizer", () => {
     await expect(summarizer.summarize(input)).resolves.toEqual({
       ok: true,
       summary: "9월 1일~9월 30일 동안 1건, 1,000원을 썼어요. 식비가 100%로 큰 비중을 차지해요.",
-      tips: content.tips,
+      tips: content.tips.map(({ text }) => text),
+      tipCategories: ["food"],
     });
     expect(summarizer.modelFor(input.plan)).toBe(model);
     expect(summarizer.promptFor(input.plan)).toBe(input.plan === "free" ? CARD_FREE_SYSTEM : CARD_PRO_SYSTEM);
@@ -233,7 +248,10 @@ describe("createClaudeCardSummarizer", () => {
   });
 
   it("maps content, request, and client creation failures without rejecting", async () => {
-    const invalid = { summary: "이번 달 이 카드에서는 3건의 지출을 확인했어요.", tips: ["식비 예산을 정하고 다음 달 지출 흐름을 살펴보세요."] };
+    const invalid = {
+      summary: "이번 달 이 카드에서는 3건의 지출을 확인했어요.", comparison: "",
+      tips: [{ category: "식비", text: "식비 예산을 정하고 다음 달 지출 흐름을 살펴보세요." }],
+    };
     const { parse, client } = fakeClient();
     parse.mockResolvedValue(response(invalid));
     await expect(createClaudeCardSummarizer(() => client).summarize(cardInputs().freeMonth))

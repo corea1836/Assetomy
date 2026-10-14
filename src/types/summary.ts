@@ -1,7 +1,15 @@
 import type { FindingKind, KindSummary, Period, Plan } from "./dashboard";
+import type { CategoryId } from "./category";
 import type { YearMonth } from "./transaction";
 
-export type SummaryContent = { summary: string; tips: string[] };
+// LLM structured output: each tip names one category from the summary input.
+export type SummaryDraft = {
+  summary: string;
+  comparison: string;
+  tips: { category: string; text: string }[];
+};
+// Validated content stored and returned to the existing summary sections.
+export type SummaryContent = { summary: string; tips: string[]; tipCategories: CategoryId[] };
 export type StoredSummary = { inputHash: string } & SummaryContent;
 export type SaveSummaryInput = {
   userId: string;
@@ -11,6 +19,7 @@ export type SaveSummaryInput = {
   inputHash: string;
   summary: string;
   tips: string[];
+  tipCategories: CategoryId[];
 };
 export type SaveSummaryResult = { kind: "saved" | "no_transactions" };
 export type SaveCardSummaryInput = {
@@ -22,6 +31,7 @@ export type SaveCardSummaryInput = {
   inputHash: string;
   summary: string;
   tips: string[];
+  tipCategories: CategoryId[];
 };
 export type SaveCardSummaryResult = {
   kind: "saved" | "card_not_found" | "basis_mismatch" | "no_data";

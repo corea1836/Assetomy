@@ -28,7 +28,7 @@ beforeEach(() => {
 
 describe("CardSummarySection", () => {
   it("renders a ready card-month summary with its variant and Free upgrade prompt", async () => {
-    vi.mocked(resolveCardSummary).mockResolvedValue({ kind: "ready", summary: "준비된 카드 요약이에요.", tips: ["팁이에요."] });
+    vi.mocked(resolveCardSummary).mockResolvedValue({ kind: "ready", summary: "준비된 카드 요약이에요.", tips: ["팁이에요."], tipCategories: ["food"] });
 
     render(await CardSummarySection({ userId: "session-user", prepared, deps, variant: "card-month" }));
 

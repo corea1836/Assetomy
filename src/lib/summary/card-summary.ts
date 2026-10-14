@@ -55,7 +55,7 @@ export async function resolveCardSummary(
   }
 
   if (stored?.inputHash === prepared.inputHash) {
-    return { kind: "ready", summary: stored.summary, tips: stored.tips };
+    return { kind: "ready", summary: stored.summary, tips: stored.tips, tipCategories: stored.tipCategories };
   }
 
   let result;
@@ -71,7 +71,7 @@ export async function resolveCardSummary(
     return { kind: "failed" };
   }
 
-  const { summary, tips } = result;
+  const { summary, tips, tipCategories } = result;
   try {
     const saved = await deps.save({
       userId,
@@ -82,12 +82,13 @@ export async function resolveCardSummary(
       inputHash: prepared.inputHash,
       summary,
       tips,
+      tipCategories,
     });
-    if (saved.kind === "saved") return { kind: "ready", summary, tips };
+    if (saved.kind === "saved") return { kind: "ready", summary, tips, tipCategories };
     console.error(`summary:card:save:${saved.kind}`, userId);
     return { kind: "failed" };
   } catch (error) {
     console.error(`summary:card:save:${errorCode(error)}`, userId);
-    return { kind: "ready", summary, tips };
+    return { kind: "ready", summary, tips, tipCategories };
   }
 }

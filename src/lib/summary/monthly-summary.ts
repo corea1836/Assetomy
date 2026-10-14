@@ -53,7 +53,9 @@ export async function resolveMonthlySummary(
     return { kind: "failed" };
   }
 
-  if (stored?.inputHash === prepared.inputHash) return { kind: "ready", summary: stored.summary, tips: stored.tips };
+  if (stored?.inputHash === prepared.inputHash) {
+    return { kind: "ready", summary: stored.summary, tips: stored.tips, tipCategories: stored.tipCategories };
+  }
 
   let result;
   try {
@@ -68,7 +70,7 @@ export async function resolveMonthlySummary(
     return { kind: "failed" };
   }
 
-  const { summary, tips } = result;
+  const { summary, tips, tipCategories } = result;
   try {
     const saved = await deps.save({
       userId,
@@ -78,12 +80,13 @@ export async function resolveMonthlySummary(
       inputHash: prepared.inputHash,
       summary,
       tips,
+      tipCategories,
     });
-    if (saved.kind === "saved") return { kind: "ready", summary, tips };
+    if (saved.kind === "saved") return { kind: "ready", summary, tips, tipCategories };
     console.error("summary:save:no_transactions", userId);
     return { kind: "failed" };
   } catch (error) {
     console.error(`summary:save:${errorCode(error)}`, userId);
-    return { kind: "ready", summary, tips };
+    return { kind: "ready", summary, tips, tipCategories };
   }
 }

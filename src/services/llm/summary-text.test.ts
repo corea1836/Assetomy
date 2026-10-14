@@ -1,6 +1,6 @@
 import "server-only";
 import { describe, expect, it } from "vitest";
-import type { CardSummaryInput, FreeSummaryInput, ProSummaryInput, SummaryInput } from "@/types/summary";
+import type { CardSummaryInput, FreeSummaryInput, ProSummaryInput, SummaryDraft, SummaryInput } from "@/types/summary";
 import { checkSummaryContent } from "./summary-text";
 
 function freeInput(overrides: Partial<FreeSummaryInput> = {}): FreeSummaryInput {
@@ -11,7 +11,7 @@ function freeInput(overrides: Partial<FreeSummaryInput> = {}): FreeSummaryInput 
     period: { from: "2026-09-01", to: "2026-09-30" },
     total: 1000,
     transactionCount: 1,
-    categories: [],
+    categories: [{ category: "식비", amount: 1000, ratio: 1 }],
     topMerchants: [],
     monthOverMonth: null,
     partialMonth: null,
@@ -38,15 +38,28 @@ function proInput(overrides: Partial<ProSummaryInput> = {}): ProSummaryInput {
 const SUMMARY = "이번 달에는 식비 비중이 가장 크게 나타났어요.";
 const TIP = "다음 달에는 식비 예산을 먼저 정해 보세요.";
 
+function makeDraft(summary: string, tips: string[], input: SummaryInput | CardSummaryInput): SummaryDraft {
+  return {
+    summary,
+    comparison: "",
+    tips: tips.map((text) => {
+      const category = input.categories.find(({ category: name }) => text.includes(name))?.category
+        ?? input.categories[0]?.category;
+      if (category === undefined) throw new Error("Expected a category for summary tip");
+      return { category, text: text.includes(category) ? text : `${text} ${category}` };
+    }),
+  };
+}
+
 function check(summary: string, tips: string[] = [TIP], input: SummaryInput = freeInput()) {
-  return checkSummaryContent({ summary, tips }, input);
+  return checkSummaryContent(makeDraft(summary, tips, input), input);
 }
 
 describe("checkSummaryContent", () => {
   it("trims and returns a number-free summary and tips", () => {
     const tips = [`  ${TIP}  `, " 카드사 앱 승인 내역에서 같은 결제가 두 번 청구됐는지 확인해 보세요. "];
     expect(check(`  ${SUMMARY}  `, tips)).toEqual({
-      ok: true, summary: SUMMARY, tips: tips.map((tip) => tip.trim()),
+      ok: true, summary: SUMMARY, tips: [tips[0].trim(), `${tips[1].trim()} 식비`], tipCategories: ["food", "food"],
     });
   });
 
@@ -128,7 +141,7 @@ describe("checkSummaryContent", () => {
   });
 
   it("rejects tips shorter than 10 or longer than 300 characters", () => {
-    expect(check(SUMMARY, ["가".repeat(9)])).toEqual({ ok: false, reason: "length" });
+    expect(check(SUMMARY, ["식비 예산을 정해"])).toEqual({ ok: false, reason: "length" });
     expect(check(SUMMARY, ["가".repeat(301)])).toEqual({ ok: false, reason: "length" });
     expect(check(SUMMARY, ["가".repeat(10)])).toMatchObject({ ok: true });
   });
@@ -145,8 +158,76 @@ describe("checkSummaryContent", () => {
     expect(check(SUMMARY, [TIP, TIP, TIP, TIP, TIP])).toMatchObject({ ok: true });
   });
 
+  it("checks tip count before either summary paragraph", () => {
+    expect(checkSummaryContent({
+      summary: "짧음",
+      comparison: "",
+      tips: Array.from({ length: 6 }, () => ({ category: "식비", text: TIP })),
+    }, freeInput())).toEqual({ ok: false, reason: "length" });
+  });
+
   it("accepts the SummaryInput union", () => {
     expect(check(SUMMARY, [TIP], proInput())).toMatchObject({ ok: true });
+  });
+});
+
+describe("checkSummaryContent comparison and category contract", () => {
+  const input = freeInput({ categories: [
+    { category: "식비", amount: 700, ratio: 0.7 },
+    { category: "기타", amount: 300, ratio: 0.3 },
+  ] });
+
+  it("stores a single paragraph when comparison is empty and joins nonempty paragraphs", () => {
+    const base = { summary: SUMMARY, tips: [{ category: "식비", text: TIP }] };
+    expect(checkSummaryContent({ ...base, comparison: "" }, input)).toMatchObject({ ok: true, summary: SUMMARY });
+    expect(checkSummaryContent({ ...base, comparison: "지난달과 비교하면 지출이 늘었어요." }, input))
+      .toMatchObject({ ok: true, summary: `${SUMMARY}\n\n지난달과 비교하면 지출이 늘었어요.` });
+  });
+
+  it("normalizes whitespace within paragraphs and tips", () => {
+    expect(checkSummaryContent({
+      summary: "  이번 달에는 식비 비중이\n\n 가장 크게 나타났어요.  ",
+      comparison: "  지난달보다   지출이 줄었어요. ",
+      tips: [{ category: "식비", text: " 식비 예산을\n   먼저 정해 보세요. " }],
+    }, input)).toEqual({
+      ok: true,
+      summary: "이번 달에는 식비 비중이 가장 크게 나타났어요.\n\n지난달보다 지출이 줄었어요.",
+      tips: ["식비 예산을 먼저 정해 보세요."],
+      tipCategories: ["food"],
+    });
+  });
+
+  it.each([
+    ["numeric", "지난달보다 3원 줄었어요.", "number"],
+    ["placeholder", "지난달보다 {unknown} 줄었어요.", "placeholder"],
+    ["markdown", "**지난달**보다 지출이 줄었어요.", "markup"],
+    ["forbidden phrase", "지난달보다 절감할 소비가 보여요.", "forbidden_phrase"],
+    ["too short", "짧아요.", "length"],
+    ["too long", "가".repeat(401), "length"],
+  ] as const)("rejects an invalid comparison paragraph (%s)", (_name, comparison, reason) => {
+    expect(checkSummaryContent({ summary: SUMMARY, comparison, tips: [{ category: "식비", text: TIP }] }, input))
+      .toEqual({ ok: false, reason });
+  });
+
+  it("rejects an unknown category or a tip without its category name", () => {
+    expect(checkSummaryContent({
+      summary: SUMMARY, comparison: "", tips: [{ category: "교통", text: "식비 예산을 먼저 정해 보세요." }],
+    }, input)).toEqual({ ok: false, reason: "tip_category" });
+    expect(checkSummaryContent({
+      summary: SUMMARY, comparison: "", tips: [{ category: "식비", text: "다음 달 예산을 먼저 정해 보세요." }],
+    }, input)).toEqual({ ok: false, reason: "tip_category" });
+  });
+
+  it("trims category names, allows 기타, and preserves duplicate category ids in tip order", () => {
+    expect(checkSummaryContent({
+      summary: SUMMARY,
+      comparison: "",
+      tips: [
+        { category: " 식비 ", text: "식비 예산을 먼저 정해 보세요." },
+        { category: "기타", text: "기타 지출도 다음 달에 살펴보세요." },
+        { category: "식비", text: "식비 지출을 주간 예산 안에서 살펴보세요." },
+      ],
+    }, input)).toMatchObject({ ok: true, tipCategories: ["food", "etc", "food"] });
   });
 });
 
@@ -182,10 +263,11 @@ describe("checkSummaryContent placeholders", () => {
       ok: true,
       summary: "9월 1일~9월 30일 동안 78건, 1,820,075원을 썼어요. 문화·여가가 38%(691,600원)로 가장 컸어요.",
       tips: [
-        "스타벅스 강남점에서 9건, 52,000원을 결제했어요. 한 주에 몇 번까지 갈지 정해 보세요.",
-        "8월보다 214,300원 늘었어요. 지난달 1,605,775원과 비교해 늘어난 카테고리를 살펴보세요.",
-        "확인이 필요한 정기결제 2건, 후보 합계 43,000원을 카드사 앱에서 확인해 보세요.",
+        "스타벅스 강남점에서 9건, 52,000원을 결제했어요. 한 주에 몇 번까지 갈지 정해 보세요. 문화·여가",
+        "8월보다 214,300원 늘었어요. 지난달 1,605,775원과 비교해 늘어난 카테고리를 살펴보세요. 문화·여가",
+        "확인이 필요한 정기결제 2건, 후보 합계 43,000원을 카드사 앱에서 확인해 보세요. 문화·여가",
       ],
+      tipCategories: ["culture", "culture", "culture"],
     });
   });
 
@@ -215,7 +297,8 @@ describe("checkSummaryContent placeholders", () => {
     )).toEqual({
       ok: true,
       summary: "8월에는 1,000,000원을 썼고, 식비는 100,000원 늘었어요.",
-      tips: ["넷플릭스 17,000원 결제가 3개월 이어졌어요. 아직 보는 서비스인지 점검해 보세요."],
+      tips: ["넷플릭스 17,000원 결제가 3개월 이어졌어요. 아직 보는 서비스인지 점검해 보세요. 식비"],
+      tipCategories: ["food"],
     });
   });
 
@@ -286,13 +369,14 @@ describe("checkSummaryContent card placeholders", () => {
       plan: "pro",
       categoryChanges: [{ category: "식비", current: 80_000, previous: 60_000, diff: 20_000 }],
     });
-    expect(checkSummaryContent({
-      summary: "{period} 동안 {transactionCount}, {total}을 썼어요. 지난 명세서의 {comparison.previousTotal}보다 {comparison.diff} 늘었고 식비는 {categoryChanges[0].diff} 더 썼어요.",
-      tips: ["식비 예산을 정하고 다음 명세서까지 지출을 살펴보세요."],
-    }, input)).toEqual({
+    expect(checkSummaryContent(makeDraft(
+      "{period} 동안 {transactionCount}, {total}을 썼어요. 지난 명세서의 {comparison.previousTotal}보다 {comparison.diff} 늘었고 식비는 {categoryChanges[0].diff} 더 썼어요.",
+      ["식비 예산을 정하고 다음 명세서까지 지출을 살펴보세요."], input,
+    ), input)).toEqual({
       ok: true,
       summary: "9월 12일~10월 11일 동안 8건, 120,000원을 썼어요. 지난 명세서의 100,000원보다 20,000원 늘었고 식비는 20,000원 더 썼어요.",
       tips: ["식비 예산을 정하고 다음 명세서까지 지출을 살펴보세요."],
+      tipCategories: ["food"],
     });
   });
 
@@ -302,10 +386,10 @@ describe("checkSummaryContent card placeholders", () => {
       period: { from: "2026-09-01", to: "2026-09-30" },
       comparison: { previousTotal: 150_000, diff: -30_000, direction: "down" },
     });
-    expect(checkSummaryContent({
-      summary: "이번 달 {period} 동안 {transactionCount}, {total}을 썼어요. 지난달 {comparison.previousTotal}보다 {comparison.diff} 줄었어요.",
-      tips: ["다음 달 예산을 정해 이번 달 지출 흐름을 이어서 살펴보세요."],
-    }, input)).toMatchObject({
+    expect(checkSummaryContent(makeDraft(
+      "이번 달 {period} 동안 {transactionCount}, {total}을 썼어요. 지난달 {comparison.previousTotal}보다 {comparison.diff} 줄었어요.",
+      ["다음 달 예산을 정해 이번 달 지출 흐름을 이어서 살펴보세요."], input,
+    ), input)).toMatchObject({
       ok: true,
       summary: "이번 달 9월 1일~9월 30일 동안 8건, 120,000원을 썼어요. 지난달 150,000원보다 30,000원 줄었어요.",
     });
@@ -316,16 +400,17 @@ describe("checkSummaryContent card placeholders", () => {
       plan: "pro",
       categoryChanges: [{ category: "식비", current: 80_000, previous: 60_000, diff: 20_000 }],
     });
-    expect(checkSummaryContent({
-      summary: "이번 명세서 지출은 {categoryChanges[0].diff} 달라졌어요. 확인해 보세요.",
-      tips: ["식비 예산을 정하고 다음 명세서까지 지출을 살펴보세요."],
-    }, input)).toEqual({ ok: false, reason: "placeholder" });
+    expect(checkSummaryContent(makeDraft(
+      "이번 명세서 지출은 {categoryChanges[0].diff} 달라졌어요. 확인해 보세요.",
+      ["식비 예산을 정하고 다음 명세서까지 지출을 살펴보세요."], input,
+    ), input)).toEqual({ ok: false, reason: "placeholder" });
   });
 
   it("rejects Pro-only category change placeholders for Free card input", () => {
-    expect(checkSummaryContent({
-      summary: "이번 달 식비는 {categoryChanges[0].diff} 달라졌어요. 지출을 살펴봐요.",
-      tips: ["식비 예산을 정하고 다음 달 지출을 살펴보세요."],
-    }, cardInput())).toEqual({ ok: false, reason: "placeholder" });
+    const input = cardInput();
+    expect(checkSummaryContent(makeDraft(
+      "이번 달 식비는 {categoryChanges[0].diff} 달라졌어요. 지출을 살펴봐요.",
+      ["식비 예산을 정하고 다음 달 지출을 살펴보세요."], input,
+    ), input)).toEqual({ ok: false, reason: "placeholder" });
   });
 });

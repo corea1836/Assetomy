@@ -14,6 +14,7 @@ const storedText = "지난 요약 문장";
 const storedTips = ["지난 팁 문장"];
 const generatedText = "이번 달에는 식비 비중이 커졌어요.";
 const generatedTips = ["다음 달에는 식비 예산을 먼저 정해 보세요."];
+const tipCategories = ["food"] as const;
 
 function transaction(overrides: Partial<Transaction> = {}): Transaction {
   return {
@@ -37,7 +38,7 @@ function makeSummarizer(overrides: Partial<MonthlySummarizer> = {}): MonthlySumm
   return {
     modelFor: vi.fn((plan) => plan === "free" ? "claude-sonnet-5-5" : "claude-opus-5-5"),
     promptFor: vi.fn((plan) => `${plan} prompt`),
-    summarize: vi.fn(async (): Promise<SummaryResult> => ({ ok: true, summary: generatedText, tips: generatedTips })),
+    summarize: vi.fn(async (): Promise<SummaryResult> => ({ ok: true, summary: generatedText, tips: generatedTips, tipCategories: [...tipCategories] })),
     ...overrides,
   };
 }
@@ -116,9 +117,9 @@ describe("resolveMonthlySummary", () => {
   it("returns a matching stored summary without generating or saving", async () => {
     const prep = prepared();
     const { deps, summarizer } = makeDeps({
-      loadStored: vi.fn(async () => ({ inputHash: prep.inputHash, summary: storedText, tips: storedTips } satisfies StoredSummary)),
+      loadStored: vi.fn(async () => ({ inputHash: prep.inputHash, summary: storedText, tips: storedTips, tipCategories: [...tipCategories] } satisfies StoredSummary)),
     });
-    expect(await resolveMonthlySummary(userId, prep, deps)).toEqual({ kind: "ready", summary: storedText, tips: storedTips });
+    expect(await resolveMonthlySummary(userId, prep, deps)).toEqual({ kind: "ready", summary: storedText, tips: storedTips, tipCategories: [...tipCategories] });
     expect(summarizer.summarize).not.toHaveBeenCalled();
     expect(deps.save).not.toHaveBeenCalled();
     expect(console.error).not.toHaveBeenCalled();
@@ -127,7 +128,7 @@ describe("resolveMonthlySummary", () => {
   it("fails when generation returns a failure and never leaks a stale stored summary", async () => {
     const prep = prepared();
     const { deps, summarizer } = makeDeps({
-      loadStored: vi.fn(async () => ({ inputHash: "f".repeat(64), summary: storedText, tips: storedTips })),
+      loadStored: vi.fn(async () => ({ inputHash: "f".repeat(64), summary: storedText, tips: storedTips, tipCategories: [...tipCategories] })),
     });
     vi.mocked(summarizer.summarize).mockResolvedValue({ ok: false, reason: "number" });
     expect(await resolveMonthlySummary(userId, prep, deps)).toEqual({ kind: "failed" });
@@ -139,11 +140,11 @@ describe("resolveMonthlySummary", () => {
   it("saves a generated summary and returns it", async () => {
     const prep = prepared("pro");
     const { deps, summarizer } = makeDeps();
-    expect(await resolveMonthlySummary(userId, prep, deps)).toEqual({ kind: "ready", summary: generatedText, tips: generatedTips });
+    expect(await resolveMonthlySummary(userId, prep, deps)).toEqual({ kind: "ready", summary: generatedText, tips: generatedTips, tipCategories: [...tipCategories] });
     expect(summarizer.summarize).toHaveBeenCalledExactlyOnceWith(prep.input);
     expect(deps.save).toHaveBeenCalledExactlyOnceWith({
       userId, month: prep.month, plan: prep.plan, model: prep.model, inputHash: prep.inputHash,
-      summary: generatedText, tips: generatedTips,
+      summary: generatedText, tips: generatedTips, tipCategories: [...tipCategories],
     } satisfies SaveSummaryInput);
     expect(console.error).not.toHaveBeenCalled();
   });
@@ -156,7 +157,7 @@ describe("resolveMonthlySummary", () => {
 
   it("returns verified text when saving throws and logs only the store code", async () => {
     const { deps } = makeDeps({ save: vi.fn().mockRejectedValue(new StoreError("save_ai_summary", "PGRST202")) });
-    expect(await resolveMonthlySummary(userId, prepared(), deps)).toEqual({ kind: "ready", summary: generatedText, tips: generatedTips });
+    expect(await resolveMonthlySummary(userId, prepared(), deps)).toEqual({ kind: "ready", summary: generatedText, tips: generatedTips, tipCategories: [...tipCategories] });
     expect(console.error).toHaveBeenCalledExactlyOnceWith("summary:save:PGRST202", userId);
   });
 

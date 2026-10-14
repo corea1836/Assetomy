@@ -4,6 +4,7 @@ import { buildDashboard } from "@/lib/analytics/dashboard";
 import { DEMO_TODAY, DEMO_TRANSACTIONS } from "@/lib/demo/fixture";
 import type { MonthlySummarizer, SummaryResult } from "@/services/llm/types";
 import type { Dashboard } from "@/types/dashboard";
+import type { CategoryId } from "@/types/category";
 import type { SummaryDeps } from "@/lib/summary/monthly-summary";
 import { prepareSummary } from "@/lib/summary/monthly-summary";
 import { MonthlySummarySection } from "./monthly-summary-section";
@@ -11,6 +12,7 @@ import { MonthlySummarySection } from "./monthly-summary-section";
 const userId = "summary-section-user";
 const storedText = "저장된 이번 달 요약이에요.";
 const storedTips = ["저장된 팁이에요. 카드사 앱에서 확인해 보세요."];
+const storedTipCategories: CategoryId[] = ["food"];
 
 function makePrepared(plan: "free" | "pro") {
   const dashboard = buildDashboard({ transactions: DEMO_TRANSACTIONS, plan, today: DEMO_TODAY });
@@ -19,7 +21,7 @@ function makePrepared(plan: "free" | "pro") {
   return prepareSummary(dashboard as Dashboard, summarizer);
 }
 
-function makeSummarizer(result: SummaryResult = { ok: true, summary: "새 요약이에요.", tips: ["새 팁이에요."] }): MonthlySummarizer {
+function makeSummarizer(result: SummaryResult = { ok: true, summary: "새 요약이에요.", tips: ["새 팁이에요."], tipCategories: ["food"] }): MonthlySummarizer {
   return {
     modelFor: (plan) => plan === "free" ? "test-free-model" : "test-pro-model",
     promptFor: (plan) => `${plan} prompt`,
@@ -29,7 +31,7 @@ function makeSummarizer(result: SummaryResult = { ok: true, summary: "새 요약
 
 function makeDeps(prepared: ReturnType<typeof makePrepared>, overrides: Partial<SummaryDeps> = {}): SummaryDeps {
   return {
-    loadStored: vi.fn(async () => ({ inputHash: prepared.inputHash, summary: storedText, tips: storedTips })),
+    loadStored: vi.fn(async () => ({ inputHash: prepared.inputHash, summary: storedText, tips: storedTips, tipCategories: storedTipCategories })),
     summarizer: makeSummarizer(),
     save: vi.fn(async () => ({ kind: "saved" as const })),
     ...overrides,
@@ -57,7 +59,7 @@ describe("MonthlySummarySection", () => {
   it("shows the failed state without exposing a saved summary with a different hash", async () => {
     const prepared = makePrepared("free");
     const deps = makeDeps(prepared, {
-      loadStored: vi.fn(async () => ({ inputHash: "old-input-hash", summary: "이전 요약은 보여주면 안 돼요.", tips: ["이전 팁도 보여주면 안 돼요."] })),
+      loadStored: vi.fn(async () => ({ inputHash: "old-input-hash", summary: "이전 요약은 보여주면 안 돼요.", tips: ["이전 팁도 보여주면 안 돼요."], tipCategories: storedTipCategories })),
       summarizer: makeSummarizer({ ok: false, reason: "request_failed" }),
     });
 

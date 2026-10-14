@@ -20,6 +20,7 @@ export async function saveSummary(input: SaveSummaryInput): Promise<SaveSummaryR
     p_input_hash: input.inputHash,
     p_summary: input.summary,
     p_tips: input.tips,
+    p_tip_categories: input.tipCategories,
   }, saveSummaryResultSchema);
 }
 
@@ -33,5 +34,6 @@ export async function saveCardSummary(input: SaveCardSummaryInput): Promise<Save
     p_input_hash: input.inputHash,
     p_summary: input.summary,
     p_tips: input.tips,
+    p_tip_categories: input.tipCategories,
   }, saveCardSummaryResultSchema);
 }

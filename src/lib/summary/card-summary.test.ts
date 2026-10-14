@@ -15,6 +15,7 @@ const cardLabel = "생활비 카드 비공개 라벨";
 const storedText = "지난 카드 요약 문장";
 const generatedText = "이번 카드의 식비 지출을 살펴봐요.";
 const generatedTips = ["식비 예산을 정하고 다음 기간 지출 흐름을 살펴보세요."];
+const tipCategories = ["food"] as const;
 
 function card(basis: "month" | "cycle" = "month") {
   return {
@@ -58,7 +59,7 @@ function makeSummarizer(overrides: Partial<CardSummarizer> = {}): CardSummarizer
   return {
     modelFor: vi.fn((plan) => plan === "free" ? "claude-sonnet-5-5" : "claude-opus-5-5"),
     promptFor: vi.fn((plan) => `${plan} card prompt`),
-    summarize: vi.fn(async (): Promise<SummaryResult> => ({ ok: true, summary: generatedText, tips: generatedTips })),
+    summarize: vi.fn(async (): Promise<SummaryResult> => ({ ok: true, summary: generatedText, tips: generatedTips, tipCategories: [...tipCategories] })),
     ...overrides,
   };
 }
@@ -133,9 +134,9 @@ describe("resolveCardSummary", () => {
   it("returns a matching stored summary without generating or saving", async () => {
     const prep = prepared();
     const { deps, summarizer } = makeDeps({
-      loadStored: vi.fn(async () => ({ inputHash: prep.inputHash, summary: storedText, tips: ["저장된 팁"] } satisfies StoredSummary)),
+      loadStored: vi.fn(async () => ({ inputHash: prep.inputHash, summary: storedText, tips: ["저장된 팁"], tipCategories: [...tipCategories] } satisfies StoredSummary)),
     });
-    expect(await resolveCardSummary(userId, prep, deps)).toEqual({ kind: "ready", summary: storedText, tips: ["저장된 팁"] });
+    expect(await resolveCardSummary(userId, prep, deps)).toEqual({ kind: "ready", summary: storedText, tips: ["저장된 팁"], tipCategories: [...tipCategories] });
     expect(summarizer.summarize).not.toHaveBeenCalled();
     expect(deps.save).not.toHaveBeenCalled();
     expect(console.error).not.toHaveBeenCalled();
@@ -144,7 +145,7 @@ describe("resolveCardSummary", () => {
   it("fails on generation failure without exposing a stale saved summary", async () => {
     const prep = prepared();
     const { deps, summarizer } = makeDeps({
-      loadStored: vi.fn(async () => ({ inputHash: "f".repeat(64), summary: storedText, tips: ["저장된 팁"] })),
+      loadStored: vi.fn(async () => ({ inputHash: "f".repeat(64), summary: storedText, tips: ["저장된 팁"], tipCategories: [...tipCategories] })),
     });
     vi.mocked(summarizer.summarize).mockResolvedValue({ ok: false, reason: "number" });
     expect(await resolveCardSummary(userId, prep, deps)).toEqual({ kind: "failed" });
@@ -156,11 +157,11 @@ describe("resolveCardSummary", () => {
   it("saves generated content using the card and period key", async () => {
     const prep = prepared("pro", "cycle");
     const { deps, summarizer } = makeDeps();
-    expect(await resolveCardSummary(userId, prep, deps)).toEqual({ kind: "ready", summary: generatedText, tips: generatedTips });
+    expect(await resolveCardSummary(userId, prep, deps)).toEqual({ kind: "ready", summary: generatedText, tips: generatedTips, tipCategories: [...tipCategories] });
     expect(summarizer.summarize).toHaveBeenCalledExactlyOnceWith(prep.input);
     expect(deps.save).toHaveBeenCalledExactlyOnceWith({
       userId, cardId: prep.cardId, period: prep.period, plan: prep.plan, model: prep.model,
-      inputHash: prep.inputHash, summary: generatedText, tips: generatedTips,
+      inputHash: prep.inputHash, summary: generatedText, tips: generatedTips, tipCategories: [...tipCategories],
     } satisfies SaveCardSummaryInput);
     expect(console.error).not.toHaveBeenCalled();
   });
@@ -177,7 +178,7 @@ describe("resolveCardSummary", () => {
     const { deps } = makeDeps({
       save: vi.fn().mockRejectedValue(new StoreError("save_card_summary", "PGRST202")),
     });
-    expect(await resolveCardSummary(userId, prepared(), deps)).toEqual({ kind: "ready", summary: generatedText, tips: generatedTips });
+    expect(await resolveCardSummary(userId, prepared(), deps)).toEqual({ kind: "ready", summary: generatedText, tips: generatedTips, tipCategories: [...tipCategories] });
     expect(console.error).toHaveBeenCalledExactlyOnceWith("summary:card:save:PGRST202", userId);
   });
 

@@ -58,13 +58,14 @@ function row(month: string, suffix: string): IngestRow {
 function summary(month: string, inputHash: string, text: string): SaveSummaryInput {
   return {
     userId: userA, month, plan: "free", model: "claude-sonnet-5-5", inputHash: inputHash.repeat(64), summary: text, tips: [`${text} 팁`],
+    tipCategories: ["food"],
   };
 }
 
 function cardSummary(period: string, inputHash: string, text: string): SaveCardSummaryInput {
   return {
     userId: userA, cardId: cardA, period, plan: "free", model: "claude-sonnet-5-5",
-    inputHash: inputHash.repeat(64), summary: text, tips: [`${text} 팁`],
+    inputHash: inputHash.repeat(64), summary: text, tips: [`${text} 팁`], tipCategories: ["food"],
   };
 }
 
@@ -75,11 +76,13 @@ describe("summary persistence against the dev DB", () => {
     expect(await getStoredSummary(admin, userA, "2026-09")).toBeNull();
 
     await upload("1", [row("2026-09", "1")]);
+    await expect(saveSummary({ ...summary("2026-09", "a", "길이 불일치"), tipCategories: [] }))
+      .rejects.toMatchObject({ code: "23514" });
     expect(await saveSummary(summary("2026-09", "a", "첫 요약"))).toEqual({ kind: "saved" });
-    expect(await getStoredSummary(admin, userA, "2026-09")).toEqual({ inputHash: "a".repeat(64), summary: "첫 요약", tips: ["첫 요약 팁"] });
+    expect(await getStoredSummary(admin, userA, "2026-09")).toEqual({ inputHash: "a".repeat(64), summary: "첫 요약", tips: ["첫 요약 팁"], tipCategories: ["food"] });
 
     expect(await saveSummary(summary("2026-09", "b", "바뀐 요약"))).toEqual({ kind: "saved" });
-    expect(await getStoredSummary(admin, userA, "2026-09")).toEqual({ inputHash: "b".repeat(64), summary: "바뀐 요약", tips: ["바뀐 요약 팁"] });
+    expect(await getStoredSummary(admin, userA, "2026-09")).toEqual({ inputHash: "b".repeat(64), summary: "바뀐 요약", tips: ["바뀐 요약 팁"], tipCategories: ["food"] });
     expect(await getStoredSummary(admin, userB, "2026-09")).toBeNull();
   });
 
@@ -94,7 +97,7 @@ describe("summary persistence against the dev DB", () => {
     expect(await deleteUpload(userA, upload1)).toEqual({ kind: "deleted" });
     expect(await getStoredSummary(admin, userA, "2026-08")).toBeNull();
     expect(await getStoredSummary(admin, userA, "2026-09")).toBeNull();
-    expect(await getStoredSummary(admin, userA, "2026-10")).toEqual({ inputHash: "e".repeat(64), summary: "요약 2026-10", tips: ["요약 2026-10 팁"] });
+    expect(await getStoredSummary(admin, userA, "2026-10")).toEqual({ inputHash: "e".repeat(64), summary: "요약 2026-10", tips: ["요약 2026-10 팁"], tipCategories: ["food"] });
   });
 });
 
@@ -105,9 +108,11 @@ describe("card summary persistence against the dev DB", () => {
     expect(await getStoredCardSummary(admin, userA, cardA, "2026-10")).toBeNull();
 
     const monthUpload = await upload("6", [row("2026-10", "6")]);
+    await expect(saveCardSummary({ ...cardSummary("2026-10", "b", "길이 불일치"), tipCategories: [] }))
+      .rejects.toMatchObject({ code: "23514" });
     expect(await saveCardSummary(cardSummary("2026-10", "b", "월 요약"))).toEqual({ kind: "saved" });
     expect(await getStoredCardSummary(admin, userA, cardA, "2026-10")).toEqual({
-      inputHash: "b".repeat(64), summary: "월 요약", tips: ["월 요약 팁"],
+      inputHash: "b".repeat(64), summary: "월 요약", tips: ["월 요약 팁"], tipCategories: ["food"],
     });
 
     expect(await updateCard(userA, cardA, { label: "생활비 카드", analysisBasis: "cycle", cycleStartDay: 12 }))
@@ -120,7 +125,7 @@ describe("card summary persistence against the dev DB", () => {
       "2026-10-23", "2020-01-01T00:00:00+00:00");
     expect(await saveCardSummary(cardSummary("2026-10-23", "d", "명세서 요약"))).toEqual({ kind: "saved" });
     expect(await getStoredCardSummary(admin, userA, cardA, "2026-10-23")).toEqual({
-      inputHash: "d".repeat(64), summary: "명세서 요약", tips: ["명세서 요약 팁"],
+      inputHash: "d".repeat(64), summary: "명세서 요약", tips: ["명세서 요약 팁"], tipCategories: ["food"],
     });
     expect(await deleteUpload(userA, statementUpload)).toEqual({ kind: "deleted" });
     expect(await getStoredCardSummary(admin, userA, cardA, "2026-10-23")).toBeNull();
