@@ -55,7 +55,10 @@
     {
       "step": 5,
       "name": "card-page",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T16:29:50+0900",
+      "summary": "대시보드에서 card·statement URL을 검증·복귀 경로에 보존하고, 본인 카드·명세서로 전체/카드 탭 DTO를 조립했다. 카드 요약은 입력 해시 keyed Suspense로 분리하고 카드 탭 수동 확인 절을 추가했다.",
+      "completed_at": "2026-10-14T16:35:30+0900"
     }
   ],
   "created_at": "2026-10-14T15:58:37+0900"
