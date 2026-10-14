@@ -39,7 +39,10 @@
     {
       "step": 3,
       "name": "card-summary",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T16:18:10+0900",
+      "summary": "CardSummarizer와 카드 프롬프트 상수·Claude/mock 구현, getCardSummarizer를 추가하고 src/lib/summary/card-summary.ts의 prepareCardSummary·resolveCardSummary 및 deps.ts의 defaultCardSummaryDeps를 구현했다. period 키는 월별 YYYY-MM, 이용 기간 YYYY-MM-DD다.",
+      "completed_at": "2026-10-14T16:22:49+0900"
     },
     {
       "step": 4,
