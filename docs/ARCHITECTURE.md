@@ -174,7 +174,7 @@ success 페이지 · 웹훅(서명 검증) · 결제 기간이 지난 상태 · 
 | 경로 | 역할 |
 |---|---|
 | `POST /api/cards` | 카드 등록(라벨·카드사·분석 기준·이용 기간 시작일) |
-| `PUT /api/cards/[id]` | 카드 수정(라벨·분석 기준·이용 기간 시작일, 카드사는 고정) → 204 |
+| `PUT /api/cards/[id]` | 카드 수정(라벨·분석 기준·이용 기간 시작일, 카드사는 고정) → 200 `{ updated: true }` |
 | `POST /api/uploads` | 파일 수신 → 암호화 저장 → 처리, 또는 매핑 제안(needs_mapping) |
 | `POST /api/uploads/[id]/mapping` | 저장된 매핑 제안 확정 → 처리 |
 | `DELETE /api/uploads/[id]` | 업로드 삭제(매핑 대기 취소 포함) |
