@@ -12,11 +12,39 @@
     }
   ],
   "steps": [
-    { "step": 0, "name": "card-view-schema", "status": "pending" },
-    { "step": 1, "name": "card-data", "status": "pending" },
-    { "step": 2, "name": "card-analytics", "status": "pending" },
-    { "step": 3, "name": "card-summary", "status": "pending" },
-    { "step": 4, "name": "card-components", "status": "pending" },
-    { "step": 5, "name": "card-page", "status": "pending" }
-  ]
+    {
+      "step": 0,
+      "name": "card-view-schema",
+      "status": "completed",
+      "started_at": "2026-10-14T15:58:37+0900",
+      "summary": "supabase/migrations/20261018000000_card_views.sql·supabase/tests/card_views.test.sql 추가: card_summaries PK(user_id,card_id,period)와 복합 FK, save_card_summary(uuid,uuid,text,text,text,text,text,text[]) 결과(saved/card_not_found/basis_mismatch/no_data), update_card(uuid,uuid,text,text,integer) 결과(updated/not_found/invalid_label/duplicate_label), uploads_card_summaries(after delete, old.status='done'), pgTAP 82개 단언. dev DB 미적용(사용자 쪽에서 push·pgtap.sh 필요)",
+      "completed_at": "2026-10-14T16:04:22+0900"
+    },
+    {
+      "step": 1,
+      "name": "card-data",
+      "status": "pending"
+    },
+    {
+      "step": 2,
+      "name": "card-analytics",
+      "status": "pending"
+    },
+    {
+      "step": 3,
+      "name": "card-summary",
+      "status": "pending"
+    },
+    {
+      "step": 4,
+      "name": "card-components",
+      "status": "pending"
+    },
+    {
+      "step": 5,
+      "name": "card-page",
+      "status": "pending"
+    }
+  ],
+  "created_at": "2026-10-14T15:58:37+0900"
 }
