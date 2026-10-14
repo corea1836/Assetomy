@@ -63,7 +63,10 @@
     {
       "step": 6,
       "name": "insight-ui",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T20:38:32+0900",
+      "summary": "증감 ArrowUp/ArrowDown 아이콘과 formatTransactionCount를 추가하고, 총지출·가맹점 건수와 취소 표시를 반영했다. 요약을 문단·▲▼ 아이콘과 숫자로 렌더링하고 TipFeedback 저장·삭제·포커스·오류 처리를 구현해 전체·카드 요약 section 및 페이지에 연결했다. AI 전송 고지와 BROWSER_TESTING 기대값·인사이트 개인화 수동 확인 절차를 갱신했다.",
+      "completed_at": "2026-10-14T20:46:22+0900"
     }
   ],
   "created_at": "2026-10-14T19:55:28+0900"
