@@ -11,6 +11,7 @@ import {
   formatSignedWon,
   formatStatementDate,
   formatStatementOption,
+  formatTransactionCount,
   formatWon,
 } from "./format";
 
@@ -39,6 +40,16 @@ describe("formatSignedWon", () => {
     [-0, "0원"],
   ] as const)("formats %i with a sign only when nonzero", (amount, expected) => {
     expect(formatSignedWon(amount)).toBe(expected);
+  });
+});
+
+describe("formatTransactionCount", () => {
+  it.each([
+    [3, 0, "3건"],
+    [1, 1, "1건 · 취소 1건"],
+    [0, 1, "취소 1건"],
+  ] as const)("formats %i transactions and %i cancellations", (count, cancelCount, expected) => {
+    expect(formatTransactionCount(count, cancelCount)).toBe(expected);
   });
 });
 

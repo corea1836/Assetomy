@@ -87,4 +87,22 @@ describe("TopMerchants", () => {
     expect(container.querySelectorAll("select")).toHaveLength(2);
     expect(screen.getByText("카테고리를 바꾸면 같은 가맹점의 모든 거래에 적용돼요")).toHaveClass("text-caption", "text-body");
   });
+
+  it("shows kept and cancelled transaction counts for editable and read-only rows", () => {
+    const rows: MerchantAmount[] = [
+      { ...merchants[0], count: 1, cancelCount: 1 },
+      { ...merchants[1], count: 0, cancelCount: 1 },
+      { ...merchants[0], merchantKey: "three", merchant: "세 건 가맹점", count: 3, cancelCount: 0 },
+    ];
+    const { rerender } = render(<TopMerchants merchants={rows} otherMerchants={[]} />);
+    const readOnlyRows = screen.getAllByRole("listitem");
+    expect(readOnlyRows[0]).toHaveTextContent("1건 · 취소 1건");
+    expect(readOnlyRows[1]).toHaveTextContent("취소 1건");
+    expect(readOnlyRows[2]).toHaveTextContent("3건");
+
+    rerender(<TopMerchants merchants={rows} otherMerchants={[]} editable />);
+    expect(screen.getByText("1건 · 취소 1건")).toBeInTheDocument();
+    expect(screen.getByText("취소 1건")).toBeInTheDocument();
+    expect(screen.getByText("3건")).toBeInTheDocument();
+  });
 });

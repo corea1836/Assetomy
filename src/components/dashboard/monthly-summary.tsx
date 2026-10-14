@@ -1,10 +1,13 @@
-import { LoaderCircleIcon, SparklesIcon } from "@/components/icons";
+import { ArrowDownIcon, ArrowUpIcon, LoaderCircleIcon, SparklesIcon } from "@/components/icons";
 import { UpgradeButton } from "@/components/billing/upgrade-button";
 import { SUMMARY_STATUS_MESSAGES } from "@/lib/errors/messages";
+import { TipFeedback } from "@/components/dashboard/tip-feedback";
+import type { CategoryId } from "@/types/category";
+import type { SummaryFeedback } from "@/types/summary";
 
 const CARD_CLASS = "rounded-3xl border border-primary/25 bg-primary-soft bg-linear-to-br from-primary/15 via-primary-soft to-canvas p-6 shadow-glow sm:p-8";
 // 코드가 자리표시자로 채운 숫자(기간·금액·건수·비율·개월)
-const FILLED_NUMBER = /((?:1[0-2]|[1-9])월 [0-9]{1,2}일~(?:1[0-2]|[1-9])월 [0-9]{1,2}일|[−+]?[0-9][0-9,]*(?:원|건|%|개월))/;
+const FILLED_NUMBER = /([▲▼][0-9][0-9,]*원|(?:1[0-2]|[1-9])월 [0-9]{1,2}일~(?:1[0-2]|[1-9])월 [0-9]{1,2}일|[−+]?[0-9][0-9,]*(?:원|건|%|개월))/;
 
 type SummaryVariant = "month" | "card-month" | "statement";
 
@@ -22,9 +25,13 @@ function EmphasizedNumbers({ text }: { text: string }): React.JSX.Element {
   return (
     <>
       {text.split(FILLED_NUMBER).map((part, index) => (
-        index % 2 === 1
-          ? <strong key={index} className="font-semibold tabular-nums">{part}</strong>
-          : part
+        index % 2 === 1 && part.startsWith("▲")
+          ? <strong key={index} className="whitespace-nowrap font-semibold tabular-nums text-increase"><ArrowUpIcon size={16} className="inline-block align-[-0.125em]" />{part.slice(1)}</strong>
+          : index % 2 === 1 && part.startsWith("▼")
+            ? <strong key={index} className="whitespace-nowrap font-semibold tabular-nums text-decrease"><ArrowDownIcon size={16} className="inline-block align-[-0.125em]" />{part.slice(1)}</strong>
+            : index % 2 === 1
+              ? <strong key={index} className="whitespace-nowrap font-semibold tabular-nums">{part}</strong>
+              : part
       ))}
     </>
   );
@@ -64,10 +71,22 @@ function FreeUpgradePrompt({ variant }: { variant: SummaryVariant }): React.JSX.
   );
 }
 
-export function MonthlySummary({ summary, source, tips = [], upgrade, variant = "month" }: {
+export function MonthlySummary({
+  summary,
+  source,
+  tips = [],
+  tipCategories,
+  feedback,
+  feedbackEnabled = false,
+  upgrade,
+  variant = "month",
+}: {
   summary: string;
   source: "ai" | "example";
   tips?: string[];
+  tipCategories?: CategoryId[];
+  feedback?: SummaryFeedback;
+  feedbackEnabled?: boolean;
   upgrade?: boolean;
   variant?: SummaryVariant;
 }): React.JSX.Element {
@@ -75,14 +94,28 @@ export function MonthlySummary({ summary, source, tips = [], upgrade, variant = 
     <section className={CARD_CLASS}>
       <SummaryHeading variant={variant} />
       <div className={tips.length > 0 ? "mt-4 grid gap-6 md:grid-cols-2 md:gap-8" : "mt-4"}>
-        <p className="whitespace-pre-line text-lg leading-relaxed text-ink">
-          <EmphasizedNumbers text={summary} />
-        </p>
+        <div className="space-y-3">
+          {summary.split("\n\n").map((paragraph, index) => (
+            <p key={index} className="text-lg leading-relaxed text-ink break-keep text-pretty">
+              <EmphasizedNumbers text={paragraph} />
+            </p>
+          ))}
+        </div>
         {tips.length > 0 && (
           <div>
             <h3 className="text-base font-semibold text-ink">이렇게 절약해 보세요</h3>
             <ul className="mt-2 list-disc space-y-2 pl-5 text-base leading-relaxed text-ink">
-              {tips.map((tip, index) => <li key={index}><EmphasizedNumbers text={tip} /></li>)}
+              {tips.map((tip, index) => {
+                const category = tipCategories?.[index];
+                return (
+                  <li key={index}>
+                    <EmphasizedNumbers text={tip} />
+                    {source === "ai" && feedbackEnabled && category !== undefined && (
+                      <TipFeedback category={category} initial={feedback?.[category] ?? ""} />
+                    )}
+                  </li>
+                );
+              })}
             </ul>
           </div>
         )}

@@ -1,12 +1,14 @@
 import { render } from "@testing-library/react";
 import { describe, expect, it } from "vitest";
 import {
-  ArrowRightIcon, CardIcon, CheckIcon, SearchIcon, ShieldCheckIcon, SparklesIcon, XIcon,
+  ArrowDownIcon, ArrowRightIcon, ArrowUpIcon, CardIcon, CheckIcon, SearchIcon, ShieldCheckIcon, SparklesIcon, XIcon,
 } from "./icons";
 
 describe("icons", () => {
   it.each([
     ["ArrowRightIcon", ArrowRightIcon],
+    ["ArrowUpIcon", ArrowUpIcon],
+    ["ArrowDownIcon", ArrowDownIcon],
     ["CardIcon", CardIcon],
     ["CheckIcon", CheckIcon],
     ["SearchIcon", SearchIcon],
@@ -34,5 +36,15 @@ describe("icons", () => {
     expect(svg).toHaveAttribute("width", "18");
     expect(svg).toHaveAttribute("height", "18");
     expect(svg).toHaveClass("text-primary");
+  });
+
+  it.each([ArrowUpIcon, ArrowDownIcon])("supports size props on the new trend arrows", (Icon) => {
+    const { container } = render(<Icon size={16} />);
+    const svg = container.querySelector("svg");
+
+    expect(svg).toHaveAttribute("aria-hidden", "true");
+    expect(svg).toHaveAttribute("width", "16");
+    expect(svg).toHaveAttribute("height", "16");
+    expect(svg).toHaveAttribute("stroke", "currentColor");
   });
 });

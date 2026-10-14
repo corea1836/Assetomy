@@ -39,4 +39,12 @@ describe("StatementTotalCard", () => {
     expect(screen.getByText("이용 기간이 끝나기 전에 받은 명세서예요. 그 뒤 거래는 빠져 있을 수 있어요")).toBeInTheDocument();
     expect(screen.getByText("거래 7건 · 반영 기간 8/12~9/12").parentElement).toHaveClass("border-t", "border-hairline-soft");
   });
+
+  it("includes cancellation pairs in statement evidence only when present", () => {
+    const { rerender } = render(<StatementTotalCard snapshot={{ ...snapshot, cancelCount: 1 }} cyclePeriod={cyclePeriod} complete comparison={null} comparisonSkipped={false} />);
+    expect(screen.getByText("거래 7건 · 취소 1건 · 반영 기간 8/12~9/12")).toBeInTheDocument();
+
+    rerender(<StatementTotalCard snapshot={{ ...snapshot, transactionCount: 0, cancelCount: 1 }} cyclePeriod={cyclePeriod} complete comparison={null} comparisonSkipped={false} />);
+    expect(screen.getByText("거래 0건 · 취소 1건 · 반영 기간 8/12~9/12")).toBeInTheDocument();
+  });
 });

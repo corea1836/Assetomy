@@ -4,7 +4,7 @@ await go("/demo");
 const s2Body = await bodyText();
 
 const total = norm(await section("총지출").innerText());
-const totalOrder = ["1,517,200원", "8월보다 +909,200원 늘었어요", "거래 26건 · 반영 기간 9/1~9/30"].map((t) => total.indexOf(t));
+const totalOrder = ["1,517,200원", "8월보다 +909,200원 늘었어요", "거래 24건 · 취소 1건 · 반영 기간 9/1~9/30"].map((t) => total.indexOf(t));
 check("S2 총지출·전월 대비·건수 순서", totalOrder.every((i) => i >= 0) && totalOrder[0] < totalOrder[1] && totalOrder[1] < totalOrder[2], total);
 check("S2 증가 색(text-increase)", (await section("총지출").locator(".text-increase").count()) > 0, "");
 check("S2 진행 중 문구 없음", !total.includes("진행 중인 달이에요"), total);

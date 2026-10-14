@@ -16,6 +16,14 @@ describe("CategoryChangesCard", () => {
     expect(screen.getByText("식비")).toBeInTheDocument();
     expect(container.querySelector(".text-increase")).toHaveTextContent("+30,000원 늘었어요");
     expect(container.querySelector(".text-decrease")).toHaveTextContent("−5,000원 줄었어요");
+    const increase = container.querySelector(".text-increase")!;
+    const decrease = container.querySelector(".text-decrease")!;
+    expect(increase).toHaveClass("whitespace-nowrap");
+    expect(decrease).toHaveClass("whitespace-nowrap");
+    expect(increase.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    expect(increase.querySelector("svg path")).toHaveAttribute("d", "m5 12 7-7 7 7");
+    expect(decrease.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    expect(decrease.querySelector("svg path")).toHaveAttribute("d", "M12 5v14");
     expect(container.querySelector("section")).toHaveClass("rounded-3xl", "border", "border-hairline", "bg-canvas");
   });
 

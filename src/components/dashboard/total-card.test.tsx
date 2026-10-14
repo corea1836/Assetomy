@@ -30,6 +30,16 @@ describe("TotalCard", () => {
     ).toBeInTheDocument();
   });
 
+  it("includes cancellation pairs after the transaction count", () => {
+    render(<TotalCard snapshot={{ ...snapshot, cancelCount: 2 }} mom={null} />);
+    expect(screen.getByText("거래 42건 · 취소 2건 · 반영 기간 9/1~9/30")).toBeInTheDocument();
+  });
+
+  it("shows only the cancellation count when every transaction is paired", () => {
+    render(<TotalCard snapshot={{ ...snapshot, transactionCount: 0, cancelCount: 1 }} mom={null} />);
+    expect(screen.getByText("거래 0건 · 취소 1건 · 반영 기간 9/1~9/30")).toBeInTheDocument();
+  });
+
   it.each([
     [123_000, "8월보다 +123,000원 늘었어요", "+123,000원 늘었어요", "text-increase"],
     [-45_000, "8월보다 −45,000원 줄었어요", "−45,000원 줄었어요", "text-decrease"],

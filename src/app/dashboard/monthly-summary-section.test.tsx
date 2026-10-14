@@ -5,9 +5,12 @@ import { DEMO_TODAY, DEMO_TRANSACTIONS } from "@/lib/demo/fixture";
 import type { MonthlySummarizer, SummaryResult } from "@/services/llm/types";
 import type { Dashboard } from "@/types/dashboard";
 import type { CategoryId } from "@/types/category";
+import type { SummaryFeedback } from "@/types/summary";
 import type { SummaryDeps } from "@/lib/summary/monthly-summary";
 import { prepareSummary } from "@/lib/summary/monthly-summary";
 import { MonthlySummarySection } from "./monthly-summary-section";
+
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 const userId = "summary-section-user";
 const storedText = "저장된 이번 달 요약이에요.";
@@ -42,12 +45,15 @@ describe("MonthlySummarySection", () => {
   it.each(["free", "pro"] as const)("reuses the stored %s summary", async (plan) => {
     const prepared = makePrepared(plan);
     const deps = makeDeps(prepared);
+    const feedback: SummaryFeedback = { food: "평일 점심은 회사에서 먹어요" };
 
-    render(await MonthlySummarySection({ userId, prepared, deps }));
+    render(await MonthlySummarySection({ userId, prepared, deps, feedback }));
 
     expect(screen.getByText(storedText)).toBeInTheDocument();
     expect(screen.getByText(storedTips[0])).toBeInTheDocument();
     expect(screen.getByText("AI가 가맹점명과 집계로 쓴 요약이에요. 금액은 코드로 계산해요.")).toBeInTheDocument();
+    expect(screen.getByText(`내 피드백: ${feedback.food}`)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "수정" })).toBeInTheDocument();
     if (plan === "free") {
       expect(screen.getByRole("button", { name: "Pro로 보기" })).toBeInTheDocument();
     } else {
@@ -63,12 +69,13 @@ describe("MonthlySummarySection", () => {
       summarizer: makeSummarizer({ ok: false, reason: "request_failed" }),
     });
 
-    render(await MonthlySummarySection({ userId, prepared, deps }));
+    render(await MonthlySummarySection({ userId, prepared, deps, feedback: { food: "표시하면 안 돼요" } }));
 
     expect(screen.getByText("요약을 만들지 못했어요. 새로고침하면 다시 만들어요.")).toBeInTheDocument();
     expect(screen.queryByText("이전 요약은 보여주면 안 돼요.")).not.toBeInTheDocument();
     expect(screen.queryByText("이전 팁도 보여주면 안 돼요.")).not.toBeInTheDocument();
     expect(screen.queryByText("AI가 가맹점명과 집계로 쓴 요약이에요. 금액은 코드로 계산해요.")).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "피드백 남기기" })).not.toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Pro로 보기" })).toBeInTheDocument();
   });
 });

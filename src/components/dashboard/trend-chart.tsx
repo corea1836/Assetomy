@@ -10,6 +10,7 @@ import {
   XAxis,
   YAxis,
 } from "recharts";
+import { ArrowDownIcon, ArrowUpIcon } from "@/components/icons";
 import {
   formatAxisWon,
   formatMonth,
@@ -139,12 +140,12 @@ export function TrendChart({ trend }: { trend: Trend }): React.JSX.Element {
               >
                 <span className="text-ink">{CATEGORY_LABELS[category]}</span>
                 {diff > 0 ? (
-                  <span className="text-increase">
-                    <span className="font-mono">{formatSignedWon(diff)}</span> 늘었어요
+                  <span className="whitespace-nowrap text-increase">
+                    <ArrowUpIcon size={16} className="inline-block align-[-0.125em]" /> <span className="font-mono">{formatSignedWon(diff)}</span> 늘었어요
                   </span>
                 ) : (
-                  <span className="text-decrease">
-                    <span className="font-mono">{formatSignedWon(diff)}</span> 줄었어요
+                  <span className="whitespace-nowrap text-decrease">
+                    <ArrowDownIcon size={16} className="inline-block align-[-0.125em]" /> <span className="font-mono">{formatSignedWon(diff)}</span> 줄었어요
                   </span>
                 )}
               </li>

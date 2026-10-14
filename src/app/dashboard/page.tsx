@@ -142,7 +142,7 @@ export default async function DashboardPage({ searchParams }: {
                         key={preparedSummary.inputHash}
                         fallback={<MonthlySummaryStatus state="pending" upgrade={dashboard.plan === "free"} />}
                       >
-                        <MonthlySummarySection userId={user.id} prepared={preparedSummary} deps={summaryDeps} />
+                        <MonthlySummarySection userId={user.id} prepared={preparedSummary} deps={summaryDeps} feedback={feedback} />
                       </Suspense>
                     )}
 
@@ -195,6 +195,7 @@ export default async function DashboardPage({ searchParams }: {
                             prepared={preparedCardSummary}
                             deps={cardSummaryDeps}
                             variant={cardDashboard.basis === "month" ? "card-month" : "statement"}
+                            feedback={feedback}
                           />
                         </Suspense>
                       )}

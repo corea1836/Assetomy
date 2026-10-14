@@ -4,6 +4,7 @@ import { sendMetric } from "@/components/send-metric";
 import { MonthlySummary, MonthlySummaryStatus } from "./monthly-summary";
 
 vi.mock("@/components/send-metric", () => ({ sendMetric: vi.fn() }));
+vi.mock("next/navigation", () => ({ useRouter: () => ({ refresh: vi.fn() }) }));
 
 const CARD_CLASSES = [
   "rounded-3xl", "border", "border-primary/25", "bg-primary-soft",
@@ -11,16 +12,26 @@ const CARD_CLASSES = [
 ];
 
 describe("MonthlySummary", () => {
-  it("shows the supplied summary with the title and preserves line breaks", () => {
-    const summary = "이번 달에는 식비 지출이 늘었어요.\n확인이 필요한 지출을 살펴보세요.";
+  it("renders one paragraph for each double-newline separated summary paragraph", () => {
+    const summary = "이번 달에는 식비 지출이 늘었어요.\n\n확인이 필요한 지출을 살펴보세요.";
     render(<MonthlySummary summary={summary} source="example" />);
 
     const heading = screen.getByRole("heading", { name: "이번 달 요약", level: 2 });
     expect(heading).toHaveClass("text-lg", "font-semibold", "text-ink");
     expect(heading.closest("section")).toHaveClass(...CARD_CLASSES);
-    const body = screen.getByText(/이번 달에는 식비 지출이 늘었어요/);
-    expect(body.textContent).toBe(summary);
-    expect(body).toHaveClass("text-lg", "text-ink", "leading-relaxed", "whitespace-pre-line");
+    const paragraphs = screen.getAllByText(/이번 달에는 식비 지출이 늘었어요|확인이 필요한 지출을 살펴보세요/);
+    expect(paragraphs).toHaveLength(2);
+    expect(paragraphs[0]).toHaveTextContent("이번 달에는 식비 지출이 늘었어요.");
+    expect(paragraphs[1]).toHaveTextContent("확인이 필요한 지출을 살펴보세요.");
+    paragraphs.forEach((paragraph) => expect(paragraph).toHaveClass("text-lg", "leading-relaxed", "text-ink", "break-keep", "text-pretty"));
+    expect(paragraphs[0].parentElement).toHaveClass("space-y-3");
+    expect(paragraphs[0].parentElement).not.toHaveClass("whitespace-pre-line");
+    expect(paragraphs[0].parentElement?.querySelectorAll("p")).toHaveLength(2);
+  });
+
+  it("renders a single paragraph when the summary has no paragraph separator", () => {
+    const { container } = render(<MonthlySummary summary="예시 요약 한 문단이에요." source="example" />);
+    expect(container.querySelectorAll("p.break-keep")).toHaveLength(1);
   });
 
   it.each([
@@ -86,25 +97,55 @@ describe("MonthlySummary", () => {
 
   it("places the summary and tips in two columns from md only when there are tips", () => {
     const { rerender } = render(<MonthlySummary summary="이번 달은 식비 비중이 가장 커요." source="ai" tips={["다음 달 식비 예산을 먼저 정해 보세요."]} />);
-    const columns = screen.getByText("이번 달은 식비 비중이 가장 커요.").parentElement!;
+    const columns = screen.getByText("이번 달은 식비 비중이 가장 커요.").parentElement!.parentElement!;
     expect(columns).toHaveClass("grid", "gap-6", "md:grid-cols-2", "md:gap-8");
     expect(columns).toContainElement(screen.getByRole("list"));
 
     rerender(<MonthlySummary summary="이번 달은 식비 비중이 가장 커요." source="example" />);
-    expect(screen.getByText("이번 달은 식비 비중이 가장 커요.").parentElement).not.toHaveClass("md:grid-cols-2");
+    expect(screen.getByText("이번 달은 식비 비중이 가장 커요.").parentElement!.parentElement).not.toHaveClass("md:grid-cols-2");
   });
 
-  it("emphasizes filled amounts, counts, ratios, month counts and the period", () => {
-    const summary = "9월 1일~9월 30일 동안 78건, 1,820,075원을 썼어요. 8월보다 −3,000원 줄었고 식비가 24%로 가장 컸어요.";
+  it("emphasizes filled numbers and replaces arrow markers with colored icons", () => {
+    const summary = "9월 1일~9월 30일 동안 78건, 1,820,075원을 썼어요. 지난달보다 ▲12,000원 늘고 8월보다 ▼3,000원 줄었어요. 식비가 24%로 가장 컸어요.";
     const tip = "GS25 역삼점 정기결제가 3개월 이어졌어요. 아직 쓰는지 점검해 보세요.";
     const { container } = render(<MonthlySummary summary={summary} source="ai" tips={[tip]} />);
 
     const strong = Array.from(container.querySelectorAll("strong"));
     expect(strong.map((element) => element.textContent))
-      .toEqual(["9월 1일~9월 30일", "78건", "1,820,075원", "−3,000원", "24%", "3개월"]);
-    strong.forEach((element) => expect(element).toHaveClass("font-semibold", "tabular-nums"));
-    expect(container.querySelector("p")?.textContent).toBe(summary);
+      .toEqual(["9월 1일~9월 30일", "78건", "1,820,075원", "12,000원", "3,000원", "24%", "3개월"]);
+    strong.forEach((element) => expect(element).toHaveClass("font-semibold", "tabular-nums", "whitespace-nowrap"));
+    const increases = container.querySelectorAll("strong.text-increase");
+    const decreases = container.querySelectorAll("strong.text-decrease");
+    expect(increases).toHaveLength(1);
+    expect(decreases).toHaveLength(1);
+    expect(increases[0].querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    expect(increases[0].querySelector("svg")).toHaveClass("inline-block", "align-[-0.125em]");
+    expect(decreases[0].querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    expect(container.textContent).not.toContain("▲");
+    expect(container.textContent).not.toContain("▼");
+    expect(container.querySelector(".space-y-3 p")?.textContent).toBe(summary.replace(/[▲▼]/gu, ""));
     expect(screen.getByRole("listitem").textContent).toBe(tip);
+  });
+
+  it("shows feedback only for enabled real summaries and reuses category feedback", () => {
+    const props = {
+      summary: "요약 첫 문단이에요.\n\n요약 둘째 문단이에요.",
+      source: "ai" as const,
+      tips: ["첫 번째 팁이에요.", "같은 카테고리의 다른 팁이에요."],
+      tipCategories: ["food", "food"] as ["food", "food"],
+      feedback: { food: "평일 점심은 회사에서 먹어요" },
+      feedbackEnabled: true,
+    };
+    const { rerender } = render(<MonthlySummary {...props} />);
+    expect(screen.getAllByText("내 피드백: 평일 점심은 회사에서 먹어요")).toHaveLength(2);
+    expect(screen.getAllByRole("button", { name: "수정" })).toHaveLength(2);
+
+    rerender(<MonthlySummary {...props} feedbackEnabled={false} />);
+    expect(screen.queryByRole("button", { name: "수정" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "피드백 남기기" })).not.toBeInTheDocument();
+
+    rerender(<MonthlySummary {...props} source="example" />);
+    expect(screen.queryByRole("button", { name: "수정" })).not.toBeInTheDocument();
   });
 
   it("renders no tip heading without tips, as on the demo and landing", () => {

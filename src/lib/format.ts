@@ -22,6 +22,12 @@ export function formatDiffWon(diff: number): string {
   return `${marker}${numberFormat.format(Math.abs(diff))}원`;
 }
 
+export function formatTransactionCount(count: number, cancelCount: number): string {
+  const transactions = count > 0 ? `${count}건` : "";
+  const cancellations = cancelCount > 0 ? `취소 ${cancelCount}건` : "";
+  return [transactions, cancellations].filter(Boolean).join(" · ");
+}
+
 export function formatAxisWon(amount: number): string {
   const absolute = Math.abs(amount);
   const sign = amount < 0 ? "−" : "";

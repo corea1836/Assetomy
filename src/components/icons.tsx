@@ -33,6 +33,24 @@ export function ArrowRightIcon(props: IconProps): React.JSX.Element {
   );
 }
 
+export function ArrowUpIcon(props: IconProps): React.JSX.Element {
+  return (
+    <Svg {...props}>
+      <path d="m5 12 7-7 7 7" />
+      <path d="M12 19V5" />
+    </Svg>
+  );
+}
+
+export function ArrowDownIcon(props: IconProps): React.JSX.Element {
+  return (
+    <Svg {...props}>
+      <path d="M12 5v14" />
+      <path d="m19 12-7 7-7-7" />
+    </Svg>
+  );
+}
+
 export function CardIcon(props: IconProps): React.JSX.Element {
   return (
     <Svg {...props}>

@@ -182,7 +182,7 @@ describe("dashboard page", () => {
     expect(screen.getByText("2026년 9월까지 반영됨")).toBeInTheDocument();
     const total = screen.getByRole("heading", { name: "총지출" }).closest("section")!;
     expect(within(total).getByText(formatWon(freeDashboard.snapshot.total))).toBeInTheDocument();
-    expect(within(total).getByText("거래 24건 · 반영 기간 9/1~9/30")).toBeInTheDocument();
+    expect(within(total).getByText("거래 24건 · 취소 1건 · 반영 기간 9/1~9/30")).toBeInTheDocument();
     expect(total).toHaveTextContent("취소·환불은 카드사 파일의 날짜 기준으로 반영돼요");
     expect(vi.mocked(TeaserCard).mock.calls[0][0]).toEqual({ teaser: freeDashboard.teaser, dataMonthCount: 4 });
     expect(Object.keys(vi.mocked(TeaserCard).mock.calls[0][0]).sort()).toEqual(["dataMonthCount", "teaser"]);
@@ -220,6 +220,7 @@ describe("dashboard page", () => {
     expect(props.userId).toBe("private-user-id");
     expect(props.prepared.plan).toBe("free");
     expect(props.prepared.month).toBe(freeDashboard.month);
+    expect(props.feedback).toBe(feedback);
     expect(vi.mocked(listSummaryFeedback)).toHaveBeenCalledExactlyOnceWith(supabase, "private-user-id");
     expect(vi.mocked(prepareSummary).mock.calls[0][2]).toBe(feedback);
     expect(props.prepared.input.categories.find(({ category }) => category === "식비")?.feedback)
@@ -244,6 +245,8 @@ describe("dashboard page", () => {
 
   it("renders a monthly card view without preparing the overall summary, findings or trend", async () => {
     vi.mocked(listCards).mockResolvedValue([monthCard]);
+    const feedback = { food: "평일 점심은 회사에서 먹어요" };
+    vi.mocked(listSummaryFeedback).mockResolvedValue(feedback);
     const transactions = transactionsForCard();
     vi.mocked(listTransactions).mockResolvedValue(transactions);
 
@@ -266,6 +269,7 @@ describe("dashboard page", () => {
     expect(defaultCardSummaryDeps).toHaveBeenCalledExactlyOnceWith(supabase);
     expect(listStatements).toHaveBeenCalledExactlyOnceWith(supabase, "private-user-id");
     expect(vi.mocked(CardSummarySection).mock.calls[0][0].variant).toBe("card-month");
+    expect(vi.mocked(CardSummarySection).mock.calls[0][0].feedback).toBe(feedback);
     const [preparedCardDTO] = vi.mocked(prepareCardSummary).mock.calls[0];
     expect(preparedCardDTO.plan).toBe("free");
     expect("categoryChanges" in preparedCardDTO).toBe(false);
@@ -275,6 +279,8 @@ describe("dashboard page", () => {
     vi.mocked(listCards).mockResolvedValue([cycleCard]);
     vi.mocked(listTransactions).mockResolvedValue(statementTransactions());
     vi.mocked(listStatements).mockResolvedValue(completeStatements);
+    const feedback = { food: "평일 점심은 회사에서 먹어요" };
+    vi.mocked(listSummaryFeedback).mockResolvedValue(feedback);
 
     render(await page({ card: cardPageId, statement: "2026-10-23" }));
 
@@ -282,6 +288,7 @@ describe("dashboard page", () => {
     expect(screen.getByRole("combobox", { name: "명세서 선택" })).toHaveValue("2026-10-23");
     expect(screen.getByRole("heading", { name: "이번 명세서 요약" })).toBeInTheDocument();
     expect(vi.mocked(CardSummarySection).mock.calls[0][0].variant).toBe("statement");
+    expect(vi.mocked(CardSummarySection).mock.calls[0][0].feedback).toBe(feedback);
     expect(screen.getAllByText("이용 기간 9/12~10/11")).toHaveLength(2);
     const total = screen.getByRole("heading", { name: "총지출" }).closest("section")!;
     expect(within(total).getByText(formatWon(2_200))).toBeInTheDocument();

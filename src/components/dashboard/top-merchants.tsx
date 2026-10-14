@@ -1,9 +1,9 @@
-import { formatWon } from "@/lib/format";
+import { formatTransactionCount, formatWon } from "@/lib/format";
 import { CATEGORY_LABELS } from "@/types/category";
 import type { MerchantAmount } from "@/types/dashboard";
 import { MerchantCategorySelect } from "./merchant-category-select";
 
-function MerchantRow({ merchantKey, merchant, category, count, amount, editable }: MerchantAmount & {
+function MerchantRow({ merchantKey, merchant, category, count, cancelCount, amount, editable }: MerchantAmount & {
   editable?: boolean;
 }): React.JSX.Element {
   return (
@@ -14,9 +14,9 @@ function MerchantRow({ merchantKey, merchant, category, count, amount, editable 
           {editable ? (
             <>
               <MerchantCategorySelect merchantKey={merchantKey} merchant={merchant} category={category} />
-              <span>{count}건</span>
+              <span>{formatTransactionCount(count, cancelCount)}</span>
             </>
-          ) : `${CATEGORY_LABELS[category]} · ${count}건`}
+          ) : `${CATEGORY_LABELS[category]} · ${formatTransactionCount(count, cancelCount)}`}
         </div>
       </div>
       <span className={`shrink-0 text-right font-mono text-sm ${amount < 0 ? "text-body" : "text-ink"}`}>

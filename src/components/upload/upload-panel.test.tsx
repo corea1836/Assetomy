@@ -78,7 +78,7 @@ describe("UploadPanel file and card selection", () => {
     expect(screen.getByText("파일당 4MB · 최근 24시간 30개 · 동시에 2개씩 처리해요")).toBeVisible();
     expect(screen.getByText("여러 카드가 섞인 파일은 카드별로 다시 받아 주세요")).toBeVisible();
     expect(screen.getByText("기간이 겹쳐도 같은 거래는 한 번만 반영돼요")).toBeVisible();
-    expect(screen.getByText("분석을 위해 가맹점명과 집계 결과가 AI 서비스로 전송됩니다.")).toBeVisible();
+    expect(screen.getByText("분석을 위해 가맹점명과 집계 결과, 내가 남긴 요약 피드백이 AI 서비스로 전송됩니다.")).toBeVisible();
     expect(screen.getByText("원본 파일은 암호화해 보관하고, 거래는 이용일 기준 12개월 뒤 삭제됩니다.")).toBeVisible();
     expect(screen.getAllByText(/암호화/)).toHaveLength(1);
     expect(container.querySelectorAll('[aria-live="polite"]')).toHaveLength(1);

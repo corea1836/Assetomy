@@ -81,12 +81,16 @@ describe("TrendChart", () => {
     expect(screen.getByRole("heading", { name: "지난달과 달라진 카테고리" })).toBeInTheDocument();
     expect(screen.getByText("식비")).toBeInTheDocument();
     expect(screen.getByText("쇼핑")).toBeInTheDocument();
-    expect(screen.getByText(
-      (_, element) => element?.tagName === "SPAN" && element.textContent === "+123,000원 늘었어요",
-    )).toHaveClass("text-increase");
-    expect(screen.getByText(
-      (_, element) => element?.tagName === "SPAN" && element.textContent === "−45,000원 줄었어요",
-    )).toHaveClass("text-decrease");
+    const increase = screen.getByText(
+      (_, element) => element?.tagName === "SPAN" && element.textContent?.includes("+123,000원 늘었어요") === true,
+    );
+    expect(increase).toHaveClass("text-increase", "whitespace-nowrap");
+    expect(increase.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
+    const decrease = screen.getByText(
+      (_, element) => element?.tagName === "SPAN" && element.textContent?.includes("−45,000원 줄었어요") === true,
+    );
+    expect(decrease).toHaveClass("text-decrease", "whitespace-nowrap");
+    expect(decrease.querySelector("svg")).toHaveAttribute("aria-hidden", "true");
   });
 
   it("omits category changes when the DTO supplies null", () => {

@@ -51,7 +51,7 @@ export function TotalCard({
       <div className="mt-auto pt-6">
         <div className="border-t border-hairline-soft pt-4">
           <p className="text-caption tabular-nums text-body">
-            거래 {snapshot.transactionCount}건 · 반영 기간 {formatPeriod(snapshot.period)}
+            {`거래 ${snapshot.transactionCount}건${snapshot.cancelCount > 0 ? ` · 취소 ${snapshot.cancelCount}건` : ""} · 반영 기간 ${formatPeriod(snapshot.period)}`}
           </p>
           <p className="mt-1 text-caption text-body">
             취소·환불은 카드사 파일의 날짜 기준으로 반영돼요

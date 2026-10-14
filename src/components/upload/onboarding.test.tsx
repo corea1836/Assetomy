@@ -17,7 +17,7 @@ describe("Onboarding", () => {
     expect(screen.getByText("같은 카드는 같은 이름으로 골라 주세요. 카드번호는 받지 않아요.")).toBeInTheDocument();
     expect(container.querySelector("#guide-hyundai")).toBeInTheDocument();
     expect(screen.getByText("다른 카드사 이용내역은 준비 중이에요")).toBeInTheDocument();
-    expect(screen.getByText("분석을 위해 가맹점명과 집계 결과가 AI 서비스로 전송됩니다.")).toBeInTheDocument();
+    expect(screen.getByText("분석을 위해 가맹점명과 집계 결과, 내가 남긴 요약 피드백이 AI 서비스로 전송됩니다.")).toBeInTheDocument();
     expect(screen.getByText("원본 파일은 암호화해 보관하고, 거래는 이용일 기준 12개월 뒤 삭제됩니다.")).toBeInTheDocument();
     expect(container.querySelector("svg, canvas")).toBeNull();
     expect(container).not.toHaveTextContent("0원");

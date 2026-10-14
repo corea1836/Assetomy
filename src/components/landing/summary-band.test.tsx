@@ -40,7 +40,7 @@ describe("SummaryBand", () => {
       .toHaveAttribute("aria-hidden", "true");
     const summaryCard = screen.getByRole("heading", { name: "이번 달 요약" }).closest("section")!;
     expect(summaryCard).toHaveClass("bg-primary-soft");
-    expect(within(summaryCard).getByText(DEMO_SUMMARY)).toHaveClass("whitespace-pre-line", "text-ink");
+    expect(within(summaryCard).getByText(DEMO_SUMMARY)).toHaveClass("text-lg", "text-ink", "leading-relaxed", "break-keep", "text-pretty");
     expect(within(summaryCard).getByText("예시 요약이에요. 가입하면 AI가 내 가맹점명과 집계로 요약해요."))
       .toBeInTheDocument();
   });
