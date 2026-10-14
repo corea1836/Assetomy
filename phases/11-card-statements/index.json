@@ -31,7 +31,10 @@
     {
       "step": 2,
       "name": "card-api",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T14:16:01+0900",
+      "summary": "createCard(userId, NewCardInput)·CardOption issuer/analysisBasis/cycleStartDay·POST /api/cards 카드 입력 검증·INVALID_CARD·TEST_CARD 반영; API·query 신규 테스트 10개.",
+      "completed_at": "2026-10-14T14:21:07+0900"
     },
     {
       "step": 3,
