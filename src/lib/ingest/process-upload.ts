@@ -22,6 +22,7 @@ export type ProcessUploadDeps = {
   findMerchantCategories(merchantKeys: string[]): Promise<Map<string, CategoryId>>;
   classifier: MerchantClassifier;
   ingestUpload(input: IngestUploadInput): Promise<IngestUploadResult>;
+  removeStatement(userId: string, uploadId: string): Promise<void>;
   failUpload(userId: string, uploadId: string, code: string, reason?: string): Promise<FailUploadResult>;
   getUploadOutcome(uploadId: string): Promise<UploadOutcomeRecord | null>;
 };
@@ -112,7 +113,7 @@ export async function processUpload(
       const record = await deps.getUploadOutcome(uploadId);
       if (record?.status === "done" || record?.status === "no_new") {
         const { status, ...summary } = record;
-        return { kind: status, uploadId, ...summary };
+        return { kind: status, uploadId, ...summary, replaced: false };
       }
     } catch {
       // An ambiguous commit must preserve the upload, including completed rows.
@@ -123,15 +124,30 @@ export async function processUpload(
   let result: IngestUploadResult;
   try {
     result = await deps.ingestUpload({
-      userId, uploadId, identityScope: parsed.identityScope, cancelStyle: parsed.cancelStyle, rows, skipped,
+      userId, uploadId, identityScope: parsed.identityScope, cancelStyle: parsed.cancelStyle,
+      issuer: parsed.issuer, productName: parsed.statement.productName, statementDate: parsed.statement.date,
+      statementSavedAt: parsed.statement.savedAt, rows, skipped,
     });
   } catch {
     return recoverOutcome();
   }
   switch (result.kind) {
     case "done":
-    case "no_new":
-      return { ...result, uploadId };
+    case "no_new": {
+      const { kind, replacedUploadId, ...summary } = result;
+      if (replacedUploadId) {
+        try {
+          await deps.removeStatement(userId, replacedUploadId);
+        } catch {
+          // DB ingest already committed; maintenance removes any remaining orphaned object.
+        }
+      }
+      return { kind, uploadId, ...summary, replaced: replacedUploadId !== null };
+    }
+    case "card_mismatch":
+      return { kind: result.kind, uploadId, reason: result.reason };
+    case "older_statement":
+      return { kind: result.kind, uploadId };
     case "duplicate":
       return result;
     case "card_scope_mismatch":

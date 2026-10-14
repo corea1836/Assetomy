@@ -21,6 +21,7 @@ const UPLOAD_ERROR_MESSAGES: Record<ApiErrorCode, string> = {
   UNREADABLE: "파일의 줄 배치를 읽지 못했어요. 이용 내역을 최근순으로 두고 다시 저장해 주세요.",
   CARD_NOT_FOUND: "카드를 찾을 수 없어요. 카드를 다시 골라 주세요.",
   CARD_SCOPE_MISMATCH: "이 카드에 올렸던 파일과 형식이 달라요. 다른 카드를 골라 주세요.",
+  CARD_MISMATCH: "이 카드에 올릴 수 없는 파일이에요. 다른 카드를 골라 주세요.",
   RATE_LIMITED: "최근 24시간 동안 올릴 수 있는 30개를 모두 썼어요. 시간이 지난 뒤 다시 올려 주세요.",
   BUSY: "다른 파일을 처리하고 있어요. 잠시 후 다시 시도해 주세요.",
   TEMPORARY_FAILURE: "처리를 마치지 못했어요. 잠시 후 다시 시도해 주세요.",
@@ -46,11 +47,20 @@ const UNREADABLE_REASONS: Record<string, string> = {
   total_mismatch: "명세서 금액과 거래 합계가 맞지 않아 저장하지 않았어요.",
   not_lump_sum: "할부처럼 일시불이 아닌 거래가 있어 저장하지 않았어요. 지금은 일시불 거래만 읽을 수 있어요.",
   cancel_label: "취소 표시가 있는 거래가 있어 저장하지 않았어요.",
+  multiple_cards: "여러 카드의 거래가 섞여 있어요. 카드별로 다시 받아 주세요.",
   no_transactions: "저장할 거래가 없는 파일이에요.",
   too_many_rows: "거래가 5,000건을 넘어요. 기간을 나눠서 받아 주세요.",
 };
 
+const CARD_MISMATCH_REASONS: Record<string, string> = {
+  issuer: "등록한 카드사와 파일의 카드사가 달라요. 맞는 카드를 고르거나 새 카드를 추가해 주세요.",
+  product: "이 카드에 처음 올린 명세서와 카드 상품이 달라요. 맞는 카드를 고르거나 새 카드를 추가해 주세요.",
+};
+
 export function uploadErrorMessage(code: ApiErrorCode, reason?: string): string {
+  if (code === "CARD_MISMATCH" && reason && Object.hasOwn(CARD_MISMATCH_REASONS, reason)) {
+    return CARD_MISMATCH_REASONS[reason];
+  }
   const reasons = code === "UNSUPPORTED_FILE" ? UNSUPPORTED_REASONS
     : code === "UNREADABLE" ? UNREADABLE_REASONS : null;
   if (reason && reasons && Object.hasOwn(reasons, reason)) return reasons[reason];

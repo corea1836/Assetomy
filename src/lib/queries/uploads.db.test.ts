@@ -41,7 +41,8 @@ const rows: IngestRow[] = [
 ];
 
 function ingest(uploadId: string) {
-  return ingestUpload({ userId: userA, uploadId, identityScope: "content", cancelStyle: "negative_amount", rows, skipped: 2 });
+  return ingestUpload({ userId: userA, uploadId, identityScope: "content", cancelStyle: "negative_amount", rows, skipped: 2,
+    issuer: null, productName: null, statementDate: null, statementSavedAt: null });
 }
 
 describe("getUploadOutcome against the dev DB", () => {
@@ -51,7 +52,7 @@ describe("getUploadOutcome against the dev DB", () => {
     expect(await getUploadOutcome(admin, userA, uploadId)).toEqual({ status: "processing" });
     expect(await ingest(uploadId)).toMatchObject({ kind: "done" });
     expect(await getUploadOutcome(admin, userA, uploadId)).toEqual({ status: "done", inserted: 2,
-      duplicates: 0, skipped: 2, periodFrom: "2026-09-01", periodTo: "2026-09-03", netAmount: 9500 });
+      duplicates: 0, skipped: 2, periodFrom: "2026-09-01", periodTo: "2026-09-03", netAmount: 9500, statementDate: null });
     expect(await getUploadOutcome(admin, userB, uploadId)).toBeNull();
     const pending = await start("b");
     expect(await getUploadOutcome(admin, userA, pending)).toEqual({ status: "processing" });
@@ -63,7 +64,7 @@ describe("getUploadOutcome against the dev DB", () => {
     expect(await ingest(duplicate)).toMatchObject({ kind: "no_new" });
     const admin = createSupabaseAdminClient();
     expect(await getUploadOutcome(admin, userA, duplicate)).toEqual({ status: "no_new", inserted: 0,
-      duplicates: 2, skipped: 2, periodFrom: null, periodTo: null, netAmount: 0 });
+      duplicates: 2, skipped: 2, periodFrom: null, periodTo: null, netAmount: 0, statementDate: null });
     const failed = await start("c");
     expect(await failUpload(userA, failed, "UNREADABLE")).toEqual({ kind: "failed" });
     expect(await getUploadOutcome(admin, userA, failed)).toEqual({ status: "failed" });
@@ -82,10 +83,12 @@ describe("listDoneUploads against the dev DB", () => {
     if (otherCard.kind !== "created") throw new Error("db-test:create_card:unexpected_response");
     const other = await beginUpload({ userId: userB, cardId: otherCard.cardId, fileName: "b.pdf", fileHash: "e".repeat(64), fileSize: 100 });
     if (other.kind !== "started") throw new Error("db-test:begin_upload:unexpected_response");
-    await ingestUpload({ userId: userB, uploadId: other.uploadId, identityScope: "content", cancelStyle: "negative_amount", rows, skipped: 0 });
+    await ingestUpload({ userId: userB, uploadId: other.uploadId, identityScope: "content", cancelStyle: "negative_amount", rows, skipped: 0,
+      issuer: null, productName: null, statementDate: null, statementSavedAt: null });
     const second = await start("f");
     await ingestUpload({ userId: userA, uploadId: second, identityScope: "content", cancelStyle: "negative_amount",
-      rows: [{ ...rows[0], usedOn: "2026-10-01", fingerprint: "3".repeat(64) }], skipped: 0 });
+      rows: [{ ...rows[0], usedOn: "2026-10-01", fingerprint: "3".repeat(64) }], skipped: 0,
+      issuer: null, productName: null, statementDate: null, statementSavedAt: null });
 
     const admin = createSupabaseAdminClient();
     expect(await listDoneUploads(admin, userA)).toEqual([

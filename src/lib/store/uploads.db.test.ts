@@ -54,7 +54,8 @@ const rows: IngestRow[] = [
 ];
 
 function ingest(uploadId: string) {
-  return ingestUpload({ userId: userA, uploadId, identityScope: "content", cancelStyle: "negative_amount", rows, skipped: 2 });
+  return ingestUpload({ userId: userA, uploadId, identityScope: "content", cancelStyle: "negative_amount", rows, skipped: 2,
+    issuer: null, productName: null, statementDate: null, statementSavedAt: null });
 }
 
 describe("upload RPCs against the dev DB", () => {
@@ -78,7 +79,7 @@ describe("upload RPCs against the dev DB", () => {
     const first = await start("a");
     expect(await ingest(first)).toEqual({
       kind: "done", inserted: 3, duplicates: 0, skipped: 2,
-      periodFrom: "2026-09-01", periodTo: "2026-09-05", netAmount: 25000,
+      periodFrom: "2026-09-01", periodTo: "2026-09-05", netAmount: 25000, statementDate: null, replacedUploadId: null,
     });
 
     const admin = createSupabaseAdminClient();
@@ -99,7 +100,7 @@ describe("upload RPCs against the dev DB", () => {
     const second = await start("b");
     expect(await ingest(second)).toEqual({
       kind: "no_new", inserted: 0, duplicates: 3, skipped: 2,
-      periodFrom: null, periodTo: null, netAmount: 0,
+      periodFrom: null, periodTo: null, netAmount: 0, statementDate: null, replacedUploadId: null,
     });
     expect(await begin("a")).toEqual({ kind: "duplicate", existingCardId: cardId });
     const otherCard = await createCard(userA, { label: "다른 카드", ...TEST_CARD });
@@ -109,6 +110,38 @@ describe("upload RPCs against the dev DB", () => {
     const expired = await start("c");
     await expire(expired);
     expect(await ingest(expired)).toEqual({ kind: "lease_expired" });
+  });
+
+  it("replaces the same statement only with a later saved file and checks the card issuer", async () => {
+    const first = await start("a");
+    const firstResult = await ingestUpload({ userId: userA, uploadId: first, identityScope: "content",
+      cancelStyle: "negative_amount", rows: [rows[0]], skipped: 0, issuer: "hyundai", productName: "현대카드MM",
+      statementDate: "2026-10-23", statementSavedAt: "2026-10-10T10:00:00.000Z" });
+    expect(firstResult).toMatchObject({ kind: "done", inserted: 1, statementDate: "2026-10-23", replacedUploadId: null });
+
+    const second = await start("b");
+    const replacement = await ingestUpload({ userId: userA, uploadId: second, identityScope: "content",
+      cancelStyle: "negative_amount", rows: [rows[1]], skipped: 0, issuer: "hyundai", productName: "현대카드MM",
+      statementDate: "2026-10-23", statementSavedAt: "2026-10-12T10:00:00.000Z" });
+    expect(replacement).toMatchObject({ kind: "done", inserted: 1, statementDate: "2026-10-23", replacedUploadId: first });
+    const priorUpload = await createSupabaseAdminClient().from("uploads").select("id")
+      .eq("user_id", userA).eq("id", first).maybeSingle();
+    if (priorUpload.error) throw new Error(`db-test:read_replaced_upload:${priorUpload.error.code}`);
+    expect(priorUpload.data).toBeNull();
+
+    const third = await start("c");
+    expect(await ingestUpload({ userId: userA, uploadId: third, identityScope: "content",
+      cancelStyle: "negative_amount", rows: [rows[2]], skipped: 0, issuer: "hyundai", productName: "현대카드MM",
+      statementDate: "2026-10-23", statementSavedAt: "2026-10-11T10:00:00.000Z" })).toEqual({ kind: "older_statement" });
+
+    const otherCard = await createCard(userA, { label: "신한 카드", issuer: "shinhan", analysisBasis: "month", cycleStartDay: null });
+    if (otherCard.kind !== "created") throw new Error("db-test:create_card:unexpected_response");
+    const mismatch = await begin("d", userA, otherCard.cardId);
+    if (mismatch.kind !== "started") throw new Error("db-test:begin_upload:unexpected_response");
+    expect(await ingestUpload({ userId: userA, uploadId: mismatch.uploadId, identityScope: "content",
+      cancelStyle: "negative_amount", rows: [], skipped: 0, issuer: "hyundai", productName: "현대카드MM",
+      statementDate: "2026-10-24", statementSavedAt: "2026-10-12T10:00:00.000Z" }))
+      .toEqual({ kind: "card_mismatch", reason: "issuer" });
   });
 
   it("stores the failure code and reason for a processing upload", async () => {

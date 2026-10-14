@@ -13,6 +13,9 @@ const notProcessingSchema = z.object({
   kind: z.literal("not_processing"),
   status: z.enum(["processing", "done", "no_new", "failed"]),
 });
+const cardMismatchSchema = z.object({
+  kind: z.literal("card_mismatch"), reason: z.enum(["issuer", "product"]),
+});
 
 const beginUploadResultSchema = z.union([
   z.object({ kind: z.literal("started"), upload_id: z.uuid(), lease_expires_at: z.iso.datetime({ offset: true }) })
@@ -32,10 +35,15 @@ const ingestUploadResultSchema = z.union([
     period_from: z.iso.date().nullable(),
     period_to: z.iso.date().nullable(),
     net_amount: z.int(),
+    statement_date: z.iso.date().nullable(),
+    replaced_upload_id: z.uuid().nullable(),
   }).transform((result) => ({
     kind: result.kind, inserted: result.inserted, duplicates: result.duplicates, skipped: result.skipped,
     periodFrom: result.period_from, periodTo: result.period_to, netAmount: result.net_amount,
+    statementDate: result.statement_date, replacedUploadId: result.replaced_upload_id,
   })),
+  cardMismatchSchema,
+  z.object({ kind: z.literal("older_statement") }),
   duplicateSchema,
   notFoundSchema,
   notProcessingSchema,
@@ -62,6 +70,8 @@ export async function ingestUpload(input: IngestUploadInput): Promise<IngestUplo
   return callStoreRpc("ingest_upload", {
     p_user_id: input.userId, p_upload_id: input.uploadId,
     p_identity_scope: input.identityScope, p_cancel_style: input.cancelStyle,
+    p_issuer: input.issuer, p_product_name: input.productName, p_statement_date: input.statementDate,
+    p_statement_saved_at: input.statementSavedAt,
     p_rows: input.rows.map((row) => ({
       used_on: row.usedOn, merchant: row.merchant, merchant_key: row.merchantKey,
       amount: row.amount, event_kind: row.eventKind, category: row.category, fingerprint: row.fingerprint,

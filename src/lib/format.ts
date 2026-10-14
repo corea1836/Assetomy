@@ -46,6 +46,10 @@ export function formatDate(date: IsoDate): string {
   return `${Number(month)}월 ${Number(day)}일`;
 }
 
+export function formatStatementDate(date: IsoDate): string {
+  return `${formatDate(date)} 명세서`;
+}
+
 function formatPeriodDate(date: IsoDate, includeYear: boolean): string {
   const [year, month, day] = date.split("-");
   return `${includeYear ? `${year}/` : ""}${Number(month)}/${Number(day)}`;

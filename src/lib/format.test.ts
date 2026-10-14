@@ -7,6 +7,7 @@ import {
   formatPeriod,
   formatRatio,
   formatSignedWon,
+  formatStatementDate,
   formatWon,
 } from "./format";
 
@@ -103,6 +104,15 @@ describe("formatDate", () => {
     ["2024-02-29", "2월 29일"],
   ])("formats date %s without leading zeroes", (date, expected) => {
     expect(formatDate(date)).toBe(expected);
+  });
+});
+
+describe("formatStatementDate", () => {
+  it.each([
+    ["2026-10-23", "10월 23일 명세서"],
+    ["2026-01-05", "1월 5일 명세서"],
+  ] as const)("formats %s without leading zeroes", (date, expected) => {
+    expect(formatStatementDate(date)).toBe(expected);
   });
 });
 

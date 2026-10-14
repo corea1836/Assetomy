@@ -10,9 +10,10 @@ const uploadResponseSchema = z.object({
       id: z.uuid(), status: z.enum(["done", "no_new"]),
       inserted_count: z.int().nonnegative(), duplicate_count: z.int().nonnegative(), skipped_count: z.int().nonnegative(),
       period_from: z.iso.date().nullable(), period_to: z.iso.date().nullable(), net_amount: z.int(),
+      statement_date: z.iso.date().nullable(),
     }).transform((row) => ({
       status: row.status, inserted: row.inserted_count, duplicates: row.duplicate_count, skipped: row.skipped_count,
-      periodFrom: row.period_from, periodTo: row.period_to, netAmount: row.net_amount,
+      periodFrom: row.period_from, periodTo: row.period_to, netAmount: row.net_amount, statementDate: row.statement_date,
     })),
     z.object({ id: z.uuid(), status: z.enum(["processing", "failed"]) })
       .transform((row) => ({ status: row.status })),
@@ -23,7 +24,7 @@ export async function getUploadOutcome(
   supabase: SupabaseClient, userId: string, uploadId: string,
 ): Promise<UploadOutcomeRecord | null> {
   const { data } = await readQuery("getUploadOutcome", () => supabase.from("uploads")
-    .select("id, status, inserted_count, duplicate_count, skipped_count, period_from, period_to, net_amount")
+    .select("id, status, inserted_count, duplicate_count, skipped_count, period_from, period_to, net_amount, statement_date")
     .eq("user_id", userId).eq("id", uploadId).maybeSingle(), uploadResponseSchema);
   return data;
 }

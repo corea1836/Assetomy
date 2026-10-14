@@ -16,10 +16,11 @@ type Reply = Awaited<ReturnType<typeof sendUpload>>;
 const done: UploadResultDto = {
   kind: "done", uploadId: "upload-a", inserted: 2, duplicates: 0, skipped: 0,
   periodFrom: "2026-09-01", periodTo: "2026-09-30", netAmount: 32_000,
+  statementDate: "2026-10-23", replaced: false,
 };
 const noNew: UploadResultDto = {
   kind: "no_new", uploadId: "upload-b", inserted: 0, duplicates: 2, skipped: 0,
-  periodFrom: null, periodTo: null, netAmount: 0,
+  periodFrom: null, periodTo: null, netAmount: 0, statementDate: null, replaced: false,
 };
 const success = (result: UploadResultDto = done): Reply => ({ status: 200, body: { result } });
 const pdf = (name = "9월.pdf") => new File(["%PDF-"], name, { type: "application/pdf" });
@@ -227,10 +228,11 @@ describe("UploadPanel processing", () => {
   });
 
   it.each([
-    [done, "2건 · 9/1~9/30 · 지출 32,000원"],
-    [{ ...done, duplicates: 3, skipped: 1 }, "2건 · 9/1~9/30 · 지출 32,000원 · 중복 3건 · 제외 1건"],
+    [done, "10월 23일 명세서 · 2건 · 9/1~9/30 · 지출 32,000원"],
+    [{ ...done, duplicates: 3, skipped: 1 }, "10월 23일 명세서 · 2건 · 9/1~9/30 · 지출 32,000원 · 중복 3건 · 제외 1건"],
     [noNew, "이미 올린 내역이에요"],
     [{ ...noNew, skipped: 2 }, "이미 올린 내역이에요 · 12개월이 지난 거래 2건 제외"],
+    [{ kind: "older_statement" }, "더 최근에 받은 명세서가 이미 있어요. 이 파일은 저장하지 않았어요"],
     [{ kind: "duplicate", existingCardLabel: null }, "이미 올린 내역이에요"],
   ] satisfies [UploadResultDto, string][])("shows the result for %j", async (result, text) => {
     render(<UploadPanel cards={cards} />);
@@ -239,6 +241,21 @@ describe("UploadPanel processing", () => {
     expect(within(row("9월.pdf")).getByText("완료")).toHaveClass("text-primary");
     expect(within(row("9월.pdf")).queryByRole("button", { name: "틀렸어요" }) !== null).toBe(result.kind === "done");
     expect(navigation.refresh).toHaveBeenCalledTimes(result.kind === "done" ? 1 : 0);
+  });
+
+  it("shows a statement replacement note below the result line", async () => {
+    render(<UploadPanel cards={cards} />);
+    await upload([pdf()], { ...done, replaced: true });
+    const item = within(row("9월.pdf"));
+    expect(item.getByText("10월 23일 명세서 · 2건 · 9/1~9/30 · 지출 32,000원")).toBeInTheDocument();
+    expect(item.getByText("이전에 올린 같은 명세서를 이 파일로 바꿨어요")).toHaveClass("text-sm", "text-body");
+  });
+
+  it("does not refresh for an older statement result", async () => {
+    render(<UploadPanel cards={cards} />);
+    await upload([pdf()], { kind: "older_statement" });
+    expect(within(row("9월.pdf")).getByText("더 최근에 받은 명세서가 이미 있어요. 이 파일은 저장하지 않았어요")).toBeInTheDocument();
+    expect(navigation.refresh).not.toHaveBeenCalled();
   });
 
   it("explains a duplicate under a different card label as plain text", async () => {
@@ -313,11 +330,15 @@ describe("UploadPanel processing", () => {
     expect(screen.queryByRole("button", { name: "가이드 열기" })).not.toBeInTheDocument();
   });
 
-  it.each(["CARD_NOT_FOUND", "CARD_SCOPE_MISMATCH"] as const)("clears the card for %s", async (code) => {
+  it.each(["CARD_NOT_FOUND", "CARD_SCOPE_MISMATCH", "CARD_MISMATCH"] as const)("clears the card for %s", async (code) => {
     render(<UploadPanel cards={cards} />);
-    vi.mocked(sendUpload).mockResolvedValue({ status: 404, body: { error: { code } } });
+    vi.mocked(sendUpload).mockResolvedValue({ status: code === "CARD_MISMATCH" ? 409 : 404,
+      body: { error: { code, ...(code === "CARD_MISMATCH" ? { reason: "issuer" } : {}) } } });
     addFiles([pdf()]); chooseCards();
     fireEvent.click(screen.getByRole("button", { name: "올리기" }));
+    if (code === "CARD_MISMATCH") {
+      expect(await screen.findByText(uploadErrorMessage("CARD_MISMATCH", "issuer"))).toBeInTheDocument();
+    }
     fireEvent.click(await screen.findByRole("button", { name: "카드 다시 고르기" }));
     expect(screen.getByRole("combobox", { name: "카드" })).toHaveValue("");
     expect(screen.getByRole("button", { name: "올리기" })).toBeDisabled();

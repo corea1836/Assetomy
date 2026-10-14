@@ -101,6 +101,8 @@ function realDeps(): ProcessUploadDeps {
       return result;
     }),
     saveStatement: (userId, uploadId, plaintext) => observe("statements.upload", () => saveStatement(userId, uploadId, plaintext)),
+    removeStatement: (ownerId, uploadId) => observe("statements.remove", () =>
+      removeStatements([statementPath(ownerId, uploadId)])),
     readStatement: async () => parsed,
     findMerchantCategories: (keys) => observe("findMerchantCategories", () => findMerchantCategories(admin, userId, keys)),
     classifier: createMockClassifier(),
@@ -155,6 +157,7 @@ describe("processUpload against the dev DB and Storage", () => {
     expect(await runUpload(deps, bytes, otherCard.cardId)).toEqual({ kind: "duplicate", existingCardId: cardId });
     expect(paths).toHaveLength(1);
 
+    deps.readStatement = async () => ({ ...parsed, statement: { ...parsed.statement, date: "2026-11-23" } });
     const noNew = await runUpload(deps, new TextEncoder().encode("%PDF-synthetic-different-bytes"));
     expect(noNew).toMatchObject({ kind: "no_new", inserted: 0, duplicates: 3, skipped: 1,
       periodFrom: null, periodTo: null, netAmount: 0 });

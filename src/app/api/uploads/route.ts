@@ -7,7 +7,7 @@ import { readPdfStatement } from "@/lib/pdf/read-statement";
 import { listCards } from "@/lib/queries/cards";
 import { findMerchantCategories } from "@/lib/queries/merchant-categories";
 import { getUploadOutcome } from "@/lib/queries/uploads";
-import { saveStatement } from "@/lib/store/statements";
+import { removeStatements, saveStatement, statementPath } from "@/lib/store/statements";
 import { beginUpload, failUpload, ingestUpload } from "@/lib/store/uploads";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getMerchantClassifier } from "@/services/llm";
@@ -49,6 +49,7 @@ export async function POST(request: Request): Promise<Response> {
     const supabase = await createSupabaseServerClient();
     const outcome = await processUpload({ userId: user.id, cardId: cardId.data, fileName, bytes }, {
       today: seoulToday(), beginUpload, ingestUpload, failUpload, saveStatement,
+      removeStatement: (ownerId, replacedId) => removeStatements([statementPath(ownerId, replacedId)]),
       readStatement: readPdfStatement, classifier: getMerchantClassifier(),
       findMerchantCategories: (keys) => findMerchantCategories(supabase, user.id, keys),
       getUploadOutcome: (id) => getUploadOutcome(supabase, user.id, id),
@@ -58,6 +59,8 @@ export async function POST(request: Request): Promise<Response> {
       case "done":
       case "no_new":
         return Response.json({ result: outcome } satisfies UploadResponse);
+      case "older_statement":
+        return Response.json({ result: { kind: "older_statement" } } satisfies UploadResponse);
       case "duplicate": {
         let existingCardLabel: string | null = null;
         try {
@@ -74,6 +77,8 @@ export async function POST(request: Request): Promise<Response> {
         return apiError(404, "CARD_NOT_FOUND");
       case "card_scope_mismatch":
         return apiError(409, "CARD_SCOPE_MISMATCH");
+      case "card_mismatch":
+        return apiError(409, "CARD_MISMATCH", outcome.reason);
       case "rate_limited":
         return apiError(429, "RATE_LIMITED");
       case "busy":

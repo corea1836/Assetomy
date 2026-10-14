@@ -65,7 +65,8 @@ describe("dashboard metrics against the dev DB", () => {
     expect(initial.first_success_at).toBeNull();
     expect(await ingestUpload({ userId, uploadId: upload.uploadId, identityScope: "content", cancelStyle: "negative_amount",
       rows: [{ usedOn: "2026-09-01", merchant: "예시 가맹점", merchantKey: "예시가맹점", amount: 1000,
-        eventKind: "purchase", category: "food", fingerprint: "1".repeat(64) }], skipped: 0 }))
+        eventKind: "purchase", category: "food", fingerprint: "1".repeat(64) }], skipped: 0,
+      issuer: null, productName: null, statementDate: null, statementSavedAt: null }))
       .toMatchObject({ kind: "done", inserted: 1 });
     const success = await readMetrics();
     expect(success.first_attempt_at).toBe(initial.first_attempt_at);

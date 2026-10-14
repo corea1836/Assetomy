@@ -6,7 +6,7 @@ import { readPdfStatement } from "@/lib/pdf/read-statement";
 import { listCards } from "@/lib/queries/cards";
 import { findMerchantCategories } from "@/lib/queries/merchant-categories";
 import { getUploadOutcome } from "@/lib/queries/uploads";
-import { saveStatement } from "@/lib/store/statements";
+import { removeStatements, saveStatement, statementPath } from "@/lib/store/statements";
 import { beginUpload, failUpload, ingestUpload } from "@/lib/store/uploads";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { getMerchantClassifier } from "@/services/llm";
@@ -19,7 +19,9 @@ vi.mock("@/lib/pdf/read-statement", () => ({ readPdfStatement: vi.fn() }));
 vi.mock("@/lib/queries/cards", () => ({ listCards: vi.fn() }));
 vi.mock("@/lib/queries/merchant-categories", () => ({ findMerchantCategories: vi.fn() }));
 vi.mock("@/lib/queries/uploads", () => ({ getUploadOutcome: vi.fn() }));
-vi.mock("@/lib/store/statements", () => ({ saveStatement: vi.fn() }));
+vi.mock("@/lib/store/statements", () => ({
+  saveStatement: vi.fn(), removeStatements: vi.fn(), statementPath: (userId: string, id: string) => `${userId}/${id}.enc`,
+}));
 vi.mock("@/lib/store/uploads", () => ({ beginUpload: vi.fn(), failUpload: vi.fn(), ingestUpload: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: vi.fn() }));
 vi.mock("@/services/llm", () => ({ getMerchantClassifier: vi.fn() }));
@@ -30,6 +32,7 @@ const uploadId = "33333333-3333-4333-8333-333333333333";
 const otherCardId = "44444444-4444-4444-8444-444444444444";
 const summary: UploadSummary = {
   inserted: 2, duplicates: 1, skipped: 0, periodFrom: "2026-10-01", periodTo: "2026-10-12", netAmount: 12000,
+  statementDate: "2026-10-23",
 };
 const supabase = {} as SupabaseClient;
 const classifier = { classify: vi.fn() };
@@ -42,7 +45,7 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(new Date("2026-10-12T15:30:00Z"));
   vi.mocked(getSessionUser).mockResolvedValue({ id: userId });
-  vi.mocked(processUpload).mockResolvedValue({ kind: "done", uploadId, ...summary });
+  vi.mocked(processUpload).mockResolvedValue({ kind: "done", uploadId, ...summary, replaced: false });
   vi.mocked(createSupabaseServerClient).mockResolvedValue(supabase);
   vi.mocked(getMerchantClassifier).mockReturnValue(classifier);
   vi.mocked(listCards).mockResolvedValue([{ id: otherCardId, label: "기존 카드", issuer: "hyundai", analysisBasis: "month", cycleStartDay: null }]);
@@ -201,7 +204,9 @@ describe("POST /api/uploads", () => {
     const [input, deps] = vi.mocked(processUpload).mock.calls[0];
     expect(input).toEqual({ userId, cardId, fileName: "statement.pdf", bytes: pdfBytes });
     expect(deps).toMatchObject({ today: "2026-10-13", beginUpload, ingestUpload, failUpload, saveStatement,
-      readStatement: readPdfStatement, classifier });
+      readStatement: readPdfStatement, classifier, removeStatement: expect.any(Function) });
+    await deps.removeStatement(userId, otherCardId);
+    expect(removeStatements).toHaveBeenCalledExactlyOnceWith([statementPath(userId, otherCardId)]);
     expect(createSupabaseServerClient).toHaveBeenCalledOnce();
     expect(await deps.findMerchantCategories(["merchant-key"]))
       .toEqual(new Map([["merchant-key", "etc"]]));
@@ -211,10 +216,10 @@ describe("POST /api/uploads", () => {
   });
 
   it.each(["done", "no_new"] as const)("returns a %s result DTO", async (kind) => {
-    vi.mocked(processUpload).mockResolvedValue({ kind, uploadId, ...summary });
+    vi.mocked(processUpload).mockResolvedValue({ kind, uploadId, ...summary, replaced: true });
     const response = await POST(uploadRequest());
     expect(response.status).toBe(200);
-    expect(await response.json()).toEqual({ result: { kind, uploadId, ...summary } });
+    expect(await response.json()).toEqual({ result: { kind, uploadId, ...summary, replaced: true } });
     expect(listCards).not.toHaveBeenCalled();
     expect(console.error).not.toHaveBeenCalled();
   });
@@ -226,6 +231,13 @@ describe("POST /api/uploads", () => {
     expect(await response.json()).toEqual({ result: { kind: "duplicate", existingCardLabel: "기존 카드" } });
     expect(listCards).toHaveBeenCalledExactlyOnceWith(supabase, userId);
     expect(console.error).not.toHaveBeenCalled();
+  });
+
+  it("returns older statements as a successful result without details", async () => {
+    vi.mocked(processUpload).mockResolvedValue({ kind: "older_statement", uploadId });
+    const response = await POST(uploadRequest());
+    expect(response.status).toBe(200);
+    expect(await response.json()).toEqual({ result: { kind: "older_statement" } });
   });
 
   it.each(["missing", "failed"])("returns a null duplicate label when lookup is %s", async (scenario) => {
@@ -245,6 +257,7 @@ describe("POST /api/uploads", () => {
       status: 422, code: "UNREADABLE", reason: "total_mismatch" },
     { outcome: { kind: "card_not_found" }, status: 404, code: "CARD_NOT_FOUND" },
     { outcome: { kind: "card_scope_mismatch", uploadId }, status: 409, code: "CARD_SCOPE_MISMATCH" },
+    { outcome: { kind: "card_mismatch", uploadId, reason: "product" }, status: 409, code: "CARD_MISMATCH", reason: "product" },
     { outcome: { kind: "rate_limited" }, status: 429, code: "RATE_LIMITED" },
     { outcome: { kind: "busy" }, status: 429, code: "BUSY" },
     { outcome: { kind: "temporary_failure", uploadId }, status: 503, code: "TEMPORARY_FAILURE" },

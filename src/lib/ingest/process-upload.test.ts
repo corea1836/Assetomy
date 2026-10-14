@@ -27,7 +27,7 @@ const parsed: ParseSuccess = {
 };
 const summary: UploadSummary = {
   inserted: 3, duplicates: 0, skipped: 0,
-  periodFrom: "2026-09-01", periodTo: "2026-09-03", netAmount: 15000,
+  periodFrom: "2026-09-01", periodTo: "2026-09-03", netAmount: 15000, statementDate: "2026-10-23",
 };
 
 function fakeDeps() {
@@ -42,7 +42,10 @@ function fakeDeps() {
       .mockResolvedValue(new Map<string, CategoryId>([["A", "shopping"]])),
     classifier: { classify: vi.fn<ProcessUploadDeps["classifier"]["classify"]>()
       .mockResolvedValue(new Map<string, CategoryId>([["스타벅스 강남", "cafe"]])) },
-    ingestUpload: vi.fn<ProcessUploadDeps["ingestUpload"]>().mockResolvedValue({ kind: "done", ...summary }),
+    ingestUpload: vi.fn<ProcessUploadDeps["ingestUpload"]>().mockResolvedValue({
+      kind: "done", ...summary, replacedUploadId: null,
+    }),
+    removeStatement: vi.fn<ProcessUploadDeps["removeStatement"]>().mockResolvedValue(undefined),
     failUpload: vi.fn<ProcessUploadDeps["failUpload"]>().mockResolvedValue({ kind: "failed" }),
     getUploadOutcome: vi.fn<ProcessUploadDeps["getUploadOutcome"]>().mockResolvedValue(null),
   } satisfies ProcessUploadDeps;
@@ -74,7 +77,7 @@ describe("processUpload", () => {
 
   it("saves before parsing, uses a lowercase card ID, and ingests categorized fingerprints", async () => {
     const deps = fakeDeps();
-    expect(await processUpload(input, deps)).toEqual({ kind: "done", uploadId, ...summary });
+    expect(await processUpload(input, deps)).toEqual({ kind: "done", uploadId, ...summary, replaced: false });
     expect(deps.beginUpload).toHaveBeenCalledExactlyOnceWith({
       userId, cardId, fileName: input.fileName, fileSize: input.bytes.byteLength,
       fileHash: "a01de6a6a86f3503b20a3a18ba0e5cca91f7ab089e7ab0d2e559297331b7294b",
@@ -86,6 +89,7 @@ describe("processUpload", () => {
     expect(deps.saveStatement.mock.invocationCallOrder[0]).toBeLessThan(deps.readStatement.mock.invocationCallOrder[0]);
     expect(deps.ingestUpload).toHaveBeenCalledExactlyOnceWith({
       userId, uploadId, identityScope: "content", cancelStyle: "negative_amount", skipped: 0,
+      issuer: "hyundai", productName: "현대카드MM", statementDate: "2026-10-23", statementSavedAt: null,
       rows: transactions.map((transaction) => ({
         usedOn: transaction.date, merchant: transaction.merchant, merchantKey: transaction.merchantKey,
         amount: transaction.amount, eventKind: transaction.eventKind,
@@ -96,6 +100,33 @@ describe("processUpload", () => {
     });
     expect(deps.failUpload).not.toHaveBeenCalled();
     expect(deps.getUploadOutcome).not.toHaveBeenCalled();
+    expect(deps.removeStatement).not.toHaveBeenCalled();
+  });
+
+  it("removes the replaced encrypted statement after ingest commits and reports the statement date", async () => {
+    const deps = fakeDeps();
+    deps.ingestUpload.mockResolvedValue({ kind: "done", ...summary, replacedUploadId: "old-upload" });
+    expect(await processUpload(input, deps)).toEqual({ kind: "done", uploadId, ...summary, replaced: true });
+    expect(deps.removeStatement).toHaveBeenCalledExactlyOnceWith(userId, "old-upload");
+    expect(deps.ingestUpload.mock.invocationCallOrder[0]).toBeLessThan(deps.removeStatement.mock.invocationCallOrder[0]);
+  });
+
+  it("keeps a successful result when deleting the replaced encrypted statement fails", async () => {
+    const deps = fakeDeps();
+    deps.ingestUpload.mockResolvedValue({ kind: "done", ...summary, replacedUploadId: "old-upload" });
+    deps.removeStatement.mockRejectedValue(new Error("storage unavailable"));
+    expect(await processUpload(input, deps)).toEqual({ kind: "done", uploadId, ...summary, replaced: true });
+  });
+
+  it.each([
+    [{ kind: "card_mismatch", reason: "issuer" }, { kind: "card_mismatch", uploadId, reason: "issuer" }],
+    [{ kind: "card_mismatch", reason: "product" }, { kind: "card_mismatch", uploadId, reason: "product" }],
+    [{ kind: "older_statement" }, { kind: "older_statement", uploadId }],
+  ] as const)("maps statement ingest result %j", async (result, expected) => {
+    const deps = fakeDeps();
+    deps.ingestUpload.mockResolvedValue(result);
+    expect(await processUpload(input, deps)).toEqual(expected);
+    expect(deps.removeStatement).not.toHaveBeenCalled();
   });
 
   it("keeps the cutoff date and skips earlier transactions before categorization", async () => {
@@ -115,11 +146,14 @@ describe("processUpload", () => {
       transactions: transactions.map((transaction) => ({ ...transaction, date: "2025-10-12" })),
     });
     const result = { kind: "no_new" as const, inserted: 0, duplicates: 0, skipped: 3,
-      periodFrom: null, periodTo: null, netAmount: 0 };
+      periodFrom: null, periodTo: null, netAmount: 0, statementDate: "2026-10-23", replacedUploadId: null };
     deps.ingestUpload.mockResolvedValue(result);
-    expect(await processUpload(input, deps)).toEqual({ ...result, uploadId });
+    expect(await processUpload(input, deps)).toEqual({ kind: "no_new", uploadId, inserted: result.inserted,
+      duplicates: result.duplicates, skipped: result.skipped, periodFrom: result.periodFrom,
+      periodTo: result.periodTo, netAmount: result.netAmount, statementDate: result.statementDate, replaced: false });
     expect(deps.ingestUpload).toHaveBeenCalledExactlyOnceWith({
-      userId, uploadId, identityScope: "content", cancelStyle: "negative_amount", skipped: 3, rows: [],
+      userId, uploadId, identityScope: "content", cancelStyle: "negative_amount", skipped: 3,
+      issuer: "hyundai", productName: "현대카드MM", statementDate: "2026-10-23", statementSavedAt: null, rows: [],
     });
     expect(deps.classifier.classify).not.toHaveBeenCalled();
   });
@@ -240,11 +274,12 @@ describe("processUpload", () => {
     it.each(["done", "no_new"] as const)("recovers the persisted %s summary with one read", async (status) => {
       const deps = ambiguousDeps();
       const saved = status === "done" ? summary
-        : { inserted: 0, duplicates: 3, skipped: 1, periodFrom: null, periodTo: null, netAmount: 0 };
+        : { inserted: 0, duplicates: 3, skipped: 1, periodFrom: null, periodTo: null, netAmount: 0, statementDate: null };
       deps.getUploadOutcome.mockResolvedValue({ status, ...saved });
-      expect(await processUpload(input, deps)).toEqual({ kind: status, uploadId, ...saved });
+      expect(await processUpload(input, deps)).toEqual({ kind: status, uploadId, ...saved, replaced: false });
       expect(deps.getUploadOutcome).toHaveBeenCalledExactlyOnceWith(uploadId);
       expect(deps.failUpload).not.toHaveBeenCalled();
+      expect(deps.removeStatement).not.toHaveBeenCalled();
     });
 
     it.each([{ status: "processing" }, { status: "failed" }, null] satisfies (UploadOutcomeRecord | null)[])(

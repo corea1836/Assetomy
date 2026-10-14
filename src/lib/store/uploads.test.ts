@@ -15,14 +15,17 @@ const beginInput: BeginUploadInput = {
 };
 const ingestInput: IngestUploadInput = {
   userId: "user-a", uploadId, identityScope: "content", cancelStyle: "negative_amount",
-  skipped: 2,
+  skipped: 2, issuer: "hyundai", productName: "현대카드MM", statementDate: "2026-10-23",
+  statementSavedAt: "2026-10-12T10:00:00.000Z",
   rows: [{
     usedOn: "2026-09-03", merchant: "예시 가맹점", merchantKey: "예시가맹점",
     amount: -500, eventKind: "cancel", category: "food", fingerprint: "b".repeat(64),
   }],
 };
-const summary = { inserted: 1, duplicates: 0, skipped: 2, period_from: "2026-09-03", period_to: "2026-09-03", net_amount: -500 };
-const camelSummary = { inserted: 1, duplicates: 0, skipped: 2, periodFrom: "2026-09-03", periodTo: "2026-09-03", netAmount: -500 };
+const summary = { inserted: 1, duplicates: 0, skipped: 2, period_from: "2026-09-03", period_to: "2026-09-03", net_amount: -500,
+  statement_date: "2026-10-23", replaced_upload_id: null };
+const camelSummary = { inserted: 1, duplicates: 0, skipped: 2, periodFrom: "2026-09-03", periodTo: "2026-09-03", netAmount: -500,
+  statementDate: "2026-10-23", replacedUploadId: null };
 const statuses = ["processing", "done", "no_new", "failed"] as const;
 
 describe("beginUpload", () => {
@@ -50,9 +53,16 @@ describe("beginUpload", () => {
 describe("ingestUpload", () => {
   it.each([
     { data: { kind: "done", ...summary }, expected: { kind: "done", ...camelSummary } },
-    { data: { kind: "no_new", inserted: 0, duplicates: 1, skipped: 2, period_from: null, period_to: null, net_amount: 0 },
-      expected: { kind: "no_new", inserted: 0, duplicates: 1, skipped: 2, periodFrom: null, periodTo: null, netAmount: 0 } },
+    { data: { kind: "no_new", inserted: 0, duplicates: 1, skipped: 2, period_from: null, period_to: null, net_amount: 0,
+      statement_date: null, replaced_upload_id: null },
+      expected: { kind: "no_new", inserted: 0, duplicates: 1, skipped: 2, periodFrom: null, periodTo: null, netAmount: 0,
+        statementDate: null, replacedUploadId: null } },
+    { data: { kind: "done", ...summary, replaced_upload_id: "33333333-3333-4333-8333-333333333333" },
+      expected: { kind: "done", ...camelSummary, replacedUploadId: "33333333-3333-4333-8333-333333333333" } },
     { data: { kind: "duplicate", existing_card_id: cardId }, expected: { kind: "duplicate", existingCardId: cardId } },
+    { data: { kind: "card_mismatch", reason: "issuer" }, expected: { kind: "card_mismatch", reason: "issuer" } },
+    { data: { kind: "card_mismatch", reason: "product" }, expected: { kind: "card_mismatch", reason: "product" } },
+    { data: { kind: "older_statement" }, expected: { kind: "older_statement" } },
     ...["not_found", "lease_expired", "card_scope_mismatch"].map((kind) => ({ data: { kind }, expected: { kind } })),
     ...statuses.map((status) => ({ data: { kind: "not_processing", status }, expected: { kind: "not_processing", status } })),
   ])("maps $data.kind and serializes rows to SQL keys", async ({ data, expected }) => {
@@ -60,11 +70,18 @@ describe("ingestUpload", () => {
     expect(await ingestUpload(ingestInput)).toEqual(expected);
     expect(rpc).toHaveBeenCalledExactlyOnceWith("ingest_upload", {
       p_user_id: "user-a", p_upload_id: uploadId, p_identity_scope: "content", p_cancel_style: "negative_amount",
+      p_issuer: "hyundai", p_product_name: "현대카드MM", p_statement_date: "2026-10-23",
+      p_statement_saved_at: "2026-10-12T10:00:00.000Z",
       p_skipped: 2, p_rows: [{
         used_on: "2026-09-03", merchant: "예시 가맹점", merchant_key: "예시가맹점",
         amount: -500, event_kind: "cancel", category: "food", fingerprint: "b".repeat(64),
       }],
     });
+  });
+
+  it("rejects an unknown card mismatch reason", async () => {
+    rpc.mockResolvedValue({ data: { kind: "card_mismatch", reason: "label" }, error: null });
+    await expect(ingestUpload(ingestInput)).rejects.toMatchObject({ code: "unexpected_response", operation: "ingest_upload" });
   });
 
   it.each(["inserted", "duplicates", "skipped", "net_amount"])("rejects unsafe or fractional %s", async (field) => {
@@ -81,11 +98,16 @@ describe("ingestUpload", () => {
     await expect(ingestUpload(ingestInput)).rejects.toMatchObject({ code: "unexpected_response" });
   });
 
-  it.each(["period_from", "period_to"])("rejects invalid %s", async (field) => {
+  it.each(["period_from", "period_to", "statement_date"]) ("rejects invalid %s", async (field) => {
     for (const value of ["2026-9-3", "2026-02-30", "2026-09-03T00:00:00Z", 123, "invalid"]) {
       rpc.mockResolvedValue({ data: { kind: "done", ...summary, [field]: value }, error: null });
       await expect(ingestUpload(ingestInput)).rejects.toMatchObject({ code: "unexpected_response" });
     }
+  });
+
+  it("rejects malformed replacement upload IDs", async () => {
+    rpc.mockResolvedValue({ data: { kind: "done", ...summary, replaced_upload_id: "not-a-uuid" }, error: null });
+    await expect(ingestUpload(ingestInput)).rejects.toMatchObject({ code: "unexpected_response" });
   });
 
   it.each([null, { kind: "unknown" }, { kind: "done" }, { kind: "not_processing", status: "needs_mapping" }])(

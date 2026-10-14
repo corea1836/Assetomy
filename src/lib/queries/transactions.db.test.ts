@@ -29,7 +29,8 @@ async function saveRows(userId: string, rows: IngestRow[]) {
   const upload = await beginUpload({ userId, cardId: card.cardId, fileName: "test.csv", fileHash: "a".repeat(64), fileSize: 100 });
   if (upload.kind !== "started") throw new Error("db-test:begin_upload:unexpected_response");
   const result = await ingestUpload({ userId, uploadId: upload.uploadId, identityScope: "content",
-    cancelStyle: "negative_amount", rows, skipped: 0 });
+    cancelStyle: "negative_amount", rows, skipped: 0,
+    issuer: null, productName: null, statementDate: null, statementSavedAt: null });
   expect(result).toMatchObject({ kind: "done", inserted: rows.length });
   return card.cardId;
 }

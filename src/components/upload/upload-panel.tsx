@@ -5,7 +5,7 @@ import { useRouter } from "next/navigation";
 import { z } from "zod";
 import { buttonClass } from "@/components/button-styles";
 import { uploadErrorMessage } from "@/lib/errors/messages";
-import { formatPeriod, formatWon } from "@/lib/format";
+import { formatPeriod, formatStatementDate, formatWon } from "@/lib/format";
 import { ANALYSIS_BASES, CARD_ISSUERS } from "@/types/card";
 import type { CardOption, UploadResultDto } from "@/types/upload";
 import { fetchJson, responseError, TEMPORARY_ERROR, type UploadError } from "./api-reply";
@@ -27,11 +27,16 @@ const uploadSchema = z.object({ result: z.union([
     kind: z.enum(["done", "no_new"]), uploadId: z.string().min(1),
     inserted: z.int().nonnegative(), duplicates: z.int().nonnegative(), skipped: z.int().nonnegative(),
     periodFrom: z.iso.date().nullable(), periodTo: z.iso.date().nullable(), netAmount: z.int(),
+    statementDate: z.iso.date().nullable(), replaced: z.boolean(),
   }).refine((result) => result.kind !== "done" || (
     result.inserted > 0 && result.periodFrom !== null && result.periodTo !== null && result.periodFrom <= result.periodTo
   )),
+  z.object({ kind: z.literal("older_statement") }),
   z.object({ kind: z.literal("duplicate"), existingCardLabel: z.string().nullable() }),
 ]) });
+const cardMismatchErrorSchema = z.object({ error: z.object({
+  code: z.literal("CARD_MISMATCH"), reason: z.string().optional(),
+}) });
 
 type Row = {
   id: number;
@@ -51,12 +56,14 @@ const STATUS_LABELS: Record<Row["status"], string> = {
 
 function resultLine(result: UploadResultDto): string {
   if (result.kind === "duplicate") return "이미 올린 내역이에요";
+  if (result.kind === "older_statement") return "더 최근에 받은 명세서가 이미 있어요. 이 파일은 저장하지 않았어요";
   if (result.kind === "no_new") {
     return `이미 올린 내역이에요${result.skipped ? ` · 12개월이 지난 거래 ${result.skipped}건 제외` : ""}`;
   }
   const period = result.periodFrom && result.periodTo
     ? ` · ${formatPeriod({ from: result.periodFrom, to: result.periodTo })}` : "";
-  return `${result.inserted}건${period} · 지출 ${formatWon(result.netAmount)}`
+  const statement = result.statementDate ? `${formatStatementDate(result.statementDate)} · ` : "";
+  return `${statement}${result.inserted}건${period} · 지출 ${formatWon(result.netAmount)}`
     + (result.duplicates ? ` · 중복 ${result.duplicates}건` : "")
     + (result.skipped ? ` · 제외 ${result.skipped}건` : "");
 }
@@ -153,7 +160,8 @@ export function UploadPanel({ cards }: { cards: CardOption[] }): React.JSX.Eleme
             updateRow(row.id, { status: "complete", result: parsed.data.result });
             setAnnouncement(`${row.file.name} 완료`);
           } else {
-            updateRow(row.id, { status: "failed", error: responseError(reply.body) });
+            const cardMismatch = cardMismatchErrorSchema.safeParse(reply.body);
+            updateRow(row.id, { status: "failed", error: cardMismatch.success ? cardMismatch.data.error : responseError(reply.body) });
             setAnnouncement(`${row.file.name} 실패`);
           }
         } catch {
@@ -178,7 +186,7 @@ export function UploadPanel({ cards }: { cards: CardOption[] }): React.JSX.Eleme
     if (code === "TEMPORARY_FAILURE" || code === "BUSY") {
       return <button type="button" disabled={running} className={buttonClass("secondary", "sm")} onClick={() => resetRow(row, false)}>다시 시도</button>;
     }
-    if (code === "CARD_NOT_FOUND" || code === "CARD_SCOPE_MISMATCH") {
+    if (code === "CARD_NOT_FOUND" || code === "CARD_SCOPE_MISMATCH" || code === "CARD_MISMATCH") {
       return <button type="button" disabled={running} className={buttonClass("secondary", "sm")} onClick={() => resetRow(row, true)}>카드 다시 고르기</button>;
     }
     if (hasGuide && (code === "FILE_TOO_LARGE" || code === "UNSUPPORTED_FILE" || code === "UNREADABLE")) {
@@ -253,6 +261,9 @@ export function UploadPanel({ cards }: { cards: CardOption[] }): React.JSX.Eleme
                   {row.status === "complete" && row.result && (
                     <div className="w-full min-w-0 space-y-2 text-sm tabular-nums text-body">
                       <p>{resultLine(row.result)}</p>
+                      {row.result.kind === "done" && row.result.replaced && (
+                        <p className="text-sm text-body">이전에 올린 같은 명세서를 이 파일로 바꿨어요</p>
+                      )}
                       {row.result.kind === "duplicate" && row.result.existingCardLabel && row.result.existingCardLabel !== cardLabel && (
                         <p>&apos;{row.result.existingCardLabel}&apos; 카드로 올렸던 파일이에요. 카드를 잘못 지정했다면 기존 업로드를 삭제하고 다시 올려 주세요</p>
                       )}

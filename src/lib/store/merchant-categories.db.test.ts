@@ -29,7 +29,8 @@ async function saveRows(userId: string, rows: IngestRow[]) {
   if (card.kind !== "created") throw new Error("db-test:create_card:unexpected_response");
   const upload = await beginUpload({ userId, cardId: card.cardId, fileName: "test.csv", fileHash: "a".repeat(64), fileSize: 100 });
   if (upload.kind !== "started") throw new Error("db-test:begin_upload:unexpected_response");
-  expect(await ingestUpload({ userId, uploadId: upload.uploadId, identityScope: "content", cancelStyle: "negative_amount", rows, skipped: 0 }))
+  expect(await ingestUpload({ userId, uploadId: upload.uploadId, identityScope: "content", cancelStyle: "negative_amount", rows, skipped: 0,
+    issuer: null, productName: null, statementDate: null, statementSavedAt: null }))
     .toMatchObject({ kind: "done", inserted: rows.length });
   return new Map([[card.cardId, "생활비 카드"]]);
 }

@@ -4,7 +4,7 @@ import { getUploadOutcome, listDoneUploads } from "./uploads";
 
 const uploadId = "22222222-2222-4222-8222-222222222222";
 const done = { id: uploadId, status: "done", inserted_count: 2, duplicate_count: 3, skipped_count: 4,
-  period_from: "2026-09-01", period_to: "2026-09-03", net_amount: -500 };
+  period_from: "2026-09-01", period_to: "2026-09-03", net_amount: -500, statement_date: "2026-10-23" };
 
 function fakeClient(data: unknown) {
   const builder = {
@@ -19,9 +19,12 @@ describe("getUploadOutcome", () => {
     const { client, builder } = fakeClient(done);
     expect(await getUploadOutcome(client, "user-a", uploadId)).toEqual({
       status: "done", inserted: 2, duplicates: 3, skipped: 4,
-      periodFrom: "2026-09-01", periodTo: "2026-09-03", netAmount: -500,
+      periodFrom: "2026-09-01", periodTo: "2026-09-03", netAmount: -500, statementDate: "2026-10-23",
     });
     expect(builder.eq.mock.calls).toEqual([["user_id", "user-a"], ["id", uploadId]]);
+    expect(builder.select).toHaveBeenCalledExactlyOnceWith(
+      "id, status, inserted_count, duplicate_count, skipped_count, period_from, period_to, net_amount, statement_date",
+    );
     expect(builder.maybeSingle).toHaveBeenCalledOnce();
   });
 
@@ -30,6 +33,7 @@ describe("getUploadOutcome", () => {
       period_from: null, period_to: null, net_amount: 0 });
     expect(await getUploadOutcome(client, "user-a", uploadId)).toEqual({
       status: "no_new", inserted: 0, duplicates: 3, skipped: 4, periodFrom: null, periodTo: null, netAmount: 0,
+      statementDate: "2026-10-23",
     });
   });
 
@@ -54,7 +58,7 @@ describe("getUploadOutcome", () => {
       .rejects.toMatchObject({ code: "unexpected_response" });
   });
 
-  it.each(["period_from", "period_to"])("validates %s as an ISO date", async (field) => {
+  it.each(["period_from", "period_to", "statement_date"])("validates %s as an ISO date", async (field) => {
     for (const value of ["2026-9-3", "2026-02-30", "2026-09-03T00:00:00Z", 123]) {
       await expect(getUploadOutcome(fakeClient({ ...done, [field]: value }).client, "user-a", uploadId))
         .rejects.toMatchObject({ code: "unexpected_response" });

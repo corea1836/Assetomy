@@ -36,6 +36,7 @@ async function upload(hash: string, rows: IngestRow[], userId = userA, cardId = 
   if (started.kind !== "started") throw new Error("db-test:begin_upload:unexpected_response");
   const ingested = await ingestUpload({
     userId, uploadId: started.uploadId, identityScope: "content", cancelStyle: "negative_amount", rows, skipped: 0,
+    issuer: null, productName: null, statementDate: null, statementSavedAt: null,
   });
   if (ingested.kind !== "done") throw new Error("db-test:ingest_upload:unexpected_response");
   return started.uploadId;

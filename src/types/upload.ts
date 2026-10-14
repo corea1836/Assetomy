@@ -40,6 +40,10 @@ export type IngestUploadInput = {
   uploadId: string;
   identityScope: IdentityScope;
   cancelStyle: CancelStyle;
+  issuer: CardIssuer | null;
+  productName: string | null;
+  statementDate: IsoDate | null;
+  statementSavedAt: string | null;
   rows: IngestRow[];
   skipped: number;
 };
@@ -51,7 +55,10 @@ export type UploadSummary = {
   periodFrom: IsoDate | null;
   periodTo: IsoDate | null;
   netAmount: number;
+  statementDate: IsoDate | null;
 };
+
+export type CardMismatchReason = "issuer" | "product";
 
 export type CardOption = {
   id: string;
@@ -64,13 +71,14 @@ export type CardOption = {
 export type ApiErrorCode =
   | "BAD_REQUEST" | "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND"
   | "INVALID_LABEL" | "DUPLICATE_LABEL" | "INVALID_CARD"
-  | "CARD_NOT_FOUND" | "CARD_SCOPE_MISMATCH" | "UPLOAD_PROCESSING"
+  | "CARD_NOT_FOUND" | "CARD_SCOPE_MISMATCH" | "CARD_MISMATCH" | "UPLOAD_PROCESSING"
   | "FILE_TOO_LARGE" | "UNSUPPORTED_FILE" | "UNREADABLE"
   | "RATE_LIMITED" | "BUSY" | "TEMPORARY_FAILURE";
 
 export type ApiErrorBody = { error: { code: ApiErrorCode; reason?: string } };
 export type UploadResultDto =
-  | ({ kind: "done" | "no_new"; uploadId: string } & UploadSummary)
+  | ({ kind: "done" | "no_new"; uploadId: string; replaced: boolean } & UploadSummary)
+  | { kind: "older_statement" }
   | { kind: "duplicate"; existingCardLabel: string | null };
 export type CreateCardResponse = { card: CardOption };
 export type UploadResponse = { result: UploadResultDto };
@@ -91,7 +99,9 @@ export type ProcessUploadInput = {
 };
 
 export type ProcessUploadOutcome =
-  | ({ kind: "done" | "no_new"; uploadId: string } & UploadSummary)
+  | ({ kind: "done" | "no_new"; uploadId: string; replaced: boolean } & UploadSummary)
+  | { kind: "card_mismatch"; uploadId: string; reason: CardMismatchReason }
+  | { kind: "older_statement"; uploadId: string }
   | { kind: "duplicate"; existingCardId: string }
   | { kind: "rejected"; uploadId: string; code: "UNSUPPORTED_FILE"; reason: UnsupportedFileReason }
   | { kind: "rejected"; uploadId: string; code: "UNREADABLE"; reason: UnreadableReason }
@@ -102,7 +112,9 @@ export type ProcessUploadOutcome =
   | { kind: "temporary_failure"; uploadId: string | null };
 
 export type IngestUploadResult =
-  | ({ kind: "done" | "no_new" } & UploadSummary)
+  | ({ kind: "done" | "no_new"; replacedUploadId: string | null } & UploadSummary)
+  | { kind: "card_mismatch"; reason: CardMismatchReason }
+  | { kind: "older_statement" }
   | { kind: "duplicate"; existingCardId: string }
   | { kind: "not_found" }
   | { kind: "not_processing"; status: UploadStatus }
