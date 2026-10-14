@@ -18,7 +18,7 @@ src/
 │   ├── analytics/        # 순수: 스냅샷·전월 대비·추세·탐지·buildDashboard
 │   ├── ingest/           # 업로드 처리(I/O, 의존성 주입)
 │   ├── billing/          # 플랜 조회·Polar 동기화
-│   ├── summary/          # 월 요약: 입력 해시·생성·저장 조율(I/O, 의존성 주입)
+│   ├── summary/          # 월·카드 요약: 입력 해시·생성·저장 조율(I/O, 의존성 주입)
 │   ├── queries/          # 읽기(사용자 세션 + RLS)
 │   ├── store/            # 서버 쓰기(service-role로 RPC 호출, 'server-only')
 │   ├── supabase/         # server · admin 클라이언트(브라우저용 클라이언트는 두지 않는다)
@@ -61,7 +61,7 @@ types/     도메인 타입 · 에러 코드
 ## 패턴
 - 읽기는 Server Component, 쓰기는 Route Handler다. 예외는 2개(AI 요약 저장, 결제 상태 재동기화: 결제 완료 화면·기간이 지난 Pro·설정 화면)이며 대시보드·설정 렌더 중 서버 쓰기 함수로 한다.
 - 클라이언트 컴포넌트는 업로드·모달·월 선택처럼 상호작용이 필요한 곳에만 쓴다. 서버 상태는 Server Component와 URL(`?month=`)에 두고, 업로드 진행 상태만 클라이언트 state로 둔다. 완료 후 `router.refresh()`. 전역 상태 라이브러리는 쓰지 않는다.
-- Free/Pro 게이팅은 `buildDashboard`의 DTO 유니온 한 곳에서 한다. AI 월간 요약의 입력도 그 DTO에서 만든다(Free는 Free DTO 범위만 Sonnet으로, Pro는 Opus로).
+- Free/Pro 게이팅은 `lib/analytics/dashboard.ts`의 DTO 유니온에서만 한다(전체 탭 `buildDashboard`, 카드 탭 `buildCardDashboard`). AI 월간·카드 요약의 입력도 그 DTO에서 만든다(Free는 Free DTO 범위만 Sonnet으로, Pro는 Opus로).
 
 ## 데이터 모델
 | 테이블 | 역할 |
@@ -73,6 +73,7 @@ types/     도메인 타입 · 에러 코드
 | merchant_category_overrides | (user, 정규화 가맹점명)별 사용자 카테고리 수정값 |
 | subscriptions | Polar 구독 상태와, 그 상태를 만든 조회의 시작 시각 |
 | ai_summaries | (user, month)별 요약·팁과 입력 해시 |
+| card_summaries | (user, card, period)별 카드 요약·팁과 입력 해시. period는 월별 카드면 `YYYY-MM`, 이용 기간 카드면 명세서 결제일 `YYYY-MM-DD`. 카드를 지우면 함께 지운다 |
 | user_metrics · upload_attempts | 지표용 최소 이력. 업로드를 지워도 남고, 전체 삭제 시 지운다. 24시간 업로드 한도도 upload_attempts로 센다 |
 | storage `statements` | 원본 파일의 AES-256-GCM 암호화본만. private, 경로 `{uid}/{uploadId}.enc`, 원본 기준 파일당 4MB |
 
@@ -120,7 +121,8 @@ types/     도메인 타입 · 에러 코드
 - 업로드 삭제와 전체 삭제는 DB 한 트랜잭션으로 즉시 끝내고, 커밋 후 원본 삭제를 시도한다. 업로드 삭제는 그 업로드 거래가 있던 달의 요약도 같은 트랜잭션에서 지운다(지운 거래의 가맹점명이 요약에 남지 않게). 삭제 뒤 늦게 도착한 ingest는 업로드 행이 없어서, 요약 저장은 그 달 거래가 없어서 거절된다. 전체 삭제는 계정·구독을 유지한다(24시간 업로드 한도는 upload_attempts와 함께 초기화된다).
 - 탈퇴는 전체 삭제와 같은 트랜잭션에서 운영 기록까지 지우고, 커밋 후 Auth 사용자를 삭제한다. 자동 갱신 예정인 구독이 있으면 409로 거절한다. 탈퇴 뒤 도착한 웹훅은 사용자가 없어 200으로 무시한다.
 - 5분 주기 정기 작업은 만료된 processing(lease)·needs_mapping(1시간)을 failed로 종료하고, 업로드 행이 없거나 no_new·failed인 원본을 지운다. 업로드 행은 파일 저장 전에 커밋되므로 행이 없는 파일은 언제 지워도 안전하다. DB 조회가 실패하면 지우지 않는다.
-- 보관 기한: 같은 정기 작업이 이용일 기준 12개월이 지난 거래·요약을 지우고, 거래가 모두 사라진 업로드의 행과 원본을 지운다. ingest는 보관 기한 밖의 거래를 저장하지 않는다(skipped).
+- 카드 요약: 그 카드의 done 업로드가 지워지면(사용자 삭제·청구서 교체·보관 기한) uploads 삭제 트리거가 그 카드의 카드 요약을 모두 지운다. Auth 사용자 삭제의 cascade에서도 돌기 때문에 이 트리거 함수는 `security definer`다. 카드의 분석 기준을 바꾸면 `update_card`가 그 카드 요약을 지운다.
+- 보관 기한: 같은 정기 작업이 이용일 기준 12개월이 지난 거래·요약(카드 요약 포함)을 지우고, 거래가 모두 사라진 업로드의 행과 원본을 지운다. ingest는 보관 기한 밖의 거래를 저장하지 않는다(skipped).
 
 ## 월 요약
 ```
@@ -136,6 +138,23 @@ types/     도메인 타입 · 에러 코드
 - 요약은 대시보드 Server Component의 Suspense 안에서 만들고, 경계의 `key`를 입력 해시로 둔다. 이유: `router.refresh()`(카테고리 수정·업로드 완료) 때 이미 보이던 경계가 새 요약을 기다리면 화면 전체 갱신이 LLM 응답만큼 늦어진다. key가 바뀌면 그 경계만 "만드는 중"으로 바뀐다.
 - API 키는 요약을 만들 때 읽는다. 키가 없거나 호출이 실패해도 대시보드는 그려지고 요약 카드만 실패로 보인다.
 - 같은 달을 동시에 조회하면 요약을 두 번 만들 수 있다. 저장은 (user, month) 하나로 수렴한다(ADR-001).
+
+## 카드 탭
+```
+/dashboard?card=<id> ─▶ 카드의 분석 기준(ADR-024)
+  ├ 월별 ─▶ 그 카드 거래로 달력 월 스냅샷 · 지난달 비교(ADR-022 규칙 그대로)
+  └ 이용 기간 ─▶ 명세서(같은 카드·결제일의 done 업로드 하나, ADR-023)의 거래로 스냅샷
+       이용 기간 = 결제일보다 앞서 시작한 마지막 주기 [시작일 ~ 다음 시작일 전날]  (10/23 · 12일 → 9/12~10/11, 시작일이 그달에 없으면 말일)
+       완료 = PDF 저장일(서울, least(coalesce(저장 시각, 업로드 시각), 업로드 시각)) > 이용 기간 끝
+       비교 = 바로 전 달 결제일의 명세서가 있고 두 명세서 모두 완료일 때만
+buildCardDashboard(카드 · 거래 · 명세서 기록 · 플랜) ─▶ Free/Pro DTO ─▶ buildCardSummaryInput ─▶ 카드 요약
+  (생성·검증·자리표시자·Suspense는 월 요약과 같고, 저장은 save_card_summary → card_summaries)
+```
+- 거래가 어느 명세서인지는 거래의 업로드 결제일로 정한다. 거래 조회가 업로드 결제일을 같은 쿼리로 함께 읽는다(따로 읽으면 그 사이 업로드가 바뀔 수 있다). 결제일이 없는 업로드의 거래는 이용 기간 카드 탭에 보이지 않는다(PDF는 모두 결제일이 있다. 결제일이 없는 csv·xlsx는 fallback-mapping phase에서 이용 기간으로 묶는다).
+- 명세서의 반영 기간은 그 명세서 거래의 첫·마지막 이용일이라 이용 기간과 다를 수 있다(9월 명세서의 9/12 연회비). 일별은 이용 기간을 거래가 있는 날까지 넓힌 날마다 그린다.
+- 카드 탭에는 스냅샷·비교·카드 요약과 Pro의 달라진 카테고리만 둔다. 탐지·추세는 전체 탭에만 있다.
+- 카드 요약 입력에는 카드 라벨·카드사·결제일·거래 id를 넣지 않는다. Free 입력은 총액 비교까지, Pro 입력은 달라진 카테고리까지 담는다.
+- `save_card_summary`는 사용자 잠금 아래 카드 소유, period 모양과 카드의 분석 기준(월별 `YYYY-MM` · 이용 기간 `YYYY-MM-DD`), 그 달 거래 또는 그 결제일의 done 업로드가 있는지 확인한 뒤에만 저장한다. 요약을 만드는 사이 기준이 바뀌거나 업로드가 지워지면 저장하지 않는다.
 
 ## 결제 동기화
 ```
@@ -155,6 +174,7 @@ success 페이지 · 웹훅(서명 검증) · 결제 기간이 지난 상태 · 
 | 경로 | 역할 |
 |---|---|
 | `POST /api/cards` | 카드 등록(라벨·카드사·분석 기준·이용 기간 시작일) |
+| `PUT /api/cards/[id]` | 카드 수정(라벨·분석 기준·이용 기간 시작일, 카드사는 고정) → 204 |
 | `POST /api/uploads` | 파일 수신 → 암호화 저장 → 처리, 또는 매핑 제안(needs_mapping) |
 | `POST /api/uploads/[id]/mapping` | 저장된 매핑 제안 확정 → 처리 |
 | `DELETE /api/uploads/[id]` | 업로드 삭제(매핑 대기 취소 포함) |
@@ -184,7 +204,7 @@ success 페이지 · 웹훅(서명 검증) · 결제 기간이 지난 상태 · 
 - CSRF: 세션을 쓰는 POST/PUT/DELETE는 Origin 정확 일치, JSON 요청은 `application/json`만, 파일 업로드는 `multipart/form-data`만. 로그인·로그아웃 폼(`/auth/login`·`/auth/logout`)은 `application/x-www-form-urlencoded`만 받고 Origin을 검사한다. 웹훅은 서명, Cron은 `CRON_SECRET`.
 - 격리: RLS 읽기 + 검증된 서버 쓰기 + 복합 FK. 타인 리소스는 404.
 - 파일: private 버킷에 암호화본만(AES-256-GCM, 파일마다 랜덤 IV). 평문 원본은 메모리에서만 다룬다. 확장자·용량(4MB)·행 수(5,000)·셀 길이 상한, xlsx ZIP 시그니처, 패치된 SheetJS. PDF는 `%PDF-` 시그니처·100쪽 상한·암호 PDF 거절, pdfjs-dist는 `isEvalSupported: false`로 글자·좌표만 읽는다.
-- LLM: 분류에는 가맹점명, 요약에는 월 집계, 폴백 매핑에는 헤더와 값 패턴(숫자 → 9, 문자 → X)만 보낸다. 실제 셀 값과 원본은 보내지 않는다. structured outputs를 쓰고 결과는 코드로 검증한다. 요약·팁의 숫자는 `{total}`·`{categories[0].ratio}`처럼 입력 경로 자리표시자로 받아 코드가 채운다. 자리표시자 밖의 숫자, 입력에 없는 경로, 배열 항목의 이름(카테고리·가맹점·`N월`)이 같은 요약·팁 안에 없는 자리표시자, 금지 표현이 있으면 버린다(ADR-005). Sonnet·Opus 요청은 안전 분류기 거절에 대비해 서버 쪽 대체(`fallbacks: "default"`)를 켠다. LLM 응답 본문은 로그에 남기지 않는다.
+- LLM: 분류에는 가맹점명, 요약에는 월 집계와 카드의 그 달·그 명세서 집계, 폴백 매핑에는 헤더와 값 패턴(숫자 → 9, 문자 → X)만 보낸다. 실제 셀 값과 원본은 보내지 않는다. structured outputs를 쓰고 결과는 코드로 검증한다. 요약·팁의 숫자는 `{total}`·`{categories[0].ratio}`처럼 입력 경로 자리표시자로 받아 코드가 채운다. 자리표시자 밖의 숫자, 입력에 없는 경로, 배열 항목의 이름(카테고리·가맹점·`N월`)이 같은 요약·팁 안에 없는 자리표시자, 금지 표현이 있으면 버린다(ADR-005). Sonnet·Opus 요청은 안전 분류기 거절에 대비해 서버 쪽 대체(`fallbacks: "default"`)를 켠다. LLM 응답 본문은 로그에 남기지 않는다.
 - 헤더 `X-Frame-Options: DENY` · `nosniff` · `strict-origin-when-cross-origin`. XSS는 `react/no-danger`와 텍스트 렌더링으로 막는다.
 - 로그는 코드와 id만. 비용은 24시간 30개·동시 2개를 DB에서 원자적으로 제한하고 Anthropic·Vercel 지출 한도를 건다.
 
