@@ -95,7 +95,7 @@ types/     도메인 타입 · 에러 코드
                  → needs_mapping(1시간 만료, lease 해제) + 미리보기 응답
 (2) POST /api/uploads/:id/mapping   본문 없음("이대로 읽기")
       저장된 제안을 column_mappings에 저장 → claim(needs_mapping → processing) → 복호화 → (3)
-(3)   코드로 파싱·정규화 → 수정값·기존 거래에 없는 가맹점만 Haiku 분류(실패는 etc)
+(3)   코드로 파싱·정규화 → 수정값·기존 거래에 없는 가맹점만 Haiku 분류(실패는 etc, 연회비는 분류 없이 금융·보험)
       → ingest RPC: 거래 insert와 결과 저장을 한 트랜잭션으로 → done / no_new / failed
       → RPC 오류면 상태를 한 번 다시 읽어 done이면 결과, 아니면 503(행은 보존)
 ```

@@ -11,6 +11,9 @@ import type {
 } from "@/types/upload";
 import { transactionFingerprint } from "./fingerprint";
 
+// 카드사 항목은 분류기에 묻지 않고 정해 둔다. 사용자 수정값·기존 거래의 카테고리가 있으면 그쪽이 먼저다.
+const FIXED_CATEGORIES = new Map<string, CategoryId>([["연회비", "finance"]]);
+
 export type ProcessUploadDeps = {
   today: IsoDate;
   beginUpload(input: BeginUploadInput): Promise<BeginUploadResult>;
@@ -85,7 +88,8 @@ export async function processUpload(
     return { kind: "temporary_failure", uploadId };
   }
 
-  const missing = [...merchants.values()].filter(({ merchantKey }) => !categories.has(merchantKey));
+  const missing = [...merchants.values()]
+    .filter(({ merchantKey }) => !categories.has(merchantKey) && !FIXED_CATEGORIES.has(merchantKey));
   let classified = new Map<string, CategoryId>();
   if (missing.length) {
     try {
@@ -97,7 +101,8 @@ export async function processUpload(
   const rows = transactions.map((transaction) => ({
     usedOn: transaction.date, merchant: transaction.merchant, merchantKey: transaction.merchantKey,
     amount: transaction.amount, eventKind: transaction.eventKind,
-    category: categories.get(transaction.merchantKey) ?? classified.get(transaction.merchantKey) ?? "etc",
+    category: categories.get(transaction.merchantKey) ?? FIXED_CATEGORIES.get(transaction.merchantKey)
+      ?? classified.get(transaction.merchantKey) ?? "etc",
     fingerprint: transactionFingerprint({ cardId, identityScope: parsed.identityScope,
       sourceEventKey: transaction.sourceEventKey, eventKind: transaction.eventKind }),
   }));

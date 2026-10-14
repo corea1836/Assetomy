@@ -133,6 +133,34 @@ describe("processUpload", () => {
     expect(deps.ingestUpload.mock.calls[0][0].rows.map((row) => row.category)).toEqual(["health", "food", "food"]);
   });
 
+  it("files the card annual fee under finance without asking the classifier", async () => {
+    const deps = fakeDeps();
+    deps.readStatement.mockResolvedValue({ ...parsed, transactions: [
+      ...transactions,
+      { date: "2026-09-12", merchant: "연회비", merchantKey: "연회비",
+        amount: 70000, eventKind: "purchase", sourceEventKey: "2026-09-12|연회비|70000|0" },
+    ] });
+    await processUpload(input, deps);
+    expect(deps.findMerchantCategories).toHaveBeenCalledExactlyOnceWith(["스타벅스 강남", "A", "연회비"]);
+    expect(deps.classifier.classify).toHaveBeenCalledExactlyOnceWith([
+      { merchantKey: "스타벅스 강남", merchant: "스타벅스 강남" },
+    ]);
+    expect(deps.ingestUpload.mock.calls[0][0].rows.map((row) => row.category))
+      .toEqual(["cafe", "shopping", "shopping", "finance"]);
+  });
+
+  it("keeps the user's own category for the annual fee", async () => {
+    const deps = fakeDeps();
+    deps.readStatement.mockResolvedValue({ ...parsed, transactions: [
+      { date: "2026-09-12", merchant: "연회비", merchantKey: "연회비",
+        amount: 70000, eventKind: "purchase", sourceEventKey: "2026-09-12|연회비|70000|0" },
+    ] });
+    deps.findMerchantCategories.mockResolvedValue(new Map([["연회비", "etc"]]));
+    await processUpload(input, deps);
+    expect(deps.classifier.classify).not.toHaveBeenCalled();
+    expect(deps.ingestUpload.mock.calls[0][0].rows.map((row) => row.category)).toEqual(["etc"]);
+  });
+
   it.each(["throw", "missing"])("falls back to etc when classification is %s", async (failure) => {
     const deps = fakeDeps();
     if (failure === "throw") deps.classifier.classify.mockRejectedValue(new Error("unavailable"));

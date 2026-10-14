@@ -15,10 +15,15 @@ const HEADER = /^\d{1,2}월 \d{1,2}일 명세서$/;
 const WON_AMOUNT = /^(-?\d{1,3}(?:,\d{3})*)원$/;
 const DATE_ROW = /^(\d{2})\. (\d{1,2})\. (\d{1,2}) \([월화수목금토일]\)$/;
 const CURRENCY_ROW = /^\([A-Z]{3}\s*:\s*[\d,.]+\)$/;
-// 20자에서 잘린 가맹점명의 남은 부분 + ",통화:금액"(예: "SU,USD:22.00")
+// 명세서는 가맹점명을 20자에서 자르고, 화면 폭을 넘으면 나머지를 다음 줄로 넘긴다.
+const MERCHANT_MAX_LENGTH = 20;
+// 넘어간 가맹점명 나머지 + ",통화:금액"(예: "SU,USD:22.00")
 const CURRENCY_TAIL_ROW = /^(.*?)\s*,\s*[A-Z]{3}\s*:\s*[\d,.]+$/;
+const REWARD_ROW = /\(\d+(?:\.\d+)?%\)$/;
 // 취소된 거래의 적립 줄 아래에 붙는 줄
 const PAYMENT_CANCEL = "결제 취소";
+// 연회비 줄에는 결제 방식 없이 카드 이름만 있는 줄이 붙는다(할부가 아니다)
+const ANNUAL_FEE = "연회비";
 
 function isHeader(row: PdfRow): boolean {
   return row.page === 1 && HEADER.test(row.text);
@@ -52,6 +57,21 @@ function readTransaction(row: PdfRow): { merchant: string; amount: number } | nu
     .replace(/\s+\d+건$/, "")
     .trim();
   return { merchant, amount };
+}
+
+// 줄이 넘어간 곳이 공백이었으면 공백을 넣어도 20자 안이다.
+function joinMerchantTail(head: string, tail: string): string {
+  const rest = tail.replace(/\s+/g, " ").trim();
+  if (!rest) return head;
+  const spaced = `${head} ${rest}`;
+  return Array.from(spaced).length <= MERCHANT_MAX_LENGTH ? spaced : `${head}${rest}`;
+}
+
+// 거래 줄 바로 다음의 짧은 글자 줄은 넘어간 가맹점명 나머지다.
+function isMerchantTail(head: string, row: PdfRow): boolean {
+  return !DATE_ROW.test(row.text) && !row.text.includes("현대카드") && !REWARD_ROW.test(row.text)
+    && readTransaction(row) === null
+    && Array.from(`${head}${row.text.trim()}`).length <= MERCHANT_MAX_LENGTH;
 }
 
 export function detectHyundaiStatement(rows: PdfRow[]): boolean {
@@ -114,15 +134,17 @@ export function parseHyundaiStatement(rows: PdfRow[]): ParseResult {
 
     let paymentIndex = index + 1;
     for (; paymentIndex < rows.length; paymentIndex += 1) {
-      const text = rows[paymentIndex].text;
-      if (CURRENCY_ROW.test(text)) continue;
-      const tail = text.match(CURRENCY_TAIL_ROW);
-      if (!tail) break;
-      merchant = `${merchant} ${tail[1]}`.replace(/\s+/g, " ").trim();
+      const next = rows[paymentIndex];
+      if (CURRENCY_ROW.test(next.text)) continue;
+      const currencyTail = next.text.match(CURRENCY_TAIL_ROW);
+      if (currencyTail) merchant = joinMerchantTail(merchant, currencyTail[1]);
+      else if (paymentIndex === index + 1 && isMerchantTail(merchant, next)) merchant = joinMerchantTail(merchant, next.text);
+      else break;
     }
     const payment = rows[paymentIndex];
     if (!payment || !payment.text.includes("현대카드")) return unreadable("broken_layout");
-    if (!payment.text.startsWith("일시불 ")) return unreadable("not_lump_sum");
+    const annualFee = merchant === ANNUAL_FEE && payment.text.startsWith("현대카드");
+    if (!payment.text.startsWith("일시불 ") && !annualFee) return unreadable("not_lump_sum");
     if (amount > 0 && (row.text.includes("취소") || payment.text.includes("취소"))) {
       return unreadable("cancel_label");
     }

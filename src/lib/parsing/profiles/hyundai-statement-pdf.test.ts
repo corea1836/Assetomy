@@ -308,14 +308,33 @@ describe("parseHyundaiStatement layout and limits", () => {
   });
 
   it.each([
-    { tail: [",USD:22.00"], merchant: "ANTHROPIC* CLAUDE" },
-    { tail: ["SUBS,KRW:29000.00"], merchant: "ANTHROPIC* CLAUDE SUBS" },
-    { tail: ["SUR , EUR : 2,00"], merchant: "ANTHROPIC* CLAUDE SUR" },
-  ])("reads the currency tail line $tail", ({ tail, merchant }) => {
+    { head: "ANTHROPIC* CLAUDE", tail: [",USD:22.00"], merchant: "ANTHROPIC* CLAUDE" },
+    { head: "OPENAI* CHATGPT", tail: ["SUBS,KRW:29000.00"], merchant: "OPENAI* CHATGPT SUBS" },
+    { head: "TBL* MULTIPLAYER", tail: ["SUR , EUR : 2,00"], merchant: "TBL* MULTIPLAYER SUR" },
+  ])("reads the currency tail line $tail", ({ head, tail, merchant }) => {
     const { transactions } = parseSuccess(statementRows(
-      "30,131", ["ANTHROPIC* CLAUDE", "30,131원"], tail, ["일시불 현대카드MM"],
+      "30,131", [head, "30,131원"], tail, ["일시불 현대카드MM"],
     ));
     expect(transactions[0].merchant).toBe(merchant);
+  });
+
+  // 가맹점명은 20자에서 잘리고, 줄이 넘어간 곳이 공백이면 이어 붙일 때 공백을 넣는다.
+  it("joins a wrapped domestic merchant tail without a space when a space would pass 20 characters", () => {
+    const { transactions } = parseSuccess(statementRows(
+      "216,990", ["가나다라마바사아자차 - 카타파하", "216,990", "원"], ["거너더"], ["일시불 현대카드MM"],
+    ));
+    expect(transactions[0]).toMatchObject({
+      merchant: "가나다라마바사아자차 - 카타파하거너더",
+      sourceEventKey: "2026-10-11|가나다라마바사아자차-카|216990|0",
+    });
+  });
+
+  it.each([
+    { label: "a long notice line", rows: [["가나다라마바사 - 카타", "1,000원"], ["카드 이용 안내 문구가 길게 이어집니다."]] },
+    { label: "two plain lines", rows: [["가나다라마바사아자차 - 카타", "1,000원"], ["파하"], ["거너"]] },
+  ])("does not read $label as a wrapped merchant name", ({ rows }) => {
+    expect(parseHyundaiStatement(statementRows("1,000", ...rows, ["일시불 현대카드MM"])))
+      .toEqual({ ok: false, code: "UNREADABLE", reason: "broken_layout" });
   });
 
   it("strips a comma currency suffix on the merchant line", () => {
@@ -364,6 +383,25 @@ describe("parseHyundaiStatement layout and limits", () => {
     expect(parseHyundaiStatement(statementRows(
       "2,000", ["QS25", "1,000원"], ["일시불 현대카드MM"], ["결제 취소", "1,000원"],
     ))).toEqual({ ok: false, code: "UNREADABLE", reason: "cancel_label" });
+  });
+
+  // 연회비 줄에는 결제 방식 없이 카드 이름만 있는 줄이 붙는다(9월 23일 명세서).
+  it("reads the annual fee row whose payment line has no payment method", () => {
+    const { transactions } = parseSuccess(statementRows(
+      "71,000", ["연회비", "70,000원"], ["현대카드MM"], ["QS25", "1,000원"], ["일시불 현대카드MM"],
+    ));
+    expect(transactions[0]).toEqual({
+      date: "2026-10-11", merchant: "연회비", merchantKey: "연회비",
+      amount: 70_000, eventKind: "purchase", sourceEventKey: "2026-10-11|연회비|70000|0",
+    });
+  });
+
+  it.each([
+    { merchant: "QS25", payment: "현대카드MM" },
+    { merchant: "연회비", payment: "할부 3개월 현대카드MM" },
+  ])("still rejects a payment line without 일시불 for $merchant · $payment", ({ merchant, payment }) => {
+    expect(parseHyundaiStatement(statementRows("70,000", [merchant, "70,000원"], [payment])))
+      .toEqual({ ok: false, code: "UNREADABLE", reason: "not_lump_sum" });
   });
 
   it("skips multiple currency lines across pages before the payment method", () => {
