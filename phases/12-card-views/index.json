@@ -23,7 +23,10 @@
     {
       "step": 1,
       "name": "card-data",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T16:04:22+0900",
+      "summary": "src/types/transaction.ts에 Transaction.statementDate, src/types/card.ts에 StatementRecord·CardUpdateInput·UpdateCardResult, src/types/summary.ts에 SaveCardSummaryInput·SaveCardSummaryResult 추가; src/lib/queries/statements.ts:listStatements, src/lib/queries/summaries.ts:getStoredCardSummary, src/lib/store/summaries.ts:saveCardSummary, src/lib/store/cards.ts:updateCard 구현; src/app/api/cards/[id]/route.ts PUT은 200 성공·404 미존재·400 입력/라벨 오류·409 중복 라벨 응답.",
+      "completed_at": "2026-10-14T16:11:09+0900"
     },
     {
       "step": 2,
