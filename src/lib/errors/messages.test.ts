@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { LOGIN_ERROR_MESSAGES, SUMMARY_STATUS_MESSAGES, cardEditErrorMessage, parseLoginErrorCode } from "./messages";
-import { billingErrorMessage, categoryErrorMessage, uploadErrorMessage } from "./messages";
+import { billingErrorMessage, categoryErrorMessage, summaryFeedbackErrorMessage, uploadErrorMessage } from "./messages";
 import type { ApiErrorCode } from "@/types/upload";
 
 describe("parseLoginErrorCode", () => {
@@ -83,6 +83,17 @@ describe("categoryErrorMessage", () => {
       if (code === "NOT_FOUND" || code === "UNAUTHORIZED") continue;
       expect(categoryErrorMessage(code)).toBe("카테고리를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.");
     }
+  });
+});
+
+describe("summaryFeedbackErrorMessage", () => {
+  it.each([
+    ["BAD_REQUEST", "피드백은 100자까지 쓸 수 있어요."],
+    ["UNAUTHORIZED", "로그인이 만료됐어요. 다시 로그인해 주세요."],
+    ["TEMPORARY_FAILURE", "저장하지 못했어요. 잠시 후 다시 시도해 주세요."],
+    ["unknown", "저장하지 못했어요. 잠시 후 다시 시도해 주세요."],
+  ])("maps %s", (code, message) => {
+    expect(summaryFeedbackErrorMessage(code)).toBe(message);
   });
 });
 

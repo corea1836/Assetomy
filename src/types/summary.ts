@@ -2,6 +2,12 @@ import type { FindingKind, KindSummary, Period, Plan } from "./dashboard";
 import type { CategoryId } from "./category";
 import type { YearMonth } from "./transaction";
 
+export const SUMMARY_FEEDBACK_MAX_LENGTH = 100;
+export type SummaryFeedback = Partial<Record<CategoryId, string>>;
+export type SummaryFeedbackRequest = { category: CategoryId; text: string };
+export type SummaryFeedbackResponse = { saved: true } | { deleted: true };
+export type SaveSummaryFeedbackResult = { kind: "saved" | "deleted" };
+
 // LLM structured output: each tip names one category from the summary input.
 export type SummaryDraft = {
   summary: string;

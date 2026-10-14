@@ -90,3 +90,9 @@ export function categoryErrorMessage(code: ApiErrorCode): string {
   if (code === "UNAUTHORIZED") return UPLOAD_ERROR_MESSAGES.UNAUTHORIZED;
   return "카테고리를 저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
 }
+
+export function summaryFeedbackErrorMessage(code: string): string {
+  if (code === "BAD_REQUEST") return "피드백은 100자까지 쓸 수 있어요.";
+  if (code === "UNAUTHORIZED") return "로그인이 만료됐어요. 다시 로그인해 주세요.";
+  return "저장하지 못했어요. 잠시 후 다시 시도해 주세요.";
+}

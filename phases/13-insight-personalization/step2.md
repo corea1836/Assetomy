@@ -87,7 +87,9 @@ export function summaryFeedbackErrorMessage(code: string): string
 - `src/lib/summary-feedback.test.ts`: 줄바꿈·탭·연속 공백이 한 칸, 앞뒤 공백 제거, 이모지·한글 글자 수(`feedbackLength("👍")`는 1).
 - `route.test.ts`(merchant-categories 테스트와 같은 틀): 401이 Origin·본문 검사보다 먼저, Origin 다름 403, Content-Type 다름 415(기존 `checkMutationRequest` 결과 그대로), 깨진 JSON·모르는 카테고리·문자열이 아닌 text 400, 정리 후 101자 400·100자 통과, `"  평일\n오전  커피 "`가 `"평일 오전 커피"`로 저장 함수에 넘어감, 빈 글·공백만 → 저장 함수에 `""` → `{ deleted: true }`, `{ saved: true }`, 본문의 `user_id`를 무시하고 세션 id로 저장, 저장 함수 throw → 503이고 로그에 피드백 글이 없음.
 - `summary-feedback.test.ts`(queries·store): 응답 매핑·RPC 인자·결과 스키마 실패.
-- `summary-feedback.db.test.ts`(queries·store, 테스트마다 임시 사용자): 저장 → 조회에 보임, 같은 카테고리 다시 저장하면 하나로 바뀜, `""` 저장 → 지워짐, 다른 사용자의 피드백은 조회되지 않음(RLS, 사용자 세션 클라이언트로 읽는 기존 db 테스트 방식), 101자는 저장 실패.
+- `summary-feedback.db.test.ts`(queries·store, 테스트마다 임시 사용자): 저장 → 조회에 보임, 같은 카테고리 다시 저장하면 하나로 바뀜, `""` 저장 → 지워짐, A로 조회하면 B의 피드백이 섞이지 않음(`user_id` 필터), 101자는 저장 실패.
+  - 다른 `.db.test.ts`(`src/lib/queries/merchant-categories.db.test.ts`, `src/lib/queries/subscriptions.db.test.ts`)와 같이 임시 사용자는 `src/lib/supabase/db-test-helpers.ts`의 `createTestUser`·`deleteTestUser`로 만들고 지우며, 조회는 `createSupabaseAdminClient()`로 한다. RLS(본인 피드백만 select)는 step 0의 pgTAP(`supabase/tests/insight_personalization.test.sql`)이 이미 확인한다.
+  - 사용자 로그인(`signInWithPassword` 등)으로 세션 클라이언트를 만들지 마라. 이유: dev 프로젝트는 이메일 로그인이 꺼져 있어(`email_provider_disabled`) 실패하고, 기존 DB 테스트도 로그인하지 않는다.
 
 ## Acceptance Criteria
 
