@@ -16,6 +16,12 @@ export function formatSignedWon(amount: number): string {
   return `${amount > 0 ? "+" : ""}${formatWon(amount)}`;
 }
 
+export function formatDiffWon(diff: number): string {
+  if (diff === 0) return "0원";
+  const marker = diff > 0 ? "▲" : "▼";
+  return `${marker}${numberFormat.format(Math.abs(diff))}원`;
+}
+
 export function formatAxisWon(amount: number): string {
   const absolute = Math.abs(amount);
   const sign = amount < 0 ? "−" : "";

@@ -66,11 +66,15 @@ function response(parsed_output: unknown, stop_reason = "end_turn") {
 }
 
 describe("createClaudeSummarizer", () => {
-  it("keeps the existing monthly prompt hashes stable", () => {
+  it("프롬프트가 바뀌면 저장된 요약이 모두 다시 만들어진다. 의도한 변경일 때만 기대값을 고친다", () => {
     expect(createHash("sha256").update(FREE_SYSTEM).digest("hex"))
-      .toBe("422a5999f7d3039af4750d718a47a1a5f97a0109cacf87b1c703ef64bd682c96");
+      .toBe("dc5b37ba9287191523190c634262b87865ccd056240b5a5241c5bf448ae6b759");
     expect(createHash("sha256").update(PRO_SYSTEM).digest("hex"))
-      .toBe("5396c81eee1cf2b4f203b772986c988cc062fc1d4949f5d45b3ce984ca37a748");
+      .toBe("fd530c44277fb34940eac4f02471baf3e72ea85591c42c7b364ea91da441b374");
+    expect(createHash("sha256").update(CARD_FREE_SYSTEM).digest("hex"))
+      .toBe("946457af27558b8ab98ffc20f90d8cca1cf02ee297a19030f123c7ef6b8db8a5");
+    expect(createHash("sha256").update(CARD_PRO_SYSTEM).digest("hex"))
+      .toBe("0b0b89d4c23e773c986473f54e82f743e38bc3c66d3e4461accf33dcbbcce3f9");
   });
 
   it.each([
@@ -102,23 +106,28 @@ describe("createClaudeSummarizer", () => {
     expect(request).not.toHaveProperty("thinking");
     expect(request).not.toHaveProperty("temperature");
     expect(request.system).toBe(input.plan === "free" ? FREE_SYSTEM : PRO_SYSTEM);
-    expect(request.system).toContain("숫자를 직접 쓰지 않습니다");
+    expect(request.system).toContain("숫자를 직접 쓰지 않고");
     expect(request.system).toContain("{categories[0].ratio}");
-    expect(request.system).toContain("아낄 수 있는 금액을 약속하지 않습니다");
+    expect(request.system).toContain("아낄 수 있는 금액을 약속하지 않고");
     expect(request.system).toContain("정상 지출일 수 있다고 함께 말합니다");
     expect(request.system).toContain("가맹점명과 카테고리명은 입력에 적힌 그대로 씁니다");
-    expect(request.system).toContain("tips는 절약 팁 3~5개");
-    expect(request.system).toContain("partialMonth가 있으면 그 달 카드 내역이 일부만 있어 지난달과 비교하지 않았다는 점을");
-    expect(request.system).toContain("\"기타\" 카테고리는 요약이나 팁의 근거로 쓰지 않습니다");
+    expect(request.system).toContain("comparison");
+    expect(request.system).toContain("▲");
+    expect(request.system).toContain("topMerchant");
+    expect(request.system).toContain("feedback");
+    expect(request.system).toContain("지시");
+    expect(request.system).toContain("기타");
     expect(request.system).toContain("금융상품을 추천하지 않습니다");
+    expect(request.system).toContain("1~5개");
     if (input.plan === "free") {
-      expect(request.system).toContain("candidates에는 종류별 건수와 합계만 있습니다");
-      expect(request.system).not.toContain("findings는 확인이 필요한 지출 후보입니다");
-      expect(request.system).not.toContain("가장 많이 늘어난 카테고리와 가장 많이 줄어든 카테고리");
+      expect(request.system).toContain("candidates에는 정기결제·중복 결제 의심·고액 결제의 종류별 건수와 합계만 있습니다");
+      expect(request.system).toContain("카드사 앱");
+      expect(request.system).not.toContain("findings");
+      expect(request.system).not.toContain("trend.categoryChanges");
+      expect(request.system).not.toContain("trend");
     } else {
-      expect(request.system).toContain("findings는 확인이 필요한 지출 후보입니다");
-      expect(request.system).toContain("가장 많이 늘어난 카테고리와 가장 많이 줄어든 카테고리를 금액 차이와 함께");
-      expect(request.system).toContain("가장 많이 늘어난 카테고리에 대한 절약 팁");
+      expect(request.system).toContain("trend.categoryChanges");
+      expect(request.system).toContain("findings");
       expect(request.system).not.toContain("candidates에는 종류별 건수와 합계만 있습니다");
     }
   });
@@ -227,13 +236,21 @@ describe("createClaudeCardSummarizer", () => {
     });
   });
 
-  it("includes the card-specific scope and safety rules", () => {
+  it("includes card flow labels, scope, names, and Free/Pro input boundaries", () => {
     expect(CARD_FREE_SYSTEM).toContain("이번 명세서");
     expect(CARD_FREE_SYSTEM).toContain("comparisonSkipped");
     expect(CARD_FREE_SYSTEM).toContain("카드 이름");
+    expect(CARD_FREE_SYSTEM).toContain("flow");
+    expect(CARD_FREE_SYSTEM).toContain("rising");
+    expect(CARD_FREE_SYSTEM).toContain("계속 늘었어요");
+    expect(CARD_FREE_SYSTEM).toContain("한 방향으로 이어지지 않았어요");
     expect(CARD_FREE_SYSTEM).toContain("금융상품");
-    expect(CARD_PRO_SYSTEM).toContain(CARD_FREE_SYSTEM);
+    expect(CARD_FREE_SYSTEM).toContain("topMerchant");
+    expect(CARD_FREE_SYSTEM).toContain("feedback");
+    expect(CARD_FREE_SYSTEM).not.toContain("flow.categories");
     expect(CARD_PRO_SYSTEM).toContain("categoryChanges");
+    expect(CARD_PRO_SYSTEM).toContain("flow.categories");
+    expect(CARD_PRO_SYSTEM).toContain(CARD_FREE_SYSTEM);
   });
 
   it.each([

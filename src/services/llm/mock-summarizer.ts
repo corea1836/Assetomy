@@ -38,9 +38,48 @@ function promptDraft(plan: Plan, scope: "month" | "card"): SummaryDraft {
   const count = tipCount(plan, scope);
   return {
     summary: scope === "month" ? MONTHLY_SUMMARY[plan] : CARD_SUMMARY[plan],
-    comparison: "",
+    comparison: scope === "month"
+      ? "지난달보다 {monthOverMonth.diff} 늘었어요."
+      : "지난 기간보다 {comparison.diff} 늘었어요. 최근 세 번은 계속 늘었어요.",
     tips: PROMPT_TIP_TEMPLATES.slice(0, count),
   };
+}
+
+function monthlyComparison(input: SummaryInput | CardSummaryInput): string {
+  if (!("monthOverMonth" in input)) return "";
+  if (input.monthOverMonth !== null) {
+    if (input.monthOverMonth.direction === "up") return "지난달보다 {monthOverMonth.diff} 늘었어요.";
+    if (input.monthOverMonth.direction === "down") return "지난달보다 {monthOverMonth.diff} 줄었어요.";
+    return "지난달과 같아요.";
+  }
+  if (input.partialMonth !== null) {
+    const month = Number(input.partialMonth.split("-")[1]);
+    return `${month}월 내역이 일부만 있어 지난달과는 비교하지 않았어요.`;
+  }
+  return "";
+}
+
+function cardComparison(input: SummaryInput | CardSummaryInput): string {
+  if (!("comparison" in input)) return "";
+  const previous = input.scope === "month" ? "지난달" : "지난 명세서";
+  const sentences: string[] = [];
+  if (input.comparison !== null) {
+    if (input.comparison.direction === "up") sentences.push(`${previous}보다 {comparison.diff} 늘었어요.`);
+    else if (input.comparison.direction === "down") sentences.push(`${previous}보다 {comparison.diff} 줄었어요.`);
+    else sentences.push(input.scope === "month" ? "지난달과 같아요." : "지난 명세서와 같아요.");
+  } else if (input.comparisonSkipped) {
+    sentences.push(input.scope === "month"
+      ? "카드 내역이 일부만 있어 지난달과 비교하지 않았어요."
+      : "이용 기간이 끝나기 전에 받은 명세서가 있어 지난 명세서와 비교하지 않았어요.");
+  }
+
+  if (input.flow !== null) {
+    if (input.flow.direction === "rising") sentences.push("최근 세 번은 계속 늘었어요.");
+    else if (input.flow.direction === "falling") sentences.push("최근 세 번은 계속 줄었어요.");
+    else if (input.flow.direction === "steady") sentences.push("최근 세 번은 비슷했어요.");
+    else sentences.push("최근 세 번은 한 방향으로 이어지지 않았어요.");
+  }
+  return sentences.join(" ");
 }
 
 function buildDraft(input: SummaryInput | CardSummaryInput, scope: "month" | "card"): SummaryDraft {
@@ -55,7 +94,7 @@ function buildDraft(input: SummaryInput | CardSummaryInput, scope: "month" | "ca
 
   return {
     summary: scope === "month" ? MONTHLY_SUMMARY[input.plan] : CARD_SUMMARY[input.plan],
-    comparison: "",
+    comparison: scope === "month" ? monthlyComparison(input) : cardComparison(input),
     tips,
   };
 }

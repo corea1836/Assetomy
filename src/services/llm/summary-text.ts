@@ -1,5 +1,5 @@
 import "server-only";
-import { formatDate, formatRatio, formatWon } from "@/lib/format";
+import { formatDate, formatDiffWon, formatRatio, formatWon } from "@/lib/format";
 import { CATEGORY_LABELS, type CategoryId } from "@/types/category";
 import type { CardSummaryInput, SummaryContent, SummaryDraft, SummaryInput } from "@/types/summary";
 
@@ -21,7 +21,7 @@ const CATEGORY_IDS_BY_LABEL: Record<string, CategoryId> = Object.fromEntries(
 const PLACEHOLDER = /\{([^{}]*)\}/g;
 const PATH_SEGMENT = /^([A-Za-z]+)(?:\[(0|[1-9][0-9]*)\])?$/;
 
-// 숫자 필드 이름으로 단위를 정한다. 전월 차이는 방향을 문장으로 말하므로 크기만 채운다.
+// 숫자 필드 이름으로 단위를 정한다. 차이는 입력 부호에 맞는 방향 표시를 코드가 붙인다.
 const FIELD_FORMATS: Record<string, (value: number) => string> = {
   total: formatWon,
   amount: formatWon,
@@ -29,7 +29,7 @@ const FIELD_FORMATS: Record<string, (value: number) => string> = {
   candidateTotal: formatWon,
   current: formatWon,
   previous: formatWon,
-  diff: (value) => formatWon(Math.abs(value)),
+  diff: formatDiffWon,
   ratio: formatRatio,
   count: (value) => `${value}건`,
   transactionCount: (value) => `${value}건`,
@@ -40,7 +40,7 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
-// 배열 항목의 값은 같은 요약·팁에 그 항목 이름이 있어야 쓸 수 있다.
+// 경로가 지나는 객체에 항목 이름이 있으면 같은 요약·팁에 그 이름이 있어야 쓸 수 있다.
 function itemName(item: Record<string, unknown>): string | null {
   if (typeof item.merchant === "string") return item.merchant;
   if (typeof item.category === "string") return item.category;
@@ -63,6 +63,10 @@ function resolvePlaceholder(path: string, input: SummaryCheckInput): { value: st
     if (match === null || !isRecord(node) || !Object.hasOwn(node, match[1])) return null;
     field = match[1];
     node = node[field];
+    if (isRecord(node) && node !== input) {
+      const name = itemName(node);
+      if (name !== null) names.push(name);
+    }
     if (match[2] !== undefined) {
       if (!Array.isArray(node)) return null;
       node = node[Number(match[2])];
@@ -131,6 +135,7 @@ export function checkSummaryContent(raw: SummaryDraft, input: SummaryInput | Car
 
   const merchantNames = [
     ...input.topMerchants.map(({ merchant }) => merchant),
+    ...input.categories.flatMap(({ topMerchant }) => topMerchant === null ? [] : [topMerchant.merchant]),
     ...("findings" in input ? input.findings.map(({ merchant }) => merchant) : []),
   ].filter((merchant) => merchant.length > 0)
     .sort((left, right) => Array.from(right).length - Array.from(left).length);

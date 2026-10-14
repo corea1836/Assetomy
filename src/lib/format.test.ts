@@ -3,6 +3,7 @@ import {
   formatAxisWon,
   formatCardBasis,
   formatDate,
+  formatDiffWon,
   formatMonth,
   formatMonthShort,
   formatPeriod,
@@ -38,6 +39,17 @@ describe("formatSignedWon", () => {
     [-0, "0원"],
   ] as const)("formats %i with a sign only when nonzero", (amount, expected) => {
     expect(formatSignedWon(amount)).toBe(expected);
+  });
+});
+
+describe("formatDiffWon", () => {
+  it.each([
+    [12_000, "▲12,000원"],
+    [-3_400, "▼3,400원"],
+    [0, "0원"],
+    [1_234_567_890, "▲1,234,567,890원"],
+  ] as const)("formats difference %i", (amount, expected) => {
+    expect(formatDiffWon(amount)).toBe(expected);
   });
 });
 
