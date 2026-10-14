@@ -39,7 +39,10 @@
     {
       "step": 3,
       "name": "statement-ingest",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T14:21:08+0900",
+      "summary": "Upload 타입·ingest RPC에 청구서 메타데이터와 교체 결과를 연결하고, 커밋 뒤 원본 정리·CARD_MISMATCH/older_statement 응답·결과 문구를 구현; 관련 테스트 27개 사례 추가·확장.",
+      "completed_at": "2026-10-14T14:28:53+0900"
     },
     {
       "step": 4,
