@@ -47,7 +47,10 @@
     {
       "step": 4,
       "name": "insight-input",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T20:22:11+0900",
+      "summary": "flowDirection이 이웃한 기간의 절댓값 차이 10% 기준으로 rising·falling·steady·mixed를 정한다. buildCardDashboard는 월별 두 연속 비교 또는 완료된 명세서 3개가 이어질 때만 flow를 만들고 Free에는 총액, Pro에는 기타 제외 상위 5개 카테고리 흐름을 둔다. 월·카드 요약 입력 카테고리에 양수 최다 가맹점과 피드백을 붙이고 카드 입력에 flow.periods·카테고리 이름·월별 금액을 매핑했다. prepareSummary·prepareCardSummary에 피드백 인자를 추가하고 대시보드에서 listSummaryFeedback을 읽어 전달했다.",
+      "completed_at": "2026-10-14T20:31:50+0900"
     },
     {
       "step": 5,
