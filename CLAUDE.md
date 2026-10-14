@@ -15,13 +15,13 @@
 - 배포: Vercel (함수 리전 `icn1`), `@vercel/analytics`
 
 ## 아키텍처 규칙
-- CRITICAL: 금액·날짜·합계는 코드로만 계산한다. LLM 출력으로 숫자를 만들거나 고치지 않는다. LLM에는 가맹점명, 월·명세서 집계, 폴백 매핑용 헤더와 값 패턴(숫자 → 9, 문자 → X)만 보낸다(파일 원본·실제 셀 값 전송 금지).
+- CRITICAL: 금액·날짜·합계는 코드로만 계산한다. LLM 출력으로 숫자를 만들거나 고치지 않는다. LLM에는 가맹점명, 월·명세서 집계, 사용자가 쓴 팁 피드백, 폴백 매핑용 헤더와 값 패턴(숫자 → 9, 문자 → X)만 보낸다(파일 원본·실제 셀 값 전송 금지).
 - CRITICAL: 원본 파일은 서버에서 AES-256-GCM으로 암호화한 뒤에만 Storage에 쓴다. 평문 원본을 Storage·DB·로그에 남기지 않는다.
 - CRITICAL: 사용자 ID는 세션(`requireUser()` → `getClaims()`)에서만 가져온다. 요청 본문의 user_id·storage_path를 DB 쓰기에 쓰지 않는다. `proxy.ts`는 세션 갱신만 하고, 권한은 보호 페이지·핸들러마다 다시 확인한다.
 - CRITICAL: 사용자는 RLS로 본인 데이터를 select만 한다. 모든 쓰기는 소유권·상태·lease를 검증하는 서버 저장소 함수(service-role, `import 'server-only'`)로 한다. Storage 버킷에는 사용자 정책을 두지 않는다.
-- CRITICAL: Free/Pro 게이팅은 `lib/analytics/dashboard.ts`의 DTO 유니온(`buildDashboard` 전체 탭, `buildCardDashboard` 카드 탭)에서만 한다. Free DTO에 탐지 상세·거래 ID·추세·카테고리 변화·Pro 요약을 넣지 않는다. Free 요약은 Free DTO만 입력으로 만든다. 이유: Server→Client props는 RSC payload로 그대로 노출된다.
+- CRITICAL: Free/Pro 게이팅은 `lib/analytics/dashboard.ts`의 DTO 유니온(`buildDashboard` 전체 탭, `buildCardDashboard` 카드 탭)에서만 한다. Free DTO에 탐지 상세·거래 ID·추세·카테고리 변화·Pro 요약을 넣지 않는다. Free 요약은 Free DTO와 사용자가 쓴 팁 피드백만 입력으로 만든다. 이유: Server→Client props는 RSC payload로 그대로 노출된다.
 - CRITICAL: 세션을 쓰는 POST/PUT/DELETE는 허용 Origin과 정확히 일치하는지 검사하고, JSON 요청은 `application/json`만, 파일 업로드는 `multipart/form-data`만 받는다. 웹훅은 서명으로, 정기 작업은 `CRON_SECRET`으로 인증한다.
-- CRITICAL: 로그에는 코드와 id만 남긴다. 거래·가맹점·파일명·카드번호, Supabase `error.message`·`details`, LLM 응답 본문을 기록하지 않는다.
+- CRITICAL: 로그에는 코드와 id만 남긴다. 거래·가맹점·파일명·카드번호·팁 피드백, Supabase `error.message`·`details`, LLM 응답 본문을 기록하지 않는다.
 - Supabase 목록 조회는 `.range()`로 끝까지 페이지네이션한다. 이유: 1000행에서 에러 없이 잘려 집계가 조용히 틀린다.
 - 순수 레이어(`lib/parsing`, `lib/analytics`)는 I/O·`Date.now()`·env를 쓰지 않고 기준일을 `today` 인자로 받는다. 날짜는 `'YYYY-MM-DD'` 문자열로 다루고 Date 객체로 파싱하지 않는다.
 - `components/`는 DTO만 받는다. 사용자에게 보이는 에러 문구는 `lib/errors/messages.ts` 한 곳에서 매핑한다.
