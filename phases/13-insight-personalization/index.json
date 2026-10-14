@@ -31,7 +31,10 @@
     {
       "step": 2,
       "name": "feedback-data",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T20:10:37+0900",
+      "summary": "피드백 타입·100자 상수, normalizeFeedback·feedbackLength, listSummaryFeedback·saveSummaryFeedback, PUT /api/summary-feedback의 저장·삭제 응답과 summaryFeedbackErrorMessage를 추가하고 DB 통합 테스트를 연결했다.",
+      "completed_at": "2026-10-14T20:17:44+0900"
     },
     {
       "step": 3,
