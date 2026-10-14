@@ -95,8 +95,8 @@ from unnest(array['anon', 'authenticated', 'service_role']) as roles(role_name);
 insert into _tap(line) select ok(
   exists(select 1 from pg_trigger where tgrelid = 'public.uploads'::regclass
     and tgname = 'uploads_card_summaries' and not tgisinternal
-    and position('old.status' in pg_get_expr(tgqual, tgrelid)) > 0
-    and position('done' in pg_get_expr(tgqual, tgrelid)) > 0),
+    and pg_get_triggerdef(oid) like
+      '%AFTER DELETE ON public.uploads FOR EACH ROW WHEN ((old.status = ''done''::text)) EXECUTE FUNCTION private.delete_card_summaries_for_upload()'),
   'uploads_card_summaries는 done 업로드 삭제에만 연결된다'
 );
 
