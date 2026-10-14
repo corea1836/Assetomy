@@ -2,6 +2,7 @@
 
 신용카드 이용내역 파일을 올리면 소비 현황과 확인이 필요한 지출 후보를 보여주는 핀테크 SaaS MVP.
 기획은 `docs/PRD.md`, 화면 흐름은 `docs/USER_FLOW.md`, 설계는 `docs/ARCHITECTURE.md`·`docs/ADR.md`, 화면 규칙은 `docs/DESIGN.md`를 따른다.
+의도적으로 뺀 것은 `docs/EXCLUDED.md`에 있다. 다시 넣지 않는다.
 
 ## 기술 스택
 - Next.js 16 (App Router, `src/`, `proxy.ts`) + React 19, Node.js 24 LTS

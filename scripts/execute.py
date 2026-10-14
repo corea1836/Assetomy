@@ -180,14 +180,14 @@ class StepExecutor:
     # --- guardrails & context ---
 
     def _load_guardrails(self) -> str:
+        # 모든 step이 지킬 규칙만 붙인다. 나머지 docs는 step 파일의 "읽어야 할 파일"로 읽는다.
         sections = []
         agents_md = ROOT / "AGENTS.md"
         if agents_md.exists():
             sections.append(f"## 프로젝트 규칙 (AGENTS.md)\n\n{agents_md.read_text()}")
-        docs_dir = ROOT / "docs"
-        if docs_dir.is_dir():
-            for doc in sorted(docs_dir.glob("*.md")):
-                sections.append(f"## {doc.stem}\n\n{doc.read_text()}")
+        excluded_md = ROOT / "docs" / "EXCLUDED.md"
+        if excluded_md.exists():
+            sections.append(f"## 의도적으로 뺀 것 (docs/EXCLUDED.md)\n\n{excluded_md.read_text()}")
         return "\n\n---\n\n".join(sections) if sections else ""
 
     @staticmethod

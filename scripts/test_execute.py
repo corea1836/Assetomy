@@ -35,6 +35,7 @@ def tmp_project(tmp_path):
     docs_dir.mkdir()
     (docs_dir / "arch.md").write_text("# Architecture\nSome content")
     (docs_dir / "guide.md").write_text("# Guide\nAnother doc")
+    (docs_dir / "EXCLUDED.md").write_text("# Excluded\n- events table")
 
     return tmp_path
 
@@ -146,33 +147,28 @@ class TestJsonHelpers:
 # ---------------------------------------------------------------------------
 
 class TestLoadGuardrails:
-    def test_loads_agents_md_and_docs(self, executor, tmp_project):
+    def test_loads_agents_md_and_excluded(self, executor, tmp_project):
         with patch.object(ex, "ROOT", tmp_project):
             result = executor._load_guardrails()
         assert "# Rules" in result
         assert "rule one" in result
-        assert "# Architecture" in result
-        assert "# Guide" in result
+        assert "# Excluded" in result
+        assert "events table" in result
 
     def test_sections_separated_by_divider(self, executor, tmp_project):
         with patch.object(ex, "ROOT", tmp_project):
             result = executor._load_guardrails()
         assert "---" in result
 
-    def test_docs_sorted_alphabetically(self, executor, tmp_project):
-        with patch.object(ex, "ROOT", tmp_project):
-            result = executor._load_guardrails()
-        arch_pos = result.index("arch")
-        guide_pos = result.index("guide")
-        assert arch_pos < guide_pos
-
-    def test_excludes_docs_subdirectories(self, executor, tmp_project):
+    def test_excludes_other_docs(self, executor, tmp_project):
+        # 나머지 docs는 step 파일의 "읽어야 할 파일"로만 읽는다.
         testing_dir = tmp_project / "docs" / "testing"
         testing_dir.mkdir()
         (testing_dir / "browser.md").write_text("# Browser Testing\nscenario")
         with patch.object(ex, "ROOT", tmp_project):
             result = executor._load_guardrails()
-        assert "# Architecture" in result
+        assert "# Architecture" not in result
+        assert "# Guide" not in result
         assert "Browser Testing" not in result
 
     def test_no_agents_md(self, executor, tmp_project):
@@ -180,7 +176,7 @@ class TestLoadGuardrails:
         with patch.object(ex, "ROOT", tmp_project):
             result = executor._load_guardrails()
         assert "AGENTS.md" not in result
-        assert "Architecture" in result
+        assert "Excluded" in result
 
     def test_no_docs_dir(self, executor, tmp_project):
         import shutil
@@ -188,7 +184,7 @@ class TestLoadGuardrails:
         with patch.object(ex, "ROOT", tmp_project):
             result = executor._load_guardrails()
         assert "Rules" in result
-        assert "Architecture" not in result
+        assert "Excluded" not in result
 
     def test_empty_project(self, tmp_path):
         with patch.object(ex, "ROOT", tmp_path):
