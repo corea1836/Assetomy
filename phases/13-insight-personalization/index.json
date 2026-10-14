@@ -23,7 +23,10 @@
     {
       "step": 1,
       "name": "summary-contract",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T20:01:20+0900",
+      "summary": "SummaryDraft와 SummaryContent.tipCategories를 도입하고 checkSummaryContent의 순서별 검사·tip_category reason·COMPARISON_LENGTH를 적용했다. Claude structured output과 입력 카테고리 기반 mock 팁을 갱신하고 저장·조회에서 tip_categories를 왕복한다.",
+      "completed_at": "2026-10-14T20:10:37+0900"
     },
     {
       "step": 2,
