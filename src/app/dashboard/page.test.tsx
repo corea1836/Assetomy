@@ -8,7 +8,7 @@ import { TeaserCard } from "@/components/dashboard/teaser-card";
 import { TopMerchants } from "@/components/dashboard/top-merchants";
 import { TrendChart } from "@/components/dashboard/trend-chart";
 import { TrendLockCard } from "@/components/dashboard/trend-lock-card";
-import { buildDashboard } from "@/lib/analytics/dashboard";
+import { buildCardDashboard, buildDashboard } from "@/lib/analytics/dashboard";
 import { requireUser } from "@/lib/auth";
 import { defaultBillingDeps, type BillingDeps } from "@/lib/billing/deps";
 import { getPlanState } from "@/lib/billing/plan";
@@ -19,19 +19,28 @@ import { DEMO_TODAY, DEMO_TRANSACTIONS } from "@/lib/demo/fixture";
 import { formatWon } from "@/lib/format";
 import { listTransactions } from "@/lib/queries/transactions";
 import { listDoneUploads } from "@/lib/queries/uploads";
+import { listStatements } from "@/lib/queries/statements";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { defaultSummaryDeps } from "@/lib/summary/deps";
+import { defaultCardSummaryDeps } from "@/lib/summary/deps";
 import type { SummaryDeps } from "@/lib/summary/monthly-summary";
+import type { CardSummaryDeps } from "@/lib/summary/card-summary";
+import { prepareCardSummary } from "@/lib/summary/card-summary";
 import { UploadHistory } from "@/components/upload/upload-history";
 import { UploadPanel } from "@/components/upload/upload-panel";
 import { MonthlySummarySection } from "./monthly-summary-section";
+import { CardSummarySection } from "./card-summary-section";
 import type { SupabaseClient } from "@supabase/supabase-js";
 import type { FreeDashboard, ProDashboard } from "@/types/dashboard";
 import DashboardPage, { metadata } from "./page";
 
 vi.mock("@/lib/auth", () => ({ requireUser: vi.fn() }));
 vi.mock("@/lib/billing/deps", () => ({ defaultBillingDeps: vi.fn() }));
-vi.mock("@/lib/summary/deps", () => ({ defaultSummaryDeps: vi.fn() }));
+vi.mock("@/lib/summary/deps", () => ({ defaultSummaryDeps: vi.fn(), defaultCardSummaryDeps: vi.fn() }));
+vi.mock("@/lib/summary/card-summary", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/summary/card-summary")>();
+  return { ...original, prepareCardSummary: vi.fn(original.prepareCardSummary) };
+});
 vi.mock("@/lib/billing/plan", () => ({ getPlanState: vi.fn() }));
 vi.mock("@/lib/queries/subscriptions", () => ({ getSubscription: vi.fn() }));
 vi.mock("@/lib/clock", () => ({ seoulToday: vi.fn() }));
@@ -42,11 +51,17 @@ vi.mock("next/navigation", () => ({
 vi.mock("@/lib/queries/cards", () => ({ listCards: vi.fn() }));
 vi.mock("@/lib/queries/transactions", () => ({ listTransactions: vi.fn() }));
 vi.mock("@/lib/queries/uploads", () => ({ listDoneUploads: vi.fn() }));
+vi.mock("@/lib/queries/statements", () => ({ listStatements: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: vi.fn() }));
 vi.mock("@/components/upload/upload-panel", () => ({ UploadPanel: vi.fn(() => <div>업로드 패널</div>) }));
 vi.mock("@/components/upload/upload-history", () => ({ UploadHistory: vi.fn(() => <div>올린 파일 목록</div>) }));
 vi.mock("./monthly-summary-section", () => ({
   MonthlySummarySection: vi.fn(() => <section><h2>이번 달 요약</h2></section>),
+}));
+vi.mock("./card-summary-section", () => ({
+  CardSummarySection: vi.fn(({ variant }: { variant: "card-month" | "statement" }) => (
+    <section><h2>{variant === "statement" ? "이번 명세서 요약" : "이번 달 요약"}</h2><p>카드 요약 섹션</p></section>
+  )),
 }));
 vi.mock("@/components/dashboard/daily-chart", () => ({ DailyChart: vi.fn(() => <section><h2>일별 지출</h2></section>) }));
 vi.mock("@/components/dashboard/trend-chart", () => ({ TrendChart: vi.fn(() => <section><h2>월별 추세</h2></section>) }));
@@ -75,12 +90,38 @@ const summaryDeps = {
   },
 } as unknown as SummaryDeps;
 const cards = [{ id: "card-a", label: "현대 생활비", issuer: "hyundai" as const, analysisBasis: "month" as const, cycleStartDay: null }];
+const cardPageId = "11111111-1111-4111-8111-111111111111";
+const monthCard = { id: cardPageId, label: "현대", issuer: "hyundai" as const, analysisBasis: "month" as const, cycleStartDay: null };
+const cycleCard = { id: cardPageId, label: "현대", issuer: "hyundai" as const, analysisBasis: "cycle" as const, cycleStartDay: 12 };
+const cardSummaryDeps = {
+  summarizer: {
+    modelFor: (plan: "free" | "pro") => plan === "free" ? "test-free-card-model" : "test-pro-card-model",
+    promptFor: (plan: "free" | "pro") => `${plan} card prompt`,
+  },
+} as unknown as CardSummaryDeps;
 const freeDashboard = buildDashboard({ transactions: DEMO_TRANSACTIONS, plan: "free", today: DEMO_TODAY }) as FreeDashboard;
 const proDashboard = buildDashboard({ transactions: DEMO_TRANSACTIONS, plan: "pro", today: DEMO_TODAY }) as ProDashboard;
 
 function page(params: Record<string, string | string[] | undefined> = {}) {
   return DashboardPage({ searchParams: Promise.resolve(params) });
 }
+
+function transactionsForCard() {
+  return DEMO_TRANSACTIONS.map((transaction) => ({ ...transaction, cardId: cardPageId, cardLabel: monthCard.label }));
+}
+
+function statementTransactions() {
+  const [previous, current] = DEMO_TRANSACTIONS;
+  return [
+    { ...previous, id: "previous-statement-transaction", cardId: cardPageId, cardLabel: cycleCard.label, date: "2026-08-20", statementDate: "2026-09-23", merchant: "이전 가맹점", merchantKey: "previous", amount: 1_000, category: "food" as const },
+    { ...current, id: "current-statement-transaction", cardId: cardPageId, cardLabel: cycleCard.label, date: "2026-09-20", statementDate: "2026-10-23", merchant: "현재 가맹점", merchantKey: "current", amount: 2_200, category: "cafe" as const },
+  ];
+}
+
+const completeStatements = [
+  { cardId: cardPageId, statementDate: "2026-09-23", savedOn: "2026-09-23" },
+  { cardId: cardPageId, statementDate: "2026-10-23", savedOn: "2026-10-23" },
+];
 
 beforeEach(() => {
   vi.mocked(requireUser).mockReset().mockResolvedValue({ id: "private-user-id" });
@@ -89,13 +130,17 @@ beforeEach(() => {
   vi.mocked(listTransactions).mockReset().mockResolvedValue([]);
   vi.mocked(seoulToday).mockReset().mockReturnValue(DEMO_TODAY);
   vi.mocked(listDoneUploads).mockReset().mockResolvedValue([]);
+  vi.mocked(listStatements).mockReset().mockResolvedValue([]);
   vi.mocked(getSubscription).mockReset().mockResolvedValue(null);
   vi.mocked(defaultBillingDeps).mockReset().mockReturnValue(deps);
   vi.mocked(defaultSummaryDeps).mockReset().mockReturnValue(summaryDeps);
+  vi.mocked(defaultCardSummaryDeps).mockReset().mockReturnValue(cardSummaryDeps);
   vi.mocked(getPlanState).mockReset().mockResolvedValue({ plan: "free" });
   vi.mocked(UploadPanel).mockClear();
   vi.mocked(UploadHistory).mockClear();
   vi.mocked(MonthlySummarySection).mockClear();
+  vi.mocked(CardSummarySection).mockClear();
+  vi.mocked(prepareCardSummary).mockClear();
   for (const component of [DailyChart, FindingsList, MonthSelect, TeaserCard, TopMerchants, TrendChart, TrendLockCard, PricingUpgrade]) {
     vi.mocked(component).mockClear();
   }
@@ -123,6 +168,7 @@ describe("dashboard page", () => {
   it("shows the Free monthly dashboard with only teaser totals and a static trend lock", async () => {
     vi.mocked(listTransactions).mockResolvedValue(DEMO_TRANSACTIONS);
     const { container } = render(await page());
+    expect(within(screen.getByRole("navigation", { name: "카드 보기" })).getByRole("link", { name: "전체" })).toHaveAttribute("aria-current", "page");
     expect(screen.getByRole("heading", { level: 1, name: "2026년 9월 지출" })).toBeInTheDocument();
     expect(screen.getByText("2026년 9월까지 반영됨")).toBeInTheDocument();
     const total = screen.getByRole("heading", { name: "총지출" }).closest("section")!;
@@ -179,6 +225,107 @@ describe("dashboard page", () => {
     expect(props.prepared.month).toBe(proDashboard.month);
     expect("findings" in props.prepared.input).toBe(true);
     expect(props.deps).toBe(summaryDeps);
+  });
+
+  it("renders a monthly card view without preparing the overall summary, findings or trend", async () => {
+    vi.mocked(listCards).mockResolvedValue([monthCard]);
+    const transactions = transactionsForCard();
+    vi.mocked(listTransactions).mockResolvedValue(transactions);
+
+    render(await page({ card: cardPageId, month: "2026-09" }));
+
+    expect(within(screen.getByRole("navigation", { name: "카드 보기" })).getByRole("link", { name: "현대" })).toHaveAttribute("aria-current", "page");
+    expect(screen.getByRole("heading", { level: 1, name: "현대" })).toBeInTheDocument();
+    expect(screen.getByText("현대카드 · 월별")).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "월 선택" })).toHaveValue("2026-09");
+    expect(screen.getByText("카드 요약 섹션")).toBeInTheDocument();
+    const expected = buildCardDashboard({ card: monthCard, transactions, statements: [], plan: "free", month: "2026-09", today: DEMO_TODAY })!;
+    const total = screen.getByRole("heading", { name: "총지출" }).closest("section")!;
+    expect(within(total).getByText(formatWon(expected.snapshot.total))).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "2026년 9월 지출" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "후보 지출 티저" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "확인할 지출 상세" })).not.toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "월별 추세" })).not.toBeInTheDocument();
+    expect(defaultSummaryDeps).not.toHaveBeenCalled();
+    expect(MonthlySummarySection).not.toHaveBeenCalled();
+    expect(defaultCardSummaryDeps).toHaveBeenCalledExactlyOnceWith(supabase);
+    expect(listStatements).toHaveBeenCalledExactlyOnceWith(supabase, "private-user-id");
+    expect(vi.mocked(CardSummarySection).mock.calls[0][0].variant).toBe("card-month");
+    const [preparedCardDTO] = vi.mocked(prepareCardSummary).mock.calls[0];
+    expect(preparedCardDTO.plan).toBe("free");
+    expect("categoryChanges" in preparedCardDTO).toBe(false);
+  });
+
+  it("renders a statement card view and gives its summary the statement variant", async () => {
+    vi.mocked(listCards).mockResolvedValue([cycleCard]);
+    vi.mocked(listTransactions).mockResolvedValue(statementTransactions());
+    vi.mocked(listStatements).mockResolvedValue(completeStatements);
+
+    render(await page({ card: cardPageId, statement: "2026-10-23" }));
+
+    expect(screen.getByRole("heading", { level: 1, name: "현대" })).toBeInTheDocument();
+    expect(screen.getByRole("combobox", { name: "명세서 선택" })).toHaveValue("2026-10-23");
+    expect(screen.getByRole("heading", { name: "이번 명세서 요약" })).toBeInTheDocument();
+    expect(vi.mocked(CardSummarySection).mock.calls[0][0].variant).toBe("statement");
+    expect(screen.getAllByText("이용 기간 9/12~10/11")).toHaveLength(2);
+    const total = screen.getByRole("heading", { name: "총지출" }).closest("section")!;
+    expect(within(total).getByText(formatWon(2_200))).toBeInTheDocument();
+    expect(total).toHaveTextContent("9월 23일 명세서보다 +1,200원 늘었어요");
+  });
+
+  it.each(["free", "pro"] as const)("passes only the %s card DTO to card summary preparation", async (plan) => {
+    vi.mocked(listCards).mockResolvedValue([cycleCard]);
+    vi.mocked(listTransactions).mockResolvedValue(statementTransactions());
+    vi.mocked(listStatements).mockResolvedValue(completeStatements);
+    vi.mocked(getPlanState).mockResolvedValue(plan === "free" ? { plan } : { plan, periodEnd: null, cancelAtPeriodEnd: false });
+
+    render(await page({ card: cardPageId, statement: "2026-10-23" }));
+
+    const [cardDTO] = vi.mocked(prepareCardSummary).mock.calls[0];
+    if (plan === "free") {
+      expect(screen.queryByRole("heading", { name: "지난 명세서와 달라진 카테고리" })).not.toBeInTheDocument();
+      expect("categoryChanges" in cardDTO).toBe(false);
+    } else {
+      expect(screen.getByRole("heading", { name: "지난 명세서와 달라진 카테고리" })).toBeInTheDocument();
+      expect("categoryChanges" in cardDTO).toBe(true);
+      if ("categoryChanges" in cardDTO) expect(cardDTO.categoryChanges).toHaveLength(2);
+    }
+  });
+
+  it("falls back to the overall tab for an unknown or malformed card id", async () => {
+    vi.mocked(listTransactions).mockResolvedValue(DEMO_TRANSACTIONS);
+
+    for (const card of ["22222222-2222-4222-8222-222222222222", "not-a-card-id"]) {
+      const view = render(await page({ card }));
+      expect(within(screen.getByRole("navigation", { name: "카드 보기" })).getByRole("link", { name: "전체" })).toHaveAttribute("aria-current", "page");
+      expect(screen.getByRole("heading", { name: "2026년 9월 지출" })).toBeInTheDocument();
+      view.unmount();
+    }
+  });
+
+  it("shows an empty card and edit control without preparing a card summary", async () => {
+    const emptyCard = { ...monthCard, id: "22222222-2222-4222-8222-222222222222", label: "저축" };
+    vi.mocked(listCards).mockResolvedValue([monthCard, emptyCard]);
+    vi.mocked(listTransactions).mockResolvedValue(transactionsForCard());
+
+    render(await page({ card: emptyCard.id }));
+
+    expect(screen.getByRole("heading", { level: 1, name: "저축" })).toBeInTheDocument();
+    expect(screen.getByText("이 카드로 올린 내역이 아직 없어요")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "카드 수정" })).toBeInTheDocument();
+    expect(CardSummarySection).not.toHaveBeenCalled();
+    expect(defaultCardSummaryDeps).not.toHaveBeenCalled();
+    expect(defaultSummaryDeps).not.toHaveBeenCalled();
+  });
+
+  it("keeps onboarding when a card is requested without any transactions", async () => {
+    vi.mocked(listCards).mockResolvedValue([monthCard]);
+
+    render(await page({ card: cardPageId }));
+
+    expect(screen.getByRole("heading", { level: 1, name: "카드 이용내역을 올려 주세요" })).toBeInTheDocument();
+    expect(screen.queryByRole("navigation", { name: "카드 보기" })).not.toBeInTheDocument();
+    expect(CardSummarySection).not.toHaveBeenCalled();
   });
 
   it("renders Pro findings and trend DTOs without Free components", async () => {
@@ -244,6 +391,10 @@ describe("dashboard page", () => {
     [{ month: "2026-00" }, "/dashboard"],
     [{ month: "abc" }, "/dashboard"],
     [{ month: "2026-9" }, "/dashboard"],
+    [{ card: cardPageId.toUpperCase(), statement: "2026-10-23" }, `/dashboard?card=${cardPageId}&statement=2026-10-23`],
+    [{ card: [cardPageId, "22222222-2222-4222-8222-222222222222"], statement: ["2026-10-23", "2026-09-23"] }, `/dashboard?card=${cardPageId}&statement=2026-10-23`],
+    [{ card: cardPageId, statement: "2026-1-1" }, `/dashboard?card=${cardPageId}`],
+    [{ card: "not-a-card-id", statement: "2026-1-1" }, "/dashboard"],
     [{ month: ["2026-09", "2026-08"] }, "/dashboard"],
     [{ upgrade: "pricing", month: "2026-08" }, "/dashboard?month=2026-08&upgrade=pricing"],
     [{ upgrade: "pricing", month: "2026-13" }, "/dashboard?upgrade=pricing"],
