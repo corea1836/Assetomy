@@ -85,7 +85,6 @@ export default async function DashboardPage({ searchParams }: {
   const cardDashboard = activeCard === null || dashboard === null
     ? null
     : buildCardDashboard({ card: activeCard, transactions, statements, plan: planState.plan, month, statement, today });
-  const cardHeadingDashboard = cardDashboard === null ? null : { ...cardDashboard, flow: null };
   const cardSummaryDeps = cardDashboard === null ? null : defaultCardSummaryDeps(supabase);
   const preparedCardSummary = cardDashboard === null || cardSummaryDeps === null
     ? null
@@ -176,7 +175,7 @@ export default async function DashboardPage({ searchParams }: {
               ) : (
                 <div className="space-y-12">
                   <CardTabs cards={cards} activeCardId={activeCard.id} />
-                  <CardHeading card={activeCard} dashboard={cardHeadingDashboard} />
+                  <CardHeading card={activeCard} dashboard={cardDashboard} />
                   {cardDashboard === null ? <EmptyCard /> : (
                     <>
                       {preparedCardSummary !== null && cardSummaryDeps !== null && (

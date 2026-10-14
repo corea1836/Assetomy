@@ -8,13 +8,13 @@ export type SummaryFeedbackRequest = { category: CategoryId; text: string };
 export type SummaryFeedbackResponse = { saved: true } | { deleted: true };
 export type SaveSummaryFeedbackResult = { kind: "saved" | "deleted" };
 
-// LLM structured output: each tip names one category from the summary input.
+// LLM이 structured outputs로 내는 모양. tips[].category는 입력 categories[].category(카테고리 이름) 중 하나다.
 export type SummaryDraft = {
   summary: string;
   comparison: string;
   tips: { category: string; text: string }[];
 };
-// Validated content stored and returned to the existing summary sections.
+// 검증·자리표시자 채움을 마친 모양. summary는 문단을 "\n\n"으로 이은 것이고 tipCategories는 tips와 같은 길이다.
 export type SummaryContent = { summary: string; tips: string[]; tipCategories: CategoryId[] };
 export type StoredSummary = { inputHash: string } & SummaryContent;
 export type SaveSummaryInput = {

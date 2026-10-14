@@ -28,7 +28,7 @@ export function TipFeedback({ category, initial }: { category: CategoryId; initi
   const [savedInitial, setSavedInitial] = useState(initial);
   const [value, setValue] = useState(initial);
 
-  // router.refresh() can supply a newer server value while this component remains mounted.
+  // 새로고침으로 서버에서 받은 피드백을 반영한다.
   if (sourceInitial !== initial) {
     setSourceInitial(initial);
     setSavedInitial(initial);
