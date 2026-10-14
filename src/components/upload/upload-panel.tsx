@@ -27,9 +27,6 @@ const uploadSchema = z.object({ result: z.union([
   z.object({ kind: z.literal("older_statement") }),
   z.object({ kind: z.literal("duplicate"), existingCardLabel: z.string().nullable() }),
 ]) });
-const cardMismatchErrorSchema = z.object({ error: z.object({
-  code: z.literal("CARD_MISMATCH"), reason: z.string().optional(),
-}) });
 
 type Row = {
   id: number;
@@ -128,8 +125,7 @@ export function UploadPanel({ cards }: { cards: CardOption[] }): React.JSX.Eleme
             updateRow(row.id, { status: "complete", result: parsed.data.result });
             setAnnouncement(`${row.file.name} 완료`);
           } else {
-            const cardMismatch = cardMismatchErrorSchema.safeParse(reply.body);
-            updateRow(row.id, { status: "failed", error: cardMismatch.success ? cardMismatch.data.error : responseError(reply.body) });
+            updateRow(row.id, { status: "failed", error: responseError(reply.body) });
             setAnnouncement(`${row.file.name} 실패`);
           }
         } catch {
