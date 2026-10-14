@@ -10,6 +10,7 @@ function transaction(overrides: Partial<Transaction> = {}): Transaction {
     id: "tx-default",
     cardId: "card-a",
     cardLabel: "생활비 카드",
+    statementDate: null,
     date: "2026-09-15",
     merchant: "식당",
     merchantKey: "restaurant",

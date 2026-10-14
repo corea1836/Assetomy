@@ -88,6 +88,7 @@ function transactionsForMonth(month: YearMonth, rows: DemoRow[]): Transaction[] 
   return rows.map(([day, card, merchant, amount], index) => ({
     id: `demo-${month}-${index + 1}`,
     date: `${month}-${day}`,
+    statementDate: null,
     ...cards[card],
     ...merchants[merchant],
     amount,

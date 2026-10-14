@@ -17,7 +17,7 @@ const generatedTips = ["다음 달에는 식비 예산을 먼저 정해 보세�
 
 function transaction(overrides: Partial<Transaction> = {}): Transaction {
   return {
-    id: "tx-a", cardId: "card-a", cardLabel: "생활비 카드", date: "2026-09-15",
+    id: "tx-a", cardId: "card-a", cardLabel: "생활비 카드", statementDate: null, date: "2026-09-15",
     merchant: "예시 가맹점", merchantKey: "example", amount: 12_000, category: "food", ...overrides,
   };
 }

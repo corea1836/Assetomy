@@ -23,16 +23,23 @@ afterEach(async () => {
   for (const result of results) if (result.status === "rejected") throw result.reason;
 });
 
-async function saveRows(userId: string, rows: IngestRow[]) {
-  const card = await createCard(userId, { label: "생활비 카드", ...TEST_CARD });
-  if (card.kind !== "created") throw new Error("db-test:create_card:unexpected_response");
-  const upload = await beginUpload({ userId, cardId: card.cardId, fileName: "test.csv", fileHash: "a".repeat(64), fileSize: 100 });
+async function saveRows(userId: string, rows: IngestRow[], cardId?: string, statementDate: string | null = null) {
+  let selectedCardId = cardId;
+  if (!selectedCardId) {
+    const card = await createCard(userId, { label: "생활비 카드", ...TEST_CARD });
+    if (card.kind !== "created") throw new Error("db-test:create_card:unexpected_response");
+    selectedCardId = card.cardId;
+  }
+  const upload = await beginUpload({
+    userId, cardId: selectedCardId, fileName: "test.csv", fileHash: rows[0]?.fingerprint ?? "a".repeat(64), fileSize: 100,
+  });
   if (upload.kind !== "started") throw new Error("db-test:begin_upload:unexpected_response");
   const result = await ingestUpload({ userId, uploadId: upload.uploadId, identityScope: "content",
     cancelStyle: "negative_amount", rows, skipped: 0,
-    issuer: null, productName: null, statementDate: null, statementSavedAt: null });
+    issuer: null, productName: null, statementDate, statementSavedAt: null });
   expect(result).toMatchObject({ kind: "done", inserted: rows.length });
-  return card.cardId;
+  if (!selectedCardId) throw new Error("db-test:create_card:unexpected_response");
+  return selectedCardId;
 }
 
 describe("listTransactions against the dev DB", () => {
@@ -54,5 +61,20 @@ describe("listTransactions against the dev DB", () => {
     for (const transaction of transactions) {
       expect(transaction).toMatchObject({ cardId: cardA, cardLabel: "생활비 카드", amount: 1000, category: "food" });
     }
+  });
+
+  it("reads the statement date from the same upload relation for each transaction", async () => {
+    const firstRow: IngestRow = {
+      usedOn: "2026-10-01", merchant: "예시 가맹점", merchantKey: "예시가맹점", amount: 1000,
+      eventKind: "purchase", category: "food", fingerprint: "a".repeat(64),
+    };
+    const secondRow = { ...firstRow, usedOn: "2026-10-02", fingerprint: "b".repeat(64) };
+    const card = await createCard(userA, { label: "명세서 카드", ...TEST_CARD });
+    if (card.kind !== "created") throw new Error("db-test:create_card:unexpected_response");
+    await saveRows(userA, [firstRow], card.cardId, "2026-10-23");
+    await saveRows(userA, [secondRow], card.cardId);
+
+    const transactions = await listTransactions(createSupabaseAdminClient(), userA, new Map([[card.cardId, "명세서 카드"]]));
+    expect(transactions.map(({ statementDate }) => statementDate)).toEqual(["2026-10-23", null]);
   });
 });

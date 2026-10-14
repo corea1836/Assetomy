@@ -11,6 +11,7 @@ const transactionsResponseSchema = z.object({
     id: z.uuid(), card_id: z.uuid(), used_on: z.iso.date(),
     merchant: z.string().min(1).max(200), merchant_key: z.string().min(1).max(200),
     amount: z.int(), category: z.enum(CATEGORY_IDS),
+    upload: z.object({ statement_date: z.iso.date().nullable() }),
   })),
 });
 
@@ -20,7 +21,8 @@ export async function listTransactions(
   const transactions: Transaction[] = [];
   for (let offset = 0; ; offset += PAGE_SIZE) {
     const { data } = await readQuery("listTransactions", () => supabase.from("transactions")
-      .select("id, card_id, used_on, merchant, merchant_key, amount, category").eq("user_id", userId)
+      .select("id, card_id, used_on, merchant, merchant_key, amount, category, upload:uploads!transactions_user_id_upload_id_fkey(statement_date)")
+      .eq("user_id", userId)
       .order("used_on", { ascending: true }).order("id", { ascending: true })
       .range(offset, offset + PAGE_SIZE - 1), transactionsResponseSchema);
     for (const row of data) {
@@ -28,6 +30,7 @@ export async function listTransactions(
       if (cardLabel === undefined) throw new QueryError("listTransactions", "unknown_card");
       transactions.push({
         id: row.id, cardId: row.card_id, cardLabel, date: row.used_on,
+        statementDate: row.upload.statement_date,
         merchant: row.merchant, merchantKey: row.merchant_key, amount: row.amount, category: row.category,
       });
     }

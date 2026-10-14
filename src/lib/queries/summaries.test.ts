@@ -1,7 +1,7 @@
 import type { SupabaseClient } from "@supabase/supabase-js";
 import { describe, expect, it, vi } from "vitest";
 import { QueryError } from "./query-error";
-import { getStoredSummary } from "./summaries";
+import { getStoredCardSummary, getStoredSummary } from "./summaries";
 
 function fakeClient(data: unknown, error: unknown = null) {
   const builder = {
@@ -70,5 +70,34 @@ describe("getStoredSummary", () => {
     builder.maybeSingle.mockRejectedValue(new Error("private-value"));
     await expect(getStoredSummary(client, "user-a", "2026-09"))
       .rejects.toThrow(/^query:getStoredSummary:unexpected_response$/);
+  });
+});
+
+describe("getStoredCardSummary", () => {
+  it("reads the card summary with all three scope conditions", async () => {
+    const { client, from, builder } = fakeClient({
+      input_hash: "e".repeat(64), summary: "이번 명세서는 식비 비중이 커요.", tips: ["식비 예산을 정해 보세요."],
+    });
+    expect(await getStoredCardSummary(client, "user-a", "card-a", "2026-10-23")).toEqual({
+      inputHash: "e".repeat(64), summary: "이번 명세서는 식비 비중이 커요.", tips: ["식비 예산을 정해 보세요."],
+    });
+    expect(from).toHaveBeenCalledExactlyOnceWith("card_summaries");
+    expect(builder.select).toHaveBeenCalledExactlyOnceWith("input_hash, summary, tips");
+    expect(builder.eq.mock.calls).toEqual([
+      ["user_id", "user-a"], ["card_id", "card-a"], ["period", "2026-10-23"],
+    ]);
+    expect(builder.maybeSingle).toHaveBeenCalledExactlyOnceWith();
+  });
+
+  it("returns null when no card summary exists", async () => {
+    expect(await getStoredCardSummary(fakeClient(null).client, "user-a", "card-a", "2026-10")).toBeNull();
+  });
+
+  it("rejects invalid stored content with QueryError", async () => {
+    const error = await getStoredCardSummary(fakeClient({
+      input_hash: "bad", summary: "요약", tips: [],
+    }).client, "user-a", "card-a", "2026-10").catch((caught: unknown) => caught);
+    expect(error).toBeInstanceOf(QueryError);
+    expect(error).toMatchObject({ operation: "getStoredCardSummary", code: "unexpected_response" });
   });
 });

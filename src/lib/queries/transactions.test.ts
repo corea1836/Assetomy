@@ -30,6 +30,7 @@ const cardLabels = new Map([[cardId, "생활비 카드"]]);
 const row = {
   id: "22222222-2222-4222-8222-222222222222", card_id: cardId, used_on: "2026-09-30",
   merchant: "예시 가맹점", merchant_key: "예시가맹점", amount: 1000, category: "food",
+  upload: { statement_date: "2026-10-23" },
 };
 
 describe("listTransactions", () => {
@@ -43,7 +44,7 @@ describe("listTransactions", () => {
     expect(transactions).toHaveLength(1001);
     expect(transactions[0]).toEqual({
       id: row.id, cardId, cardLabel: "생활비 카드", date: "2026-09-30", merchant: row.merchant,
-      merchantKey: row.merchant_key, amount: 1000, category: "food",
+      merchantKey: row.merchant_key, amount: 1000, category: "food", statementDate: "2026-10-23",
     });
     expect(transactions[1000]).toEqual({
       ...transactions[0], cardId: secondCardId, cardLabel: "온라인 카드", date: "2026-10-01", amount: -500,
@@ -51,7 +52,9 @@ describe("listTransactions", () => {
     expect(from.mock.calls).toEqual([["transactions"], ["transactions"]]);
     expect(builders.map((builder) => builder.range.mock.calls[0])).toEqual([[0, 999], [1000, 1999]]);
     for (const builder of builders) {
-      expect(builder.select).toHaveBeenCalledExactlyOnceWith("id, card_id, used_on, merchant, merchant_key, amount, category");
+      expect(builder.select).toHaveBeenCalledExactlyOnceWith(
+        "id, card_id, used_on, merchant, merchant_key, amount, category, upload:uploads!transactions_user_id_upload_id_fkey(statement_date)",
+      );
       expect(builder.eq).toHaveBeenCalledExactlyOnceWith("user_id", "user-a");
       expect(builder.order.mock.calls).toEqual([["used_on", { ascending: true }], ["id", { ascending: true }]]);
     }
@@ -67,6 +70,11 @@ describe("listTransactions", () => {
     const { client, from } = fakeClient([{ data: [] }]);
     expect(await listTransactions(client, "user-a", new Map())).toEqual([]);
     expect(from).toHaveBeenCalledOnce();
+  });
+
+  it("maps a null upload statement date to a required null transaction field", async () => {
+    const { client } = fakeClient([{ data: [{ ...row, upload: { statement_date: null } }] }]);
+    expect((await listTransactions(client, "user-a", cardLabels))[0].statementDate).toBeNull();
   });
 
   it.each([0, -1000, Number.MAX_SAFE_INTEGER, Number.MIN_SAFE_INTEGER])("keeps safe integer amounts unchanged: %s", async (amount) => {
@@ -85,6 +93,7 @@ describe("listTransactions", () => {
 
   it.each([
     null, {}, [{ ...row, id: "private-value" }], [{ ...row, card_id: 123 }],
+    [{ ...row, upload: null }], [{ ...row, upload: {} }], [{ ...row, upload: { statement_date: "2026-02-30" } }],
     [{ ...row, used_on: "2026-02-30" }], [{ ...row, used_on: "2026-9-1" }],
     [{ ...row, used_on: new Date("2026-09-30") }], [{ ...row, amount: "1000" }],
     [{ ...row, amount: 1.5 }], [{ ...row, amount: 2 ** 53 }],

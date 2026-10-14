@@ -7,6 +7,7 @@ export type Transaction = {
   id: string;
   cardId: string;
   cardLabel: string; // 사용자가 붙인 카드 이름
+  statementDate: IsoDate | null; // 이 거래를 넣은 업로드의 청구서 결제일
   date: IsoDate; // 이용일
   merchant: string; // 표시용 가맹점명
   merchantKey: string; // 정규화 가맹점명. 그룹핑·카테고리 수정의 단위

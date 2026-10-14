@@ -1,3 +1,5 @@
+import type { IsoDate } from "./transaction";
+
 export const CARD_ISSUERS = [
   "hyundai",
   "shinhan",
@@ -21,6 +23,21 @@ export type NewCardInput = {
   analysisBasis: AnalysisBasis;
   cycleStartDay: number | null;
 };
+
+export type CardUpdateInput = {
+  label: string;
+  analysisBasis: AnalysisBasis;
+  cycleStartDay: number | null;
+};
+
+export type UpdateCardResult =
+  | { kind: "updated" }
+  | { kind: "not_found" }
+  | { kind: "invalid_label" }
+  | { kind: "duplicate_label" };
+
+// 명세서(같은 카드·결제일의 done 업로드) 하나. savedOn은 PDF 저장일(서울).
+export type StatementRecord = { cardId: string; statementDate: IsoDate; savedOn: IsoDate };
 
 export const CARD_ISSUER_LABELS: Record<CardIssuer, string> = {
   hyundai: "현대카드",

@@ -13,6 +13,19 @@ export type SaveSummaryInput = {
   tips: string[];
 };
 export type SaveSummaryResult = { kind: "saved" | "no_transactions" };
+export type SaveCardSummaryInput = {
+  userId: string;
+  cardId: string;
+  period: string; // 'YYYY-MM' 또는 결제일 'YYYY-MM-DD'
+  plan: Plan;
+  model: string;
+  inputHash: string;
+  summary: string;
+  tips: string[];
+};
+export type SaveCardSummaryResult = {
+  kind: "saved" | "card_not_found" | "basis_mismatch" | "no_data";
+};
 export type MonthlySummaryView = ({ kind: "ready" } & SummaryContent) | { kind: "failed" };
 
 export type SummaryCategory = { category: string; amount: number; ratio: number | null };

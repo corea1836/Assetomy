@@ -1,7 +1,7 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import type { NewCardInput } from "@/types/card";
-import { createCard } from "./cards";
+import type { CardUpdateInput, NewCardInput } from "@/types/card";
+import { createCard, updateCard } from "./cards";
 import { StoreError } from "./store-error";
 
 const { rpc } = vi.hoisted(() => ({ rpc: vi.fn() }));
@@ -9,6 +9,7 @@ vi.mock("@/lib/supabase/admin", () => ({ createSupabaseAdminClient: vi.fn(() => 
 beforeEach(() => { vi.clearAllMocks(); rpc.mockReset(); });
 const cardId = "11111111-1111-4111-8111-111111111111";
 const input: NewCardInput = { label: "생활비 카드", issuer: "hyundai", analysisBasis: "month", cycleStartDay: null };
+const updateInput: CardUpdateInput = { label: "여행 카드", analysisBasis: "cycle", cycleStartDay: 12 };
 
 describe("createCard", () => {
   it.each([
@@ -55,5 +56,41 @@ describe("createCard", () => {
     await expect(createCard("user-a", input)).rejects.toThrowError(
       /^store:create_card:unexpected_response$/,
     );
+  });
+});
+
+describe("updateCard", () => {
+  it.each(["updated", "not_found", "invalid_label", "duplicate_label"] as const)(
+    "returns %s and sends exact RPC arguments", async (kind) => {
+      rpc.mockResolvedValue({ data: { kind }, error: null });
+      expect(await updateCard("user-a", cardId, updateInput)).toEqual({ kind });
+      expect(rpc).toHaveBeenCalledExactlyOnceWith("update_card", {
+        p_user_id: "user-a", p_card_id: cardId, p_label: "여행 카드",
+        p_analysis_basis: "cycle", p_cycle_start_day: 12,
+      });
+    },
+  );
+
+  it("sends a null cycle day for monthly cards", async () => {
+    rpc.mockResolvedValue({ data: { kind: "updated" }, error: null });
+    await updateCard("user-a", cardId, { label: "생활비 카드", analysisBasis: "month", cycleStartDay: null });
+    expect(rpc).toHaveBeenCalledExactlyOnceWith("update_card", expect.objectContaining({ p_cycle_start_day: null }));
+  });
+
+  it.each([null, { kind: "unknown" }])(
+    "rejects malformed responses without exposing them: %j", async (data) => {
+      rpc.mockResolvedValue({ data, error: null });
+      const error = await updateCard("user-a", cardId, updateInput).catch((caught: unknown) => caught);
+      expect(error).toBeInstanceOf(StoreError);
+      expect(error).toMatchObject({ operation: "update_card", code: "unexpected_response" });
+      expect(String(error)).not.toContain("private");
+    },
+  );
+
+  it("keeps only the RPC error code", async () => {
+    rpc.mockResolvedValue({ data: null, error: { code: "PGRST202", message: "private-value", details: "private-value" } });
+    const error = await updateCard("user-a", cardId, updateInput).catch((caught: unknown) => caught);
+    expect(error).toMatchObject({ operation: "update_card", code: "PGRST202" });
+    expect(String(error)).not.toContain("private-value");
   });
 });

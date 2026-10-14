@@ -23,3 +23,12 @@ export async function getStoredSummary(
     .eq("user_id", userId).eq("month", month).maybeSingle(), storedSummaryResponseSchema);
   return data;
 }
+
+export async function getStoredCardSummary(
+  supabase: SupabaseClient, userId: string, cardId: string, period: string,
+): Promise<StoredSummary | null> {
+  const { data } = await readQuery("getStoredCardSummary", () => supabase.from("card_summaries")
+    .select("input_hash, summary, tips")
+    .eq("user_id", userId).eq("card_id", cardId).eq("period", period).maybeSingle(), storedSummaryResponseSchema);
+  return data;
+}
