@@ -6,22 +6,15 @@ import { z } from "zod";
 import { buttonClass } from "@/components/button-styles";
 import { uploadErrorMessage } from "@/lib/errors/messages";
 import { formatPeriod, formatStatementDate, formatWon } from "@/lib/format";
-import { ANALYSIS_BASES, CARD_ISSUERS } from "@/types/card";
 import type { CardOption, UploadResultDto } from "@/types/upload";
-import { fetchJson, responseError, TEMPORARY_ERROR, type UploadError } from "./api-reply";
+import { responseError, TEMPORARY_ERROR, type UploadError } from "./api-reply";
+import { CardForm } from "./card-form";
 import { DataNotice } from "./data-notice";
 import { DeleteUploadDialog } from "./delete-upload-dialog";
 import { sendUpload } from "./send-upload";
 
 const MAX_FILE_BYTES = 4_194_304;
 const NEW_CARD = "__new_card__";
-const cardSchema = z.object({ card: z.object({
-  id: z.string().min(1),
-  label: z.string().min(1).max(30),
-  issuer: z.enum(CARD_ISSUERS),
-  analysisBasis: z.enum(ANALYSIS_BASES),
-  cycleStartDay: z.int().min(1).max(31).nullable(),
-}) });
 const uploadSchema = z.object({ result: z.union([
   z.object({
     kind: z.enum(["done", "no_new"]), uploadId: z.string().min(1),
@@ -42,9 +35,7 @@ type Row = {
   id: number;
   file: File;
   cardId: string;
-  label: string;
   addingCard: boolean;
-  cardError?: UploadError;
   status: "waiting" | "uploading" | "analyzing" | "complete" | "failed" | "deleted";
   error?: UploadError;
   result?: UploadResultDto;
@@ -106,33 +97,10 @@ export function UploadPanel({ cards }: { cards: CardOption[] }): React.JSX.Eleme
       const error: UploadError | undefined = !file.name.toLowerCase().endsWith(".pdf")
         ? { code: "UNSUPPORTED_FILE", reason: "not_pdf" }
         : file.size > MAX_FILE_BYTES ? { code: "FILE_TOO_LARGE" } : undefined;
-      return { id: nextRowId.current++, file, cardId: "", label: "", addingCard: false, status: error ? "failed" : "waiting", error };
+      return { id: nextRowId.current++, file, cardId: "", addingCard: false, status: error ? "failed" : "waiting", error };
     });
     setRows((current) => [...current, ...added]);
     setAnnouncement(added.map((row) => `${row.file.name} ${STATUS_LABELS[row.status]}`).join(" · "));
-  }
-
-  async function addCard(row: Row) {
-    if (row.addingCard || processing.current) return;
-    const label = row.label.trim();
-    if (!label || label.length > 30) {
-      updateRow(row.id, { cardError: { code: "INVALID_LABEL" } });
-      return;
-    }
-    updateRow(row.id, { addingCard: true, cardError: undefined });
-    const reply = await fetchJson("/api/cards", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ label }),
-    });
-    const parsed = cardSchema.safeParse(reply.body);
-    if (reply.status === 201 && parsed.success) {
-      const card = parsed.data.card;
-      setCreatedCards((current) => [...current.filter((existing) => existing.id !== card.id), card]);
-      updateRow(row.id, { cardId: card.id, addingCard: false, cardError: undefined });
-      setAnnouncement(`${row.file.name} 카드 추가 완료`);
-    } else {
-      updateRow(row.id, { addingCard: false, cardError: responseError(reply.body) });
-      setAnnouncement(`${row.file.name} 카드 추가 실패`);
-    }
   }
 
   async function startUploads() {
@@ -177,7 +145,7 @@ export function UploadPanel({ cards }: { cards: CardOption[] }): React.JSX.Eleme
   }
 
   function resetRow(row: Row, clearCard: boolean) {
-    updateRow(row.id, { status: "waiting", cardId: clearCard ? "" : row.cardId, error: undefined, result: undefined, cardError: undefined });
+    updateRow(row.id, { status: "waiting", cardId: clearCard ? "" : row.cardId, error: undefined, result: undefined });
     setAnnouncement(`${row.file.name} 대기`);
   }
 
@@ -229,7 +197,7 @@ export function UploadPanel({ cards }: { cards: CardOption[] }): React.JSX.Eleme
                     <select
                       aria-label="카드" value={row.cardId} disabled={running || row.addingCard}
                       className="h-9 w-full min-w-0 rounded-lg border border-hairline bg-canvas px-3 text-sm text-ink focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:bg-surface-soft disabled:text-muted-soft sm:w-auto sm:max-w-64"
-                      onChange={(event) => updateRow(row.id, { cardId: event.target.value, cardError: undefined })}
+                      onChange={(event) => updateRow(row.id, { cardId: event.target.value })}
                     >
                       <option value="">카드 선택</option>
                       {options.map((card) => <option key={card.id} value={card.id}>{card.label}</option>)}
@@ -247,16 +215,17 @@ export function UploadPanel({ cards }: { cards: CardOption[] }): React.JSX.Eleme
                     )}
                   </div>
                   {row.status === "waiting" && (row.cardId === NEW_CARD || options.length === 0) && (
-                    <form className="flex w-full min-w-0 flex-wrap gap-2" onSubmit={(event) => { event.preventDefault(); void addCard(row); }}>
-                      <input
-                        aria-label="새 카드 이름" placeholder="예: 신한 생활비" maxLength={30} value={row.label} disabled={row.addingCard || running}
-                        className="h-12 w-full min-w-0 rounded-xl border border-hairline bg-canvas px-4 text-base text-ink placeholder:text-muted focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary disabled:bg-surface-soft disabled:text-muted-soft sm:flex-1"
-                        onChange={(event) => updateRow(row.id, { label: event.target.value, cardError: undefined })}
-                      />
-                      <button type="submit" disabled={row.addingCard || running} className={buttonClass("primary", "sm")}>{row.addingCard ? "추가 중…" : "추가"}</button>
-                    </form>
+                    <CardForm
+                      cards={options}
+                      disabled={running}
+                      onPendingChange={(pending) => updateRow(row.id, { addingCard: pending })}
+                      onCreated={(card) => {
+                        setCreatedCards((current) => [...current.filter((existing) => existing.id !== card.id), card]);
+                        updateRow(row.id, { cardId: card.id });
+                        setAnnouncement(`${row.file.name} 카드 추가 완료`);
+                      }}
+                    />
                   )}
-                  {row.cardError && <p className="w-full text-sm text-danger">{uploadErrorMessage(row.cardError.code, row.cardError.reason)}</p>}
                   {row.status === "failed" && row.error && <p className="w-full text-sm text-danger">{uploadErrorMessage(row.error.code, row.error.reason)}</p>}
                   {row.status === "complete" && row.result && (
                     <div className="w-full min-w-0 space-y-2 text-sm tabular-nums text-body">

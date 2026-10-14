@@ -129,28 +129,32 @@ describe("UploadPanel file and card selection", () => {
     expect(screen.getByRole("button", { name: "파일 선택" })).toHaveClass("bg-primary");
   });
 
-  it("adds a card with JSON, selects it only in that row, and shares the option with other rows", async () => {
+  it("adds a complete card, selects it only in that row, and shares it with other rows", async () => {
     render(<UploadPanel cards={cards} />);
     addFiles([pdf(), pdf("10월.pdf")]);
     const select = within(row("9월.pdf")).getByRole("combobox", { name: "카드" });
     const newOption = within(select).getByRole("option", { name: "새 카드 추가" });
     fireEvent.change(select, { target: { value: newOption.getAttribute("value") } });
-    const label = screen.getByPlaceholderText("예: 신한 생활비");
-    expect(label).toHaveAttribute("maxlength", "30");
-    fireEvent.change(label, { target: { value: "신한 생활비" } });
+    const label = within(row("9월.pdf")).getByRole("textbox", { name: "카드 이름" });
+    expect(label).toHaveValue("현대카드 2");
+    fireEvent.change(within(row("9월.pdf")).getByRole("combobox", { name: "카드사" }), { target: { value: "shinhan" } });
+    expect(label).toHaveValue("신한카드 1");
     const response = deferred<Response>();
     fetchMock.mockReturnValue(response.promise);
     fireEvent.click(screen.getByRole("button", { name: "추가" }));
     expect(screen.getByRole("button", { name: "추가 중…" })).toBeDisabled();
+    expect(screen.getByRole("button", { name: "올리기" })).toBeDisabled();
+    expect(within(row("9월.pdf")).getByRole("button", { name: "빼기" })).toBeDisabled();
     await act(async () => response.resolve(Response.json({
-      card: { id: "card-b", label: "신한 생활비", issuer: "hyundai", analysisBasis: "month", cycleStartDay: null },
+      card: { id: "card-b", label: "신한카드 1", issuer: "shinhan", analysisBasis: "month", cycleStartDay: null },
     }, { status: 201 })));
     expect(fetchMock).toHaveBeenCalledExactlyOnceWith("/api/cards", {
-      method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ label: "신한 생활비" }),
+      method: "POST", headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ label: "신한카드 1", issuer: "shinhan", analysisBasis: "month", cycleStartDay: null }),
     });
     await waitFor(() => expect(select).toHaveValue("card-b"));
     const other = within(row("10월.pdf")).getByRole("combobox", { name: "카드" });
-    expect(within(other).getByRole("option", { name: "신한 생활비" })).toBeInTheDocument();
+    expect(within(other).getByRole("option", { name: "신한카드 1" })).toBeInTheDocument();
     expect(other).toHaveValue("");
   });
 
@@ -158,20 +162,36 @@ describe("UploadPanel file and card selection", () => {
     render(<UploadPanel cards={[]} />);
     addFiles([pdf(), pdf("10월.pdf")]);
     expect(screen.queryByRole("combobox", { name: "카드" })).not.toBeInTheDocument();
-    const label = within(row("9월.pdf")).getByRole("textbox", { name: "새 카드 이름" });
-    expect(within(row("10월.pdf")).getByRole("textbox", { name: "새 카드 이름" })).toBeInTheDocument();
-    fireEvent.change(label, { target: { value: "현대" } });
+    const label = within(row("9월.pdf")).getByRole("textbox", { name: "카드 이름" });
+    expect(label).toHaveValue("현대카드 1");
+    expect(within(row("10월.pdf")).getByRole("textbox", { name: "카드 이름" })).toBeInTheDocument();
     fetchMock.mockResolvedValue(Response.json({
-      card: { id: "card-b", label: "현대", issuer: "hyundai", analysisBasis: "month", cycleStartDay: null },
+      card: { id: "card-b", label: "현대카드 1", issuer: "hyundai", analysisBasis: "month", cycleStartDay: null },
     }, { status: 201 }));
     fireEvent.click(within(row("9월.pdf")).getByRole("button", { name: "추가" }));
     await waitFor(() => expect(within(row("9월.pdf")).getByRole("combobox", { name: "카드" })).toHaveValue("card-b"));
     const other = within(row("10월.pdf")).getByRole("combobox", { name: "카드" });
     expect(other).toHaveValue("");
-    expect(within(other).getByRole("option", { name: "현대" })).toBeInTheDocument();
-    expect(screen.queryByRole("textbox", { name: "새 카드 이름" })).not.toBeInTheDocument();
+    expect(within(other).getByRole("option", { name: "현대카드 1" })).toBeInTheDocument();
+    expect(screen.queryByRole("textbox", { name: "카드 이름" })).not.toBeInTheDocument();
     fireEvent.change(other, { target: { value: "card-b" } });
     expect(screen.getByRole("button", { name: "올리기" })).toBeEnabled();
+  });
+
+  it("updates another open new-card form when a card is created", async () => {
+    render(<UploadPanel cards={cards} />);
+    addFiles([pdf(), pdf("10월.pdf")]);
+    for (const item of [row("9월.pdf"), row("10월.pdf")]) {
+      const select = within(item).getByRole("combobox", { name: "카드" });
+      fireEvent.change(select, { target: { value: within(select).getByRole("option", { name: "새 카드 추가" }).getAttribute("value") } });
+    }
+    expect(within(row("9월.pdf")).getByRole("textbox", { name: "카드 이름" })).toHaveValue("현대카드 2");
+    expect(within(row("10월.pdf")).getByRole("textbox", { name: "카드 이름" })).toHaveValue("현대카드 2");
+    fetchMock.mockResolvedValue(Response.json({ card: {
+      id: "card-b", label: "현대카드 2", issuer: "hyundai", analysisBasis: "month", cycleStartDay: null,
+    } }, { status: 201 }));
+    fireEvent.click(within(row("9월.pdf")).getByRole("button", { name: "추가" }));
+    await waitFor(() => expect(within(row("10월.pdf")).getByRole("textbox", { name: "카드 이름" })).toHaveValue("현대카드 3"));
   });
 
   it("keeps card creation failure beside that row", async () => {
@@ -179,7 +199,6 @@ describe("UploadPanel file and card selection", () => {
     addFiles([pdf()]);
     const select = screen.getByRole("combobox", { name: "카드" });
     fireEvent.change(select, { target: { value: within(select).getByRole("option", { name: "새 카드 추가" }).getAttribute("value") } });
-    fireEvent.change(screen.getByPlaceholderText("예: 신한 생활비"), { target: { value: "현대 생활비" } });
     fetchMock.mockResolvedValue(Response.json({ error: { code: "DUPLICATE_LABEL" } }, { status: 409 }));
     fireEvent.click(screen.getByRole("button", { name: "추가" }));
     expect(await within(row("9월.pdf")).findByText(uploadErrorMessage("DUPLICATE_LABEL"))).toBeInTheDocument();
