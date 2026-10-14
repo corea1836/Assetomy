@@ -20,7 +20,10 @@ afterEach(() => vi.unstubAllEnvs());
 
 function cardRequest({
   origin = "http://localhost:3000", contentType = "application/json",
-  body = JSON.stringify({ label: "  생활비 카드  ", userId: "untrusted-user", storage_path: "untrusted-path" }),
+  body = JSON.stringify({
+    label: "  생활비 카드  ", issuer: "hyundai", analysisBasis: "month", cycleStartDay: null,
+    userId: "untrusted-user", storage_path: "untrusted-path",
+  }),
 }: { origin?: string | null; contentType?: string | null; body?: string } = {}): Request {
   const headers = new Headers();
   if (origin !== null) headers.set("origin", origin);
@@ -57,12 +60,44 @@ describe("POST /api/cards", () => {
     expect(createCard).not.toHaveBeenCalled();
   });
 
-  it("creates a card with the session user and returns the trimmed label", async () => {
+  it("creates a monthly card with the session user and returns the complete card", async () => {
     const response = await POST(cardRequest({ contentType: "Application/JSON; charset=utf-8" }));
     expect(response.status).toBe(201);
-    expect(await response.json()).toEqual({ card: { id: cardId, label: "생활비 카드" } });
-    expect(createCard).toHaveBeenCalledExactlyOnceWith(userId, expect.any(String));
-    expect(vi.mocked(createCard).mock.calls[0][1].trim()).toBe("생활비 카드");
+    expect(await response.json()).toEqual({
+      card: { id: cardId, label: "생활비 카드", issuer: "hyundai", analysisBasis: "month", cycleStartDay: null },
+    });
+    expect(createCard).toHaveBeenCalledExactlyOnceWith(userId, {
+      label: "생활비 카드", issuer: "hyundai", analysisBasis: "month", cycleStartDay: null,
+    });
+  });
+
+  it("creates a cycle card with its start day", async () => {
+    const response = await POST(cardRequest({ body: JSON.stringify({
+      label: "  생활비 카드  ", issuer: "shinhan", analysisBasis: "cycle", cycleStartDay: 12,
+    }) }));
+    expect(response.status).toBe(201);
+    expect(await response.json()).toEqual({
+      card: { id: cardId, label: "생활비 카드", issuer: "shinhan", analysisBasis: "cycle", cycleStartDay: 12 },
+    });
+    expect(createCard).toHaveBeenCalledExactlyOnceWith(userId, {
+      label: "생활비 카드", issuer: "shinhan", analysisBasis: "cycle", cycleStartDay: 12,
+    });
+  });
+
+  it.each([
+    { cardInput: { label: "카드", analysisBasis: "month", cycleStartDay: null }, caseName: "missing issuer" },
+    { cardInput: { label: "카드", issuer: "invalid", analysisBasis: "month", cycleStartDay: null }, caseName: "unknown issuer" },
+    { cardInput: { label: "카드", issuer: "hyundai", analysisBasis: "unknown", cycleStartDay: null }, caseName: "unknown basis" },
+    { cardInput: { label: "카드", issuer: "hyundai", analysisBasis: "cycle", cycleStartDay: null }, caseName: "cycle without start day" },
+    { cardInput: { label: "카드", issuer: "hyundai", analysisBasis: "month", cycleStartDay: 12 }, caseName: "month with start day" },
+    { cardInput: { label: "카드", issuer: "hyundai", analysisBasis: "cycle", cycleStartDay: 0 }, caseName: "start day below range" },
+    { cardInput: { label: "카드", issuer: "hyundai", analysisBasis: "cycle", cycleStartDay: 32 }, caseName: "start day above range" },
+    { cardInput: { label: "카드", issuer: "hyundai", analysisBasis: "cycle", cycleStartDay: 1.5 }, caseName: "fractional start day" },
+  ])("returns INVALID_CARD for $caseName", async ({ cardInput }) => {
+    const response = await POST(cardRequest({ body: JSON.stringify(cardInput) }));
+    expect(response.status).toBe(400);
+    expect(await response.json()).toEqual({ error: { code: "INVALID_CARD" } });
+    expect(createCard).not.toHaveBeenCalled();
   });
 
   it("maps a duplicate label to 409", async () => {
@@ -74,10 +109,14 @@ describe("POST /api/cards", () => {
 
   it("lets the store reject empty labels as INVALID_LABEL", async () => {
     vi.mocked(createCard).mockResolvedValue({ kind: "invalid_label" });
-    const response = await POST(cardRequest({ body: JSON.stringify({ label: "" }) }));
+    const response = await POST(cardRequest({ body: JSON.stringify({
+      label: "", issuer: "hyundai", analysisBasis: "month", cycleStartDay: null,
+    }) }));
     expect(response.status).toBe(400);
     expect(await response.json()).toEqual({ error: { code: "INVALID_LABEL" } });
-    expect(createCard).toHaveBeenCalledExactlyOnceWith(userId, "");
+    expect(createCard).toHaveBeenCalledExactlyOnceWith(userId, {
+      label: "", issuer: "hyundai", analysisBasis: "month", cycleStartDay: null,
+    });
   });
 
   it.each(["{", "null", "[]", "{}", '{"label":123}'])("rejects invalid JSON input %s", async (body) => {

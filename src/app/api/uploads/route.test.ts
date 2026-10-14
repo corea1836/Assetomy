@@ -45,7 +45,7 @@ beforeEach(() => {
   vi.mocked(processUpload).mockResolvedValue({ kind: "done", uploadId, ...summary });
   vi.mocked(createSupabaseServerClient).mockResolvedValue(supabase);
   vi.mocked(getMerchantClassifier).mockReturnValue(classifier);
-  vi.mocked(listCards).mockResolvedValue([{ id: otherCardId, label: "기존 카드" }]);
+  vi.mocked(listCards).mockResolvedValue([{ id: otherCardId, label: "기존 카드", issuer: "hyundai", analysisBasis: "month", cycleStartDay: null }]);
   vi.mocked(findMerchantCategories).mockResolvedValue(new Map([["merchant-key", "etc"]]));
   vi.mocked(getUploadOutcome).mockResolvedValue({ status: "done", ...summary });
   vi.spyOn(console, "error").mockImplementation(() => {});
@@ -230,7 +230,7 @@ describe("POST /api/uploads", () => {
 
   it.each(["missing", "failed"])("returns a null duplicate label when lookup is %s", async (scenario) => {
     vi.mocked(processUpload).mockResolvedValue({ kind: "duplicate", existingCardId: otherCardId });
-    if (scenario === "missing") vi.mocked(listCards).mockResolvedValue([{ id: cardId, label: "다른 카드" }]);
+    if (scenario === "missing") vi.mocked(listCards).mockResolvedValue([{ id: cardId, label: "다른 카드", issuer: "hyundai", analysisBasis: "month", cycleStartDay: null }]);
     else vi.mocked(listCards).mockRejectedValue(new Error("PRIVATE_QUERY_ERROR"));
     const response = await POST(uploadRequest());
     expect(response.status).toBe(200);

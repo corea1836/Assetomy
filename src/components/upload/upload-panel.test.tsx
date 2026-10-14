@@ -10,7 +10,7 @@ const navigation = vi.hoisted(() => ({ refresh: vi.fn() }));
 vi.mock("next/navigation", () => ({ useRouter: () => navigation }));
 vi.mock("./send-upload", () => ({ sendUpload: vi.fn() }));
 
-const cards: CardOption[] = [{ id: "card-a", label: "현대 생활비" }];
+const cards: CardOption[] = [{ id: "card-a", label: "현대 생활비", issuer: "hyundai", analysisBasis: "month", cycleStartDay: null }];
 const fetchMock = vi.fn<typeof fetch>();
 type Reply = Awaited<ReturnType<typeof sendUpload>>;
 const done: UploadResultDto = {
@@ -141,7 +141,9 @@ describe("UploadPanel file and card selection", () => {
     fetchMock.mockReturnValue(response.promise);
     fireEvent.click(screen.getByRole("button", { name: "추가" }));
     expect(screen.getByRole("button", { name: "추가 중…" })).toBeDisabled();
-    await act(async () => response.resolve(Response.json({ card: { id: "card-b", label: "신한 생활비" } }, { status: 201 })));
+    await act(async () => response.resolve(Response.json({
+      card: { id: "card-b", label: "신한 생활비", issuer: "hyundai", analysisBasis: "month", cycleStartDay: null },
+    }, { status: 201 })));
     expect(fetchMock).toHaveBeenCalledExactlyOnceWith("/api/cards", {
       method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ label: "신한 생활비" }),
     });
@@ -158,7 +160,9 @@ describe("UploadPanel file and card selection", () => {
     const label = within(row("9월.pdf")).getByRole("textbox", { name: "새 카드 이름" });
     expect(within(row("10월.pdf")).getByRole("textbox", { name: "새 카드 이름" })).toBeInTheDocument();
     fireEvent.change(label, { target: { value: "현대" } });
-    fetchMock.mockResolvedValue(Response.json({ card: { id: "card-b", label: "현대" } }, { status: 201 }));
+    fetchMock.mockResolvedValue(Response.json({
+      card: { id: "card-b", label: "현대", issuer: "hyundai", analysisBasis: "month", cycleStartDay: null },
+    }, { status: 201 }));
     fireEvent.click(within(row("9월.pdf")).getByRole("button", { name: "추가" }));
     await waitFor(() => expect(within(row("9월.pdf")).getByRole("combobox", { name: "카드" })).toHaveValue("card-b"));
     const other = within(row("10월.pdf")).getByRole("combobox", { name: "카드" });

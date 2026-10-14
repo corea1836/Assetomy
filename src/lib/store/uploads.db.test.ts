@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { createTestUser, deleteTestUser } from "@/lib/supabase/db-test-helpers";
+import { TEST_CARD, createTestUser, deleteTestUser } from "@/lib/supabase/db-test-helpers";
 import type { IngestRow } from "@/types/upload";
 import { createCard } from "./cards";
 import { beginUpload, deleteUpload, failUpload, ingestUpload } from "./uploads";
@@ -15,7 +15,7 @@ beforeEach(async () => {
   userIds.push(userA);
   userB = (await createTestUser()).id;
   userIds.push(userB);
-  const card = await createCard(userA, "생활비 카드");
+  const card = await createCard(userA, { label: "생활비 카드", ...TEST_CARD });
   if (card.kind !== "created") throw new Error("db-test:create_card:unexpected_response");
   cardId = card.cardId;
 });
@@ -102,7 +102,7 @@ describe("upload RPCs against the dev DB", () => {
       periodFrom: null, periodTo: null, netAmount: 0,
     });
     expect(await begin("a")).toEqual({ kind: "duplicate", existingCardId: cardId });
-    const otherCard = await createCard(userA, "다른 카드");
+    const otherCard = await createCard(userA, { label: "다른 카드", ...TEST_CARD });
     if (otherCard.kind !== "created") throw new Error("db-test:create_card:unexpected_response");
     expect(await begin("a", userA, otherCard.cardId)).toEqual({ kind: "duplicate", existingCardId: cardId });
 

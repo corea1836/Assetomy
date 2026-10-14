@@ -1,6 +1,6 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { createTestUser, deleteTestUser } from "@/lib/supabase/db-test-helpers";
+import { TEST_CARD, createTestUser, deleteTestUser } from "@/lib/supabase/db-test-helpers";
 import type { SaveSummaryInput } from "@/types/summary";
 import type { IngestRow } from "@/types/upload";
 import { createCard } from "./cards";
@@ -18,7 +18,7 @@ beforeEach(async () => {
   userIds.push(userA);
   userB = (await createTestUser()).id;
   userIds.push(userB);
-  const card = await createCard(userA, "생활비 카드");
+  const card = await createCard(userA, { label: "생활비 카드", ...TEST_CARD });
   if (card.kind !== "created") throw new Error("db-test:create_card:unexpected_response");
   cardA = card.cardId;
 });

@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { createTestUser, deleteTestUser } from "@/lib/supabase/db-test-helpers";
+import { TEST_CARD, createTestUser, deleteTestUser } from "@/lib/supabase/db-test-helpers";
 import { createCard } from "./cards";
 import { recordMetric } from "./metrics";
 import { beginUpload, deleteUpload, ingestUpload } from "./uploads";
@@ -56,7 +56,7 @@ describe("dashboard metrics against the dev DB", () => {
   });
 
   it("records upload attempt, success, period extension, and deletion in the upload transactions", async () => {
-    const card = await createCard(userId, "생활비 카드");
+    const card = await createCard(userId, { label: "생활비 카드", ...TEST_CARD });
     if (card.kind !== "created") throw new Error("db-test:create_card:unexpected_response");
     const upload = await beginUpload({ userId, cardId: card.cardId, fileName: "test.csv", fileHash: "a".repeat(64), fileSize: 100 });
     if (upload.kind !== "started") throw new Error("db-test:begin_upload:unexpected_response");

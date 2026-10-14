@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createCard } from "@/lib/store/cards";
 import { beginUpload, ingestUpload } from "@/lib/store/uploads";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { createTestUser, deleteTestUser } from "@/lib/supabase/db-test-helpers";
+import { TEST_CARD, createTestUser, deleteTestUser } from "@/lib/supabase/db-test-helpers";
 import type { IngestRow } from "@/types/upload";
 import { listTransactions } from "./transactions";
 
@@ -24,7 +24,7 @@ afterEach(async () => {
 });
 
 async function saveRows(userId: string, rows: IngestRow[]) {
-  const card = await createCard(userId, "생활비 카드");
+  const card = await createCard(userId, { label: "생활비 카드", ...TEST_CARD });
   if (card.kind !== "created") throw new Error("db-test:create_card:unexpected_response");
   const upload = await beginUpload({ userId, cardId: card.cardId, fileName: "test.csv", fileHash: "a".repeat(64), fileSize: 100 });
   if (upload.kind !== "started") throw new Error("db-test:begin_upload:unexpected_response");

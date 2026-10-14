@@ -12,7 +12,18 @@ function fakeClient(pages: unknown[]) {
 }
 
 function card(index: number) {
-  return { id: `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`, label: `카드 ${index}` };
+  return {
+    id: `00000000-0000-4000-8000-${String(index).padStart(12, "0")}`, label: `카드 ${index}`,
+    issuer: "hyundai", analysis_basis: "month", cycle_start_day: null,
+  };
+}
+
+function cardOption(index: number) {
+  const row = card(index);
+  return {
+    id: row.id, label: row.label, issuer: row.issuer,
+    analysisBasis: row.analysis_basis, cycleStartDay: row.cycle_start_day,
+  };
 }
 
 describe("listCards", () => {
@@ -20,7 +31,9 @@ describe("listCards", () => {
     const first = Array.from({ length: 1000 }, (_, index) => card(index));
     const last = [card(1000)];
     const { client, from, builder } = fakeClient([first, last]);
-    expect(await listCards(client, "user-a")).toEqual([...first, ...last]);
+    expect(await listCards(client, "user-a")).toEqual([
+      ...Array.from({ length: 1000 }, (_, index) => cardOption(index)), cardOption(1000),
+    ]);
     expect(from.mock.calls).toEqual([["cards"], ["cards"]]);
     expect(builder.eq.mock.calls).toEqual([["user_id", "user-a"], ["user_id", "user-a"]]);
     expect(builder.order.mock.calls).toEqual([
@@ -28,6 +41,7 @@ describe("listCards", () => {
       ["created_at", { ascending: true }], ["id", { ascending: true }],
     ]);
     expect(builder.range.mock.calls).toEqual([[0, 999], [1000, 1999]]);
+    expect(builder.select).toHaveBeenCalledWith("id, label, issuer, analysis_basis, cycle_start_day");
   });
 
   it("reads an empty final page when the row count is exactly 1000", async () => {
@@ -46,4 +60,9 @@ describe("listCards", () => {
         .rejects.toMatchObject({ operation: "listCards", code: "unexpected_response" });
     },
   );
+
+  it("rejects a row with an unknown issuer", async () => {
+    await expect(listCards(fakeClient([[{ ...card(1), issuer: "other" }]]).client, "user-a"))
+      .rejects.toMatchObject({ operation: "listCards", code: "unexpected_response" });
+  });
 });

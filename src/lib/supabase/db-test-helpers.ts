@@ -1,7 +1,10 @@
 // DB 테스트 전용. 앱 코드에서 import하지 않는다.
 import "server-only";
 import { randomUUID } from "node:crypto";
+import type { NewCardInput } from "@/types/card";
 import { createSupabaseAdminClient } from "./admin";
+
+export const TEST_CARD = { issuer: "hyundai", analysisBasis: "month", cycleStartDay: null } as const satisfies Omit<NewCardInput, "label">;
 
 export async function createTestUser(): Promise<{ id: string }> {
   const { data, error } = await createSupabaseAdminClient().auth.admin.createUser({

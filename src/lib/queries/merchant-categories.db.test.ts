@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createCard } from "@/lib/store/cards";
 import { beginUpload, ingestUpload } from "@/lib/store/uploads";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { createTestUser, deleteTestUser } from "@/lib/supabase/db-test-helpers";
+import { TEST_CARD, createTestUser, deleteTestUser } from "@/lib/supabase/db-test-helpers";
 import type { IngestRow } from "@/types/upload";
 import { findMerchantCategories } from "./merchant-categories";
 
@@ -38,8 +38,8 @@ function row(index: number, merchantKey: string, category: IngestRow["category"]
 
 describe("findMerchantCategories against the dev DB", () => {
   it("prioritizes A's override and latest transactions across chunks without including B's same keys", async () => {
-    const cardA = await createCard(userA, "생활비 카드");
-    const cardB = await createCard(userB, "생활비 카드");
+    const cardA = await createCard(userA, { label: "생활비 카드", ...TEST_CARD });
+    const cardB = await createCard(userB, { label: "생활비 카드", ...TEST_CARD });
     if (cardA.kind !== "created" || cardB.kind !== "created") throw new Error("db-test:create_card:unexpected_response");
     await saveRows(userA, cardA.cardId, "a", [row(1000, "X", "etc")]);
     const extraKeys = Array.from({ length: 149 }, (_, index) => `키${index}`);

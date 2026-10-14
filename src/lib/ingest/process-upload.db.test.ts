@@ -10,7 +10,7 @@ import { STATEMENTS_BUCKET, removeStatements, saveStatement, statementPath } fro
 import { StoreError } from "@/lib/store/store-error";
 import { beginUpload, failUpload, ingestUpload } from "@/lib/store/uploads";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { createTestUser, deleteTestUser } from "@/lib/supabase/db-test-helpers";
+import { TEST_CARD, createTestUser, deleteTestUser } from "@/lib/supabase/db-test-helpers";
 import { createMockClassifier } from "@/services/llm/mock-classifier";
 import type { ParseSuccess } from "@/types/parsing";
 import { transactionFingerprint } from "./fingerprint";
@@ -45,7 +45,7 @@ beforeEach(async () => {
   diagnostics = [];
   vi.stubEnv("FILE_ENCRYPTION_KEY", key.toString("base64"));
   userId = (await createTestUser()).id;
-  const card = await createCard(userId, "생활비 카드");
+  const card = await createCard(userId, { label: "생활비 카드", ...TEST_CARD });
   if (card.kind !== "created") throw new Error("db-test:create_card:unexpected_response");
   cardId = card.cardId;
 });
@@ -150,7 +150,7 @@ describe("processUpload against the dev DB and Storage", () => {
     expect(Buffer.from(decryptStatement(payload, key, path))).toEqual(Buffer.from(bytes));
 
     expect(await runUpload(deps)).toEqual({ kind: "duplicate", existingCardId: cardId });
-    const otherCard = await createCard(userId, "다른 카드");
+    const otherCard = await createCard(userId, { label: "다른 카드", ...TEST_CARD });
     if (otherCard.kind !== "created") throw new Error("db-test:create_card:unexpected_response");
     expect(await runUpload(deps, bytes, otherCard.cardId)).toEqual({ kind: "duplicate", existingCardId: cardId });
     expect(paths).toHaveLength(1);

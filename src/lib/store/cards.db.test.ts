@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
-import { createTestUser, deleteTestUser } from "@/lib/supabase/db-test-helpers";
+import { TEST_CARD, createTestUser, deleteTestUser } from "@/lib/supabase/db-test-helpers";
 import { createCard } from "./cards";
 
 let userIds: string[] = [];
@@ -23,12 +23,12 @@ afterEach(async () => {
 
 describe("createCard against the dev DB", () => {
   it("creates a card, rejects duplicate and invalid labels, and isolates users", async () => {
-    const created = await createCard(userA, "생활비 카드");
+    const created = await createCard(userA, { label: "생활비 카드", ...TEST_CARD });
     expect(created.kind).toBe("created");
     if (created.kind !== "created") throw new Error("db-test:create_card:unexpected_response");
     expect(created.cardId).toEqual(expect.any(String));
-    expect(await createCard(userA, "생활비 카드")).toEqual({ kind: "duplicate_label" });
-    expect(await createCard(userA, " ")).toEqual({ kind: "invalid_label" });
-    expect((await createCard(userB, "생활비 카드")).kind).toBe("created");
+    expect(await createCard(userA, { label: "생활비 카드", ...TEST_CARD })).toEqual({ kind: "duplicate_label" });
+    expect(await createCard(userA, { label: " ", ...TEST_CARD })).toEqual({ kind: "invalid_label" });
+    expect((await createCard(userB, { label: "생활비 카드", ...TEST_CARD })).kind).toBe("created");
   });
 });

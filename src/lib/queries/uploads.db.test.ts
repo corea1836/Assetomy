@@ -2,7 +2,7 @@ import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import { createCard } from "@/lib/store/cards";
 import { beginUpload, failUpload, ingestUpload } from "@/lib/store/uploads";
 import { createSupabaseAdminClient } from "@/lib/supabase/admin";
-import { createTestUser, deleteTestUser } from "@/lib/supabase/db-test-helpers";
+import { TEST_CARD, createTestUser, deleteTestUser } from "@/lib/supabase/db-test-helpers";
 import type { IngestRow } from "@/types/upload";
 import { getUploadOutcome, listDoneUploads } from "./uploads";
 
@@ -16,7 +16,7 @@ beforeEach(async () => {
   userIds.push(userA);
   userB = (await createTestUser()).id;
   userIds.push(userB);
-  const card = await createCard(userA, "생활비 카드");
+  const card = await createCard(userA, { label: "생활비 카드", ...TEST_CARD });
   if (card.kind !== "created") throw new Error("db-test:create_card:unexpected_response");
   cardId = card.cardId;
 });
@@ -78,7 +78,7 @@ describe("listDoneUploads against the dev DB", () => {
     expect(await ingest(duplicate)).toMatchObject({ kind: "no_new" });
     expect(await failUpload(userA, await start("c"), "UNREADABLE")).toEqual({ kind: "failed" });
     await start("d");
-    const otherCard = await createCard(userB, "다른 사용자 카드");
+    const otherCard = await createCard(userB, { label: "다른 사용자 카드", ...TEST_CARD });
     if (otherCard.kind !== "created") throw new Error("db-test:create_card:unexpected_response");
     const other = await beginUpload({ userId: userB, cardId: otherCard.cardId, fileName: "b.pdf", fileHash: "e".repeat(64), fileSize: 100 });
     if (other.kind !== "started") throw new Error("db-test:begin_upload:unexpected_response");

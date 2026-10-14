@@ -1,4 +1,5 @@
 import type { CategoryId } from "./category";
+import type { AnalysisBasis, CardIssuer } from "./card";
 import type { CancelStyle, EventKind, IdentityScope, UnreadableReason, UnsupportedFileReason } from "./parsing";
 import type { IsoDate } from "./transaction";
 
@@ -52,11 +53,17 @@ export type UploadSummary = {
   netAmount: number;
 };
 
-export type CardOption = { id: string; label: string };
+export type CardOption = {
+  id: string;
+  label: string;
+  issuer: CardIssuer;
+  analysisBasis: AnalysisBasis;
+  cycleStartDay: number | null;
+};
 
 export type ApiErrorCode =
   | "BAD_REQUEST" | "UNAUTHORIZED" | "FORBIDDEN" | "NOT_FOUND"
-  | "INVALID_LABEL" | "DUPLICATE_LABEL"
+  | "INVALID_LABEL" | "DUPLICATE_LABEL" | "INVALID_CARD"
   | "CARD_NOT_FOUND" | "CARD_SCOPE_MISMATCH" | "UPLOAD_PROCESSING"
   | "FILE_TOO_LARGE" | "UNSUPPORTED_FILE" | "UNREADABLE"
   | "RATE_LIMITED" | "BUSY" | "TEMPORARY_FAILURE";

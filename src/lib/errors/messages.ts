@@ -27,6 +27,7 @@ const UPLOAD_ERROR_MESSAGES: Record<ApiErrorCode, string> = {
   UNAUTHORIZED: "로그인이 만료됐어요. 다시 로그인해 주세요.",
   INVALID_LABEL: "카드 이름은 1~30자로 입력해 주세요.",
   DUPLICATE_LABEL: "같은 이름의 카드가 있어요. 목록에서 골라 주세요.",
+  INVALID_CARD: "카드사와 분석 기준을 확인해 주세요. 이용 기간은 매달 1~31일 중 시작일을 입력해요.",
   UPLOAD_PROCESSING: "아직 처리 중이에요. 잠시 후 다시 시도해 주세요.",
   BAD_REQUEST: "요청을 처리하지 못했어요. 새로고침한 뒤 다시 시도해 주세요.",
   FORBIDDEN: "요청을 처리하지 못했어요. 새로고침한 뒤 다시 시도해 주세요.",

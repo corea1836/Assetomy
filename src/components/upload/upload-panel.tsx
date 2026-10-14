@@ -6,6 +6,7 @@ import { z } from "zod";
 import { buttonClass } from "@/components/button-styles";
 import { uploadErrorMessage } from "@/lib/errors/messages";
 import { formatPeriod, formatWon } from "@/lib/format";
+import { ANALYSIS_BASES, CARD_ISSUERS } from "@/types/card";
 import type { CardOption, UploadResultDto } from "@/types/upload";
 import { fetchJson, responseError, TEMPORARY_ERROR, type UploadError } from "./api-reply";
 import { DataNotice } from "./data-notice";
@@ -14,7 +15,13 @@ import { sendUpload } from "./send-upload";
 
 const MAX_FILE_BYTES = 4_194_304;
 const NEW_CARD = "__new_card__";
-const cardSchema = z.object({ card: z.object({ id: z.string().min(1), label: z.string().min(1).max(30) }) });
+const cardSchema = z.object({ card: z.object({
+  id: z.string().min(1),
+  label: z.string().min(1).max(30),
+  issuer: z.enum(CARD_ISSUERS),
+  analysisBasis: z.enum(ANALYSIS_BASES),
+  cycleStartDay: z.int().min(1).max(31).nullable(),
+}) });
 const uploadSchema = z.object({ result: z.union([
   z.object({
     kind: z.enum(["done", "no_new"]), uploadId: z.string().min(1),

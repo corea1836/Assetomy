@@ -74,7 +74,7 @@ const summaryDeps = {
     promptFor: (plan: "free" | "pro") => `${plan} prompt`,
   },
 } as unknown as SummaryDeps;
-const cards = [{ id: "card-a", label: "현대 생활비" }];
+const cards = [{ id: "card-a", label: "현대 생활비", issuer: "hyundai" as const, analysisBasis: "month" as const, cycleStartDay: null }];
 const freeDashboard = buildDashboard({ transactions: DEMO_TRANSACTIONS, plan: "free", today: DEMO_TODAY }) as FreeDashboard;
 const proDashboard = buildDashboard({ transactions: DEMO_TRANSACTIONS, plan: "pro", today: DEMO_TODAY }) as ProDashboard;
 
