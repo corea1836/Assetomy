@@ -1,6 +1,7 @@
 import { CATEGORY_IDS, type CategoryId } from "@/types/category";
 import type { MonthOption, Period, PeriodSnapshot, Snapshot } from "@/types/dashboard";
 import type { IsoDate, Transaction, YearMonth } from "@/types/transaction";
+import { pairCancellations } from "./cancellations";
 import { datesOfMonth, monthOf } from "./dates";
 
 export const TOP_MERCHANT_LIMIT = 5;
@@ -49,6 +50,7 @@ export function buildSnapshot(
     period: periodSnapshot.period,
     total: periodSnapshot.total,
     transactionCount: periodSnapshot.transactionCount,
+    cancelCount: periodSnapshot.cancelCount,
     inProgress: month >= monthOf(today),
     categories: periodSnapshot.categories,
     topMerchants: periodSnapshot.topMerchants,
@@ -67,13 +69,16 @@ export function buildPeriodSnapshot(
 
   const firstDate = transactions[0].date;
   const period: Period = { from: firstDate, to: firstDate };
+  const pairedCancellations = pairCancellations(transactions);
   let total = 0;
+  let cancelCount = 0;
   const categoryTotals = new Map<CategoryId, number>();
   const dailyTotals = new Map<IsoDate, number>();
   const merchantTotals = new Map<string, {
     latest: Transaction;
     amount: number;
     count: number;
+    cancelCount: number;
   }>();
 
   for (const transaction of transactions) {
@@ -83,16 +88,25 @@ export function buildPeriodSnapshot(
     categoryTotals.set(category, (categoryTotals.get(category) ?? 0) + amount);
     dailyTotals.set(date, (dailyTotals.get(date) ?? 0) + amount);
 
+    const isPaired = pairedCancellations.has(transaction.id);
+    if (isPaired && amount < 0) cancelCount += 1;
+
     const merchantTotal = merchantTotals.get(merchantKey);
     if (merchantTotal) {
       merchantTotal.amount += amount;
-      merchantTotal.count += 1;
+      if (isPaired && amount < 0) merchantTotal.cancelCount += 1;
+      if (!isPaired) merchantTotal.count += 1;
       const { latest } = merchantTotal;
       if (date > latest.date || (date === latest.date && transaction.id > latest.id)) {
         merchantTotal.latest = transaction;
       }
     } else {
-      merchantTotals.set(merchantKey, { latest: transaction, amount, count: 1 });
+      merchantTotals.set(merchantKey, {
+        latest: transaction,
+        amount,
+        count: isPaired ? 0 : 1,
+        cancelCount: isPaired && amount < 0 ? 1 : 0,
+      });
     }
   }
 
@@ -109,12 +123,13 @@ export function buildPeriodSnapshot(
     .sort((a, b) =>
       b.amount - a.amount || compareStrings(a.latest.merchantKey, b.latest.merchantKey),
     )
-    .map(({ latest, amount, count }) => ({
+    .map(({ latest, amount, count, cancelCount: merchantCancelCount }) => ({
       merchantKey: latest.merchantKey,
       merchant: latest.merchant,
       category: latest.category,
       amount,
       count,
+      cancelCount: merchantCancelCount,
     }));
   const topMerchants = merchants.filter(({ amount }) => amount > 0).slice(0, TOP_MERCHANT_LIMIT);
   const topKeys = new Set(topMerchants.map(({ merchantKey }) => merchantKey));
@@ -123,7 +138,8 @@ export function buildPeriodSnapshot(
   return {
     period,
     total,
-    transactionCount: transactions.length,
+    transactionCount: transactions.length - pairedCancellations.size,
+    cancelCount,
     categories,
     topMerchants,
     otherMerchants,

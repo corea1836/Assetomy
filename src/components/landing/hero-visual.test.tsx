@@ -9,6 +9,7 @@ const snapshot: Snapshot = {
   period: { from: "2026-08-01", to: "2026-08-31" },
   total: 123_456,
   transactionCount: 12,
+  cancelCount: 0,
   inProgress: false,
   categories: [
     { category: "education", amount: 80_000, ratio: 0.65 },

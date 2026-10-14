@@ -64,6 +64,17 @@ const freeKeys = [
 ];
 
 describe("buildSummaryInput", () => {
+  it("uses cancellation-adjusted demo transaction and merchant counts without exposing cancelCount (ADR-025)", () => {
+    const dashboard = getDashboard("free");
+    const input = buildSummaryInput(dashboard);
+
+    expect(input.transactionCount).toBe(24);
+    expect(input.topMerchants.find(({ merchant }) => merchant === "예시 종이달 상점"))
+      .toMatchObject({ count: 1 });
+    expect(input).not.toHaveProperty("cancelCount");
+    expect(JSON.stringify(input)).not.toContain("cancelCount");
+  });
+
   it("builds Free input with the fixed key order and no Pro-only fields", () => {
     const dashboard = getDashboard("free");
     if (dashboard.plan !== "free") throw new Error("Expected a Free dashboard");

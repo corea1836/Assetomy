@@ -12,6 +12,7 @@ const merchants: MerchantAmount[] = [
     category: "food",
     amount: 123_000,
     count: 5,
+    cancelCount: 0,
   },
   {
     merchantKey: "동네카페",
@@ -19,6 +20,7 @@ const merchants: MerchantAmount[] = [
     category: "cafe",
     amount: -12_000,
     count: 2,
+    cancelCount: 0,
   },
 ];
 

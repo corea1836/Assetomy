@@ -165,7 +165,7 @@ describe("dashboard page", () => {
     );
   });
 
-  it("shows the Free monthly dashboard with only teaser totals and a static trend lock", async () => {
+  it("shows the Free monthly dashboard with cancellation pairs (ADR-025) and only teaser totals", async () => {
     vi.mocked(listTransactions).mockResolvedValue(DEMO_TRANSACTIONS);
     const { container } = render(await page());
     expect(within(screen.getByRole("navigation", { name: "카드 보기" })).getByRole("link", { name: "전체" })).toHaveAttribute("aria-current", "page");
@@ -173,7 +173,7 @@ describe("dashboard page", () => {
     expect(screen.getByText("2026년 9월까지 반영됨")).toBeInTheDocument();
     const total = screen.getByRole("heading", { name: "총지출" }).closest("section")!;
     expect(within(total).getByText(formatWon(freeDashboard.snapshot.total))).toBeInTheDocument();
-    expect(within(total).getByText("거래 26건 · 반영 기간 9/1~9/30")).toBeInTheDocument();
+    expect(within(total).getByText("거래 24건 · 반영 기간 9/1~9/30")).toBeInTheDocument();
     expect(total).toHaveTextContent("취소·환불은 카드사 파일의 날짜 기준으로 반영돼요");
     expect(vi.mocked(TeaserCard).mock.calls[0][0]).toEqual({ teaser: freeDashboard.teaser, dataMonthCount: 4 });
     expect(Object.keys(vi.mocked(TeaserCard).mock.calls[0][0]).sort()).toEqual(["dataMonthCount", "teaser"]);

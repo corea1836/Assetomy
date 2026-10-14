@@ -11,7 +11,7 @@ const card: CardOption = {
 };
 const period = { from: "2026-10-01", to: "2026-10-31" } as const;
 const snapshot: Snapshot = {
-  period, total: 1000, transactionCount: 1, categories: [], topMerchants: [], otherMerchants: [], daily: [],
+  period, total: 1000, transactionCount: 1, cancelCount: 0, categories: [], topMerchants: [], otherMerchants: [], daily: [],
   month: "2026-10", inProgress: false,
 };
 const monthDashboard: CardDashboard = {
@@ -19,7 +19,7 @@ const monthDashboard: CardDashboard = {
   months: [{ month: "2026-10", period }], lastDate: "2026-10-15", snapshot, mom: null, partialMonth: null,
 } satisfies CardMonthView & { card: CardOption; plan: "free" };
 const statementSnapshot: PeriodSnapshot = {
-  period, total: 1000, transactionCount: 1, categories: [], topMerchants: [], otherMerchants: [], daily: [],
+  period, total: 1000, transactionCount: 1, cancelCount: 0, categories: [], topMerchants: [], otherMerchants: [], daily: [],
 };
 const statementDashboard: CardDashboard = {
   card: { ...card, analysisBasis: "cycle", cycleStartDay: 12 }, plan: "free", basis: "cycle",

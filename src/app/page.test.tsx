@@ -171,8 +171,9 @@ describe("landing page", () => {
       .toBeInTheDocument();
   });
 
-  it("illustrates the three features using the demo dashboard without adding navigation", async () => {
+  it("illustrates the three features with the cancellation-adjusted demo count (ADR-025)", async () => {
     const { month, snapshot, findings } = demoDashboard();
+    expect(snapshot).toMatchObject({ transactionCount: 24, cancelCount: 1 });
     render(await Page());
     const band = screen.getByRole("heading", { name: "파일 하나로 시작해요", level: 2 })
       .closest("section")!;

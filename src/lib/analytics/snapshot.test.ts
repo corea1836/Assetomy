@@ -116,6 +116,7 @@ describe("buildSnapshot", () => {
       category: "food",
       amount: 21_001,
       count: 3,
+      cancelCount: 0,
     });
     expect(snapshot.daily[2]).toEqual({ date: "2026-09-03", amount: 24_002 });
     expect(snapshot.daily[17]).toEqual({ date: "2026-09-18", amount: -3_001 });
@@ -128,6 +129,7 @@ describe("buildSnapshot", () => {
       month: "2026-09",
       total: 33_013,
       transactionCount: 5,
+      cancelCount: 0,
       period: { from: "2026-09-03", to: "2026-09-30" },
     });
     expect(snapshot).toEqual(
@@ -261,6 +263,7 @@ describe("buildSnapshot", () => {
         category: "grocery",
         amount: 1_902,
         count: 3,
+        cancelCount: 0,
       },
     ]);
     expect(buildSnapshot([...transactions].reverse(), "2026-09", "2026-10-01"))
@@ -285,9 +288,9 @@ describe("buildSnapshot", () => {
       [...new Set(transactions.filter(({ date }) => date.startsWith("2026-09-")).map(({ merchantKey }) => merchantKey))].sort(),
     );
     expect(snapshot.otherMerchants).toEqual([
-      { merchantKey: "f", merchant: "식당", category: "food", amount: 1_001, count: 1 },
-      { merchantKey: "zero", merchant: "식당", category: "food", amount: 0, count: 2 },
-      { merchantKey: "refund", merchant: "최신 환불 가맹점", category: "shopping", amount: -5_301, count: 3 },
+      { merchantKey: "f", merchant: "식당", category: "food", amount: 1_001, count: 1, cancelCount: 0 },
+      { merchantKey: "zero", merchant: "식당", category: "food", amount: 0, count: 0, cancelCount: 1 },
+      { merchantKey: "refund", merchant: "최신 환불 가맹점", category: "shopping", amount: -5_301, count: 3, cancelCount: 0 },
     ]);
     expect(buildSnapshot([...transactions].reverse(), "2026-09", "2026-10-01")).toEqual(snapshot);
   });
@@ -304,7 +307,7 @@ describe("buildSnapshot", () => {
     const snapshot = buildSnapshot(DEMO_TRANSACTIONS, "2026-09", DEMO_TODAY);
     expect(snapshot.otherMerchants).toHaveLength(7);
     expect(snapshot.otherMerchants[0]).toEqual({
-      merchantKey: "demo-telecom", merchant: "예시 구름선 통신", category: "housing", amount: 55_000, count: 1,
+      merchantKey: "demo-telecom", merchant: "예시 구름선 통신", category: "housing", amount: 55_000, count: 1, cancelCount: 0,
     });
   });
 
@@ -330,7 +333,7 @@ describe("buildSnapshot", () => {
     expect(snapshot.period).toEqual({ from: `${month}-15`, to: `${month}-15` });
   });
 
-  it("retains the period and count when all category and merchant sums are zero", () => {
+  it("keeps paired purchase and cancellation amounts while excluding them from counts (ADR-025)", () => {
     const snapshot = buildSnapshot(
       [
         transaction({ id: "purchase", date: "2026-09-04", amount: 1_001 }),
@@ -342,12 +345,46 @@ describe("buildSnapshot", () => {
 
     expect(snapshot).toMatchObject({
       total: 0,
-      transactionCount: 2,
+      transactionCount: 0,
+      cancelCount: 1,
       period: { from: "2026-09-04", to: "2026-09-25" },
       categories: [],
       topMerchants: [],
+      otherMerchants: [{
+        merchantKey: "restaurant", merchant: "식당", category: "food", amount: 0,
+        count: 0, cancelCount: 1,
+      }],
     });
     expect(snapshot.daily.reduce((sum, item) => sum + item.amount, 0)).toBe(0);
+  });
+
+  it("counts only the unmatched payment and keeps amounts unchanged after cancellation pairing (ADR-025)", () => {
+    const snapshot = buildSnapshot([
+      transaction({ id: "education-purchase", date: "2026-10-05", merchant: "교육", merchantKey: "education", amount: 254_000, category: "education" }),
+      transaction({ id: "education-cancel", date: "2026-10-05", merchant: "교육", merchantKey: "education", amount: -254_000, category: "education" }),
+      transaction({ id: "education-later", date: "2026-10-09", merchant: "교육", merchantKey: "education", amount: 284_000, category: "education" }),
+    ], "2026-10", "2026-10-14");
+
+    expect(snapshot).toMatchObject({ total: 284_000, transactionCount: 1, cancelCount: 1 });
+    expect(snapshot.categories).toEqual([{ category: "education", amount: 284_000, ratio: 1 }]);
+    expect(snapshot.daily.find(({ date }) => date === "2026-10-05")?.amount).toBe(0);
+    expect(snapshot.daily.find(({ date }) => date === "2026-10-09")?.amount).toBe(284_000);
+    expect(snapshot.topMerchants).toEqual([{
+      merchantKey: "education", merchant: "교육", category: "education", amount: 284_000,
+      count: 1, cancelCount: 1,
+    }]);
+  });
+
+  it("keeps an unmatched refund as one transaction (ADR-025)", () => {
+    const snapshot = buildSnapshot([
+      transaction({ id: "refund", date: "2026-09-20", merchantKey: "refund-shop", amount: -10_000 }),
+    ], "2026-09", "2026-10-01");
+
+    expect(snapshot).toMatchObject({ transactionCount: 1, cancelCount: 0 });
+    expect(snapshot.otherMerchants).toEqual([{
+      merchantKey: "refund-shop", merchant: "식당", category: "food", amount: -10_000,
+      count: 1, cancelCount: 0,
+    }]);
   });
 
   it("throws when the selected month has no transactions", () => {
@@ -385,6 +422,7 @@ describe("buildPeriodSnapshot", () => {
       period: { from: "2026-09-30", to: "2026-10-02" },
       total: 5_000,
       transactionCount: 2,
+      cancelCount: 0,
     });
     expect(snapshot.daily).toEqual([
       { date: "2026-09-29", amount: 0 },

@@ -358,6 +358,37 @@ describe("detectLarge", () => {
       transactions: [{ id: "current" }],
     }]);
   });
+
+  it("does not include a cancelled large payment among candidates (ADR-025)", () => {
+    const transactions = [
+      ...ordinaryPurchases(20),
+      transaction({ id: "cancelled-large", date: "2026-09-15", merchantKey: "large-shop", amount: 50_000 }),
+      transaction({ id: "cancel-large", date: "2026-09-16", merchantKey: "large-shop", amount: -50_000 }),
+    ];
+
+    expect(detectLarge(transactions, "2026-09")).toEqual([]);
+  });
+
+  it("removes a paired payment from the twenty-positive sample threshold (ADR-025)", () => {
+    const transactions = [
+      ...ordinaryPurchases(18),
+      transaction({ id: "large-candidate", amount: 15_000 }),
+      transaction({ id: "paired-payment", amount: 1_000 }),
+      transaction({ id: "pair-cancel", amount: -1_000 }),
+    ];
+
+    expect(detectLarge(transactions, "2026-09")).toEqual([]);
+  });
+
+  it("pairs a candidate with a cancellation in another month using the full input (ADR-025)", () => {
+    const transactions = [
+      ...ordinaryPurchases(19).map((item) => ({ ...item, date: "2026-08-01" })),
+      transaction({ id: "august-large", date: "2026-08-15", merchantKey: "large-shop", amount: 50_000 }),
+      transaction({ id: "september-cancel", date: "2026-09-15", merchantKey: "large-shop", amount: -50_000 }),
+    ];
+
+    expect(detectLarge(transactions, "2026-08")).toEqual([]);
+  });
 });
 
 const mixedTransactions: Transaction[] = [

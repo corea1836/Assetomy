@@ -7,6 +7,7 @@ import { buildCardDashboard, buildDashboard } from "./dashboard";
 import { detectFindings } from "./detection";
 import { buildSnapshot, listDataMonths } from "./snapshot";
 import { datesBetween } from "./dates";
+import { DEMO_TODAY, DEMO_TRANSACTIONS } from "@/lib/demo/fixture";
 
 function transaction(overrides: Partial<Transaction> = {}): Transaction {
   return {
@@ -76,6 +77,25 @@ const mixedTransactions: Transaction[] = [
 ];
 
 describe("buildDashboard", () => {
+  it("counts the September demo cancellation pair separately without changing its total (ADR-025)", () => {
+    const dashboard = buildDashboard({
+      transactions: DEMO_TRANSACTIONS,
+      plan: "free",
+      month: "2026-09",
+      today: DEMO_TODAY,
+    });
+    if (dashboard?.plan !== "free") throw new Error("Expected a Free dashboard");
+
+    expect(dashboard.snapshot).toMatchObject({
+      total: 1_517_200,
+      transactionCount: 24,
+      cancelCount: 1,
+    });
+    expect([...dashboard.snapshot.topMerchants, ...dashboard.snapshot.otherMerchants]
+      .find(({ merchantKey }) => merchantKey === "demo-shop"))
+      .toMatchObject({ count: 1, cancelCount: 1 });
+  });
+
   it.each(plans)("returns null for empty input on the %s plan", (plan) => {
     expect(buildDashboard({ transactions: [], plan, month: "abc", today })).toBeNull();
   });

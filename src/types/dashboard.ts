@@ -16,14 +16,16 @@ export type MerchantAmount = {
   merchant: string;
   category: CategoryId;
   amount: number;
-  count: number;
+  count: number; // 짝지은 취소를 뺀 거래 수
+  cancelCount: number; // 이 가맹점에서 짝지은 취소 수
 };
 export type DailyAmount = { date: IsoDate; amount: number };
 
 export type PeriodSnapshot = {
   period: Period; // 선택한 거래의 첫·마지막 이용일(반영 기간)
   total: number; // 선택한 거래의 금액 합(취소·환불 포함)
-  transactionCount: number;
+  transactionCount: number; // 짝지은 결제·취소를 뺀 거래 수
+  cancelCount: number; // 짝의 수
   categories: CategoryAmount[];
   topMerchants: MerchantAmount[];
   otherMerchants: MerchantAmount[]; // topMerchants 밖 가맹점, 금액순

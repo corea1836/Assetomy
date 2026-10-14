@@ -4,7 +4,7 @@ import type { PeriodSnapshot } from "@/types/dashboard";
 import { StatementTotalCard } from "./statement-total-card";
 
 const snapshot: PeriodSnapshot = {
-  period: { from: "2026-08-12", to: "2026-09-12" }, total: 123_000, transactionCount: 7,
+  period: { from: "2026-08-12", to: "2026-09-12" }, total: 123_000, transactionCount: 7, cancelCount: 0,
   categories: [], topMerchants: [], otherMerchants: [], daily: [],
 };
 const cyclePeriod = { from: "2026-08-12", to: "2026-09-11" };

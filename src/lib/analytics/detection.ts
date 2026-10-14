@@ -1,5 +1,6 @@
 import type { Finding, FindingSummary } from "@/types/dashboard";
 import type { Transaction, YearMonth } from "@/types/transaction";
+import { pairCancellations } from "./cancellations";
 import { daysBetween, monthOf } from "./dates";
 
 export const RECURRING_MIN_GAP_DAYS = 28;
@@ -147,7 +148,10 @@ export function detectLarge(
   transactions: Transaction[],
   month: YearMonth,
 ): Finding[] {
-  const positive = transactions.filter((transaction) => transaction.amount > 0);
+  const pairedCancellations = pairCancellations(transactions);
+  const positive = transactions.filter(
+    (transaction) => transaction.amount > 0 && !pairedCancellations.has(transaction.id),
+  );
   if (positive.length < LARGE_MIN_SAMPLE) return [];
 
   const amounts = positive.map((transaction) => transaction.amount).sort((a, b) => a - b);
