@@ -1,0 +1,23 @@
+{
+  "project": "assetomy",
+  "phase": "13-insight-personalization",
+  "preflight": [
+    {
+      "check": "grep -q '^SUPABASE_SECRET_KEY=.' .env && grep -q '^NEXT_PUBLIC_SUPABASE_URL=https://' .env",
+      "hint": ".env에 dev 프로젝트의 NEXT_PUBLIC_SUPABASE_URL과 SUPABASE_SECRET_KEY를 넣어 주세요(DB 통합 테스트용)"
+    },
+    {
+      "check": "test -f supabase/.temp/project-ref && supabase projects list >/dev/null 2>&1",
+      "hint": "별도 터미널에서: supabase login && supabase link --project-ref rpirufnxspecugnvjjko (step 0 마이그레이션 push용)"
+    }
+  ],
+  "steps": [
+    { "step": 0, "name": "insight-schema", "status": "pending" },
+    { "step": 1, "name": "summary-contract", "status": "pending" },
+    { "step": 2, "name": "feedback-data", "status": "pending" },
+    { "step": 3, "name": "cancel-pairing", "status": "pending" },
+    { "step": 4, "name": "insight-input", "status": "pending" },
+    { "step": 5, "name": "summary-prompts", "status": "pending" },
+    { "step": 6, "name": "insight-ui", "status": "pending" }
+  ]
+}
