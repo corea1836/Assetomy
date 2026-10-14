@@ -47,7 +47,10 @@
     {
       "step": 4,
       "name": "card-form",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T14:28:53+0900",
+      "summary": "CardForm에 카드사·이름·분석 기준·이용 기간 입력과 서버 검증을 구현하고 nextCardLabel을 추가했으며, 업로드 패널의 카드 추가 상태를 폼으로 이동했어요. 신규 테스트 케이스 23개를 추가하고 기존 패널 테스트를 보강했어요. 브라우저 확인은 로그인 세션이 필요해 BROWSER_TESTING의 ‘수동 확인: 카드 · 청구서’로 이관했어요.",
+      "completed_at": "2026-10-14T14:32:59+0900"
     }
   ],
   "created_at": "2026-10-14T14:03:03+0900"
