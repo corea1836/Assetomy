@@ -47,7 +47,10 @@
     {
       "step": 4,
       "name": "card-components",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T16:22:49+0900",
+      "summary": "CardTabs·PeriodSelect·CardHeading·CardEditButton·StatementTotalCard·CategoryChangesCard·EmptyCard와 카드 화면 테스트를 추가하고 MonthlySummary의 month/card-month/statement variant를 구현했다. formatStatementOption·formatCardBasis와 cardEditErrorMessage, 명세서 요약 대기 문구를 추가했다.",
+      "completed_at": "2026-10-14T16:29:49+0900"
     },
     {
       "step": 5,
