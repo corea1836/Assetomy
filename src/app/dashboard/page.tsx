@@ -37,6 +37,7 @@ import { seoulToday } from "@/lib/clock";
 import { formatMonth } from "@/lib/format";
 import { listCards } from "@/lib/queries/cards";
 import { listStatements } from "@/lib/queries/statements";
+import { listSummaryFeedback } from "@/lib/queries/summary-feedback";
 import { getSubscription } from "@/lib/queries/subscriptions";
 import { listTransactions } from "@/lib/queries/transactions";
 import { listDoneUploads } from "@/lib/queries/uploads";
@@ -68,9 +69,10 @@ export default async function DashboardPage({ searchParams }: {
   if (upgrade === "pricing") nextParams.set("upgrade", "pricing");
   const user = await requireUser(`/dashboard${nextParams.size > 0 ? `?${nextParams}` : ""}`);
   const supabase = await createSupabaseServerClient();
-  const [cards, doneUploads, stored, statements] = await Promise.all([
+  const [cards, doneUploads, stored, statements, feedback] = await Promise.all([
     listCards(supabase, user.id), listDoneUploads(supabase, user.id),
     getSubscription(supabase, user.id), listStatements(supabase, user.id),
+    listSummaryFeedback(supabase, user.id),
   ]);
   const cardLabels = new Map(cards.map((card) => [card.id, card.label]));
   const [transactions, planState] = await Promise.all([
@@ -83,14 +85,15 @@ export default async function DashboardPage({ searchParams }: {
   const cardDashboard = activeCard === null || dashboard === null
     ? null
     : buildCardDashboard({ card: activeCard, transactions, statements, plan: planState.plan, month, statement, today });
+  const cardHeadingDashboard = cardDashboard === null ? null : { ...cardDashboard, flow: null };
   const cardSummaryDeps = cardDashboard === null ? null : defaultCardSummaryDeps(supabase);
   const preparedCardSummary = cardDashboard === null || cardSummaryDeps === null
     ? null
-    : prepareCardSummary(cardDashboard, cardSummaryDeps.summarizer);
+    : prepareCardSummary(cardDashboard, cardSummaryDeps.summarizer, feedback);
   const summaryDeps = dashboard === null || activeCard !== null ? null : defaultSummaryDeps(supabase);
   const preparedSummary = dashboard === null || summaryDeps === null
     ? null
-    : prepareSummary(dashboard, summaryDeps.summarizer);
+    : prepareSummary(dashboard, summaryDeps.summarizer, feedback);
   const history = doneUploads.map(({ cardId, ...upload }) => ({ ...upload, cardLabel: cardLabels.get(cardId) ?? null }));
 
   return (
@@ -173,7 +176,7 @@ export default async function DashboardPage({ searchParams }: {
               ) : (
                 <div className="space-y-12">
                   <CardTabs cards={cards} activeCardId={activeCard.id} />
-                  <CardHeading card={activeCard} dashboard={cardDashboard} />
+                  <CardHeading card={activeCard} dashboard={cardHeadingDashboard} />
                   {cardDashboard === null ? <EmptyCard /> : (
                     <>
                       {preparedCardSummary !== null && cardSummaryDeps !== null && (

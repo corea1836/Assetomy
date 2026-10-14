@@ -4,6 +4,7 @@ import { buildCardDashboard } from "@/lib/analytics/dashboard";
 import type { StatementRecord } from "@/types/card";
 import type { CardDashboard, Plan } from "@/types/dashboard";
 import type { SaveCardSummaryInput, StoredSummary } from "@/types/summary";
+import type { SummaryFeedback } from "@/types/summary";
 import type { Transaction } from "@/types/transaction";
 import { QueryError } from "@/lib/queries/query-error";
 import { StoreError } from "@/lib/store/store-error";
@@ -73,15 +74,20 @@ function makeDeps(overrides: Partial<CardSummaryDeps> = {}) {
   return { deps, summarizer };
 }
 
-function prepared(plan: Plan = "free", basis: "month" | "cycle" = "month", summarizer = makeSummarizer()): PreparedCardSummary {
-  return prepareCardSummary(dashboard(plan, basis), summarizer);
+function prepared(
+  plan: Plan = "free",
+  basis: "month" | "cycle" = "month",
+  summarizer = makeSummarizer(),
+  feedback: SummaryFeedback = {},
+): PreparedCardSummary {
+  return prepareCardSummary(dashboard(plan, basis), summarizer, feedback);
 }
 
 describe("prepareCardSummary", () => {
   it("builds only from the dashboard DTO and hashes model, prompt, and card summary input", () => {
     const dto = dashboard("pro");
     const summarizer = makeSummarizer();
-    const result = prepareCardSummary(dto, summarizer);
+    const result = prepareCardSummary(dto, summarizer, {});
     expect(result).toMatchObject({ cardId: "card-a", period: "2026-09", plan: "pro", model: "claude-opus-5-5" });
     expect(result.input).not.toHaveProperty("card");
     expect(JSON.stringify(result.input)).not.toContain(cardLabel);
@@ -97,14 +103,14 @@ describe("prepareCardSummary", () => {
 
   it("changes the input hash when only the prompt or model changes", () => {
     const dto = dashboard();
-    expect(prepareCardSummary(dto, makeSummarizer({ promptFor: () => "prompt A" })).inputHash)
-      .not.toBe(prepareCardSummary(dto, makeSummarizer({ promptFor: () => "prompt B" })).inputHash);
-    expect(prepareCardSummary(dto, makeSummarizer({ modelFor: () => "mock" })).inputHash)
-      .not.toBe(prepareCardSummary(dto, makeSummarizer({ modelFor: () => "claude-sonnet-5-5" })).inputHash);
+    expect(prepareCardSummary(dto, makeSummarizer({ promptFor: () => "prompt A" }), {}).inputHash)
+      .not.toBe(prepareCardSummary(dto, makeSummarizer({ promptFor: () => "prompt B" }), {}).inputHash);
+    expect(prepareCardSummary(dto, makeSummarizer({ modelFor: () => "mock" }), {}).inputHash)
+      .not.toBe(prepareCardSummary(dto, makeSummarizer({ modelFor: () => "claude-sonnet-5-5" }), {}).inputHash);
   });
 
   it("changes the input hash when the card summary input changes", () => {
-    const original = prepareCardSummary(dashboard(), makeSummarizer());
+    const original = prepareCardSummary(dashboard(), makeSummarizer(), {});
     const changedTransactions = [
       transaction({ id: "tx-aug", date: "2026-08-01", amount: 10_000 }),
       transaction({ id: "tx-sep", date: "2026-09-30", amount: 13_000 }),
@@ -114,7 +120,15 @@ describe("prepareCardSummary", () => {
       month: "2026-09", today: "2026-10-14",
     });
     if (changedDashboard === null) throw new Error("Expected card dashboard DTO");
-    expect(prepareCardSummary(changedDashboard, makeSummarizer()).inputHash).not.toBe(original.inputHash);
+    expect(prepareCardSummary(changedDashboard, makeSummarizer(), {}).inputHash).not.toBe(original.inputHash);
+  });
+
+  it("changes its input hash when category feedback changes", () => {
+    const dto = dashboard();
+    const summarizer = makeSummarizer();
+    const first = prepareCardSummary(dto, summarizer, { food: "평일 점심이에요" });
+    expect(prepareCardSummary(dto, summarizer, { food: "평일 점심이에요" }).inputHash).toBe(first.inputHash);
+    expect(prepareCardSummary(dto, summarizer, { food: "출장 중이에요" }).inputHash).not.toBe(first.inputHash);
   });
 });
 

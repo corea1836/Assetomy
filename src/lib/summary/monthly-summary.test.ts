@@ -2,6 +2,7 @@ import { beforeEach, describe, expect, it, vi } from "vitest";
 import { buildDashboard } from "@/lib/analytics/dashboard";
 import type { Dashboard } from "@/types/dashboard";
 import type { SaveSummaryInput, StoredSummary } from "@/types/summary";
+import type { SummaryFeedback } from "@/types/summary";
 import type { Transaction } from "@/types/transaction";
 import { QueryError } from "@/lib/queries/query-error";
 import { StoreError } from "@/lib/store/store-error";
@@ -52,16 +53,20 @@ function makeDeps(overrides: Partial<SummaryDeps> = {}) {
   return { deps, summarizer };
 }
 
-function prepared(plan: "free" | "pro" = "free", summarizer = makeSummarizer()): PreparedSummary {
-  return prepareSummary(dashboard(plan), summarizer);
+function prepared(
+  plan: "free" | "pro" = "free",
+  summarizer = makeSummarizer(),
+  feedback: SummaryFeedback = {},
+): PreparedSummary {
+  return prepareSummary(dashboard(plan), summarizer, feedback);
 }
 
 describe("prepareSummary", () => {
   it("builds only from the dashboard DTO and hashes the model with its summary input", () => {
     const dto = dashboard("free");
     const summarizer = makeSummarizer();
-    const result = prepareSummary(dto, summarizer);
-    expect(result.input).toEqual(buildSummaryInput(dto));
+    const result = prepareSummary(dto, summarizer, {});
+    expect(result.input).toEqual(buildSummaryInput(dto, {}));
     expect(result).toMatchObject({ month: "2026-09", plan: "free", model: "claude-sonnet-5-5" });
     expect(summarizer.modelFor).toHaveBeenCalledExactlyOnceWith("free");
     expect(summarizer.promptFor).toHaveBeenCalledExactlyOnceWith("free");
@@ -72,27 +77,35 @@ describe("prepareSummary", () => {
     const dto = dashboard();
     const before = makeSummarizer({ promptFor: () => "첫 프롬프트" });
     const after = makeSummarizer({ promptFor: () => "고친 프롬프트" });
-    expect(prepareSummary(dto, before).inputHash).toBe(prepareSummary(dto, before).inputHash);
-    expect(prepareSummary(dto, before).inputHash).not.toBe(prepareSummary(dto, after).inputHash);
+    expect(prepareSummary(dto, before, {}).inputHash).toBe(prepareSummary(dto, before, {}).inputHash);
+    expect(prepareSummary(dto, before, {}).inputHash).not.toBe(prepareSummary(dto, after, {}).inputHash);
   });
 
   it("is deterministic for the same DTO and model, and changes when only the model changes", () => {
     const dto = dashboard();
     const same = makeSummarizer({ modelFor: () => "mock" });
     const different = makeSummarizer({ modelFor: () => "claude-sonnet-5-5" });
-    expect(prepareSummary(dto, same).inputHash).toBe(prepareSummary(dto, same).inputHash);
-    expect(prepareSummary(dto, same).inputHash).not.toBe(prepareSummary(dto, different).inputHash);
+    expect(prepareSummary(dto, same, {}).inputHash).toBe(prepareSummary(dto, same, {}).inputHash);
+    expect(prepareSummary(dto, same, {}).inputHash).not.toBe(prepareSummary(dto, different, {}).inputHash);
   });
 
   it("uses different hashes for Free and Pro DTOs built from the same transactions", () => {
-    expect(prepareSummary(dashboard("free"), makeSummarizer()).inputHash)
-      .not.toBe(prepareSummary(dashboard("pro"), makeSummarizer()).inputHash);
+    expect(prepareSummary(dashboard("free"), makeSummarizer(), {}).inputHash)
+      .not.toBe(prepareSummary(dashboard("pro"), makeSummarizer(), {}).inputHash);
   });
 
   it("changes when a transaction category changes", () => {
-    const before = prepareSummary(dashboard(), makeSummarizer());
+    const before = prepareSummary(dashboard(), makeSummarizer(), {});
     const changed = dashboard("free", transactions.map((row) => row.id === "tx-sep" ? { ...row, category: "shopping" } : row));
-    expect(prepareSummary(changed, makeSummarizer()).inputHash).not.toBe(before.inputHash);
+    expect(prepareSummary(changed, makeSummarizer(), {}).inputHash).not.toBe(before.inputHash);
+  });
+
+  it("changes its input hash when category feedback changes", () => {
+    const dto = dashboard();
+    const summarizer = makeSummarizer();
+    const first = prepareSummary(dto, summarizer, { food: "평일 아침 커피예요" });
+    expect(prepareSummary(dto, summarizer, { food: "평일 아침 커피예요" }).inputHash).toBe(first.inputHash);
+    expect(prepareSummary(dto, summarizer, { food: "주말 외식이에요" }).inputHash).not.toBe(first.inputHash);
   });
 });
 

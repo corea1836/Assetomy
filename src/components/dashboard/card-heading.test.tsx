@@ -15,18 +15,18 @@ const snapshot: Snapshot = {
   month: "2026-10", inProgress: false,
 };
 const monthDashboard: CardDashboard = {
-  card, plan: "free", basis: "month", month: "2026-10",
+  card, plan: "free", flow: null, basis: "month", month: "2026-10",
   months: [{ month: "2026-10", period }], lastDate: "2026-10-15", snapshot, mom: null, partialMonth: null,
-} satisfies CardMonthView & { card: CardOption; plan: "free" };
+} satisfies CardMonthView & { card: CardOption; plan: "free"; flow: null };
 const statementSnapshot: PeriodSnapshot = {
   period, total: 1000, transactionCount: 1, cancelCount: 0, categories: [], topMerchants: [], otherMerchants: [], daily: [],
 };
 const statementDashboard: CardDashboard = {
-  card: { ...card, analysisBasis: "cycle", cycleStartDay: 12 }, plan: "free", basis: "cycle",
+  card: { ...card, analysisBasis: "cycle", cycleStartDay: 12 }, plan: "free", flow: null, basis: "cycle",
   statementDate: "2026-10-23", statements: [{ statementDate: "2026-10-23", cyclePeriod: period }],
   cyclePeriod: { from: "2026-09-12", to: "2026-10-11" }, complete: true,
   snapshot: statementSnapshot, comparison: null, comparisonSkipped: false,
-} satisfies CardStatementView & { card: CardOption; plan: "free" };
+} satisfies CardStatementView & { card: CardOption; plan: "free"; flow: null };
 
 describe("CardHeading", () => {
   it("shows a month selector, reflected-through date and card basis", () => {

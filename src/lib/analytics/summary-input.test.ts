@@ -3,6 +3,7 @@ import { CATEGORY_LABELS } from "@/types/category";
 import type { StatementRecord } from "@/types/card";
 import type { CardOption } from "@/types/upload";
 import type { Transaction } from "@/types/transaction";
+import type { SummaryFeedback } from "@/types/summary";
 import { DEMO_TODAY, DEMO_TRANSACTIONS } from "@/lib/demo/fixture";
 import { buildCardDashboard, buildDashboard } from "./dashboard";
 import { buildCardSummaryInput, buildSummaryInput } from "./summary-input";
@@ -46,7 +47,7 @@ function inputForMonthOverMonth(
     transaction({ id: "before", date: "2026-07-31" }),
     transaction({ id: "after", date: "2026-10-01" }),
   ];
-  return buildSummaryInput(getDashboard("free", transactions));
+  return buildSummaryInput(getDashboard("free", transactions), {});
 }
 
 const freeKeys = [
@@ -66,7 +67,7 @@ const freeKeys = [
 describe("buildSummaryInput", () => {
   it("uses cancellation-adjusted demo transaction and merchant counts without exposing cancelCount (ADR-025)", () => {
     const dashboard = getDashboard("free");
-    const input = buildSummaryInput(dashboard);
+    const input = buildSummaryInput(dashboard, {});
 
     expect(input.transactionCount).toBe(24);
     expect(input.topMerchants.find(({ merchant }) => merchant === "예시 종이달 상점"))
@@ -79,7 +80,7 @@ describe("buildSummaryInput", () => {
     const dashboard = getDashboard("free");
     if (dashboard.plan !== "free") throw new Error("Expected a Free dashboard");
 
-    const input = buildSummaryInput(dashboard);
+    const input = buildSummaryInput(dashboard, {});
 
     expect(Object.keys(input)).toEqual(freeKeys);
     expect(input).toMatchObject({
@@ -121,7 +122,7 @@ describe("buildSummaryInput", () => {
     const dashboard = getDashboard("pro");
     if (dashboard.plan !== "pro") throw new Error("Expected a Pro dashboard");
 
-    const input = buildSummaryInput(dashboard);
+    const input = buildSummaryInput(dashboard, {});
     if (input.plan !== "pro") throw new Error("Expected a Pro summary input");
 
     expect(Object.keys(input)).toEqual([...freeKeys, "findings", "trend"]);
@@ -164,8 +165,8 @@ describe("buildSummaryInput", () => {
   });
 
   it("shares the complete common input between Free and Pro", () => {
-    const free = buildSummaryInput(getDashboard("free"));
-    const pro = buildSummaryInput(getDashboard("pro"));
+    const free = buildSummaryInput(getDashboard("free"), {});
+    const pro = buildSummaryInput(getDashboard("pro"), {});
     if (free.plan !== "free" || pro.plan !== "pro") {
       throw new Error("Expected Free and Pro summary inputs");
     }
@@ -202,8 +203,8 @@ describe("buildSummaryInput", () => {
       throw new Error("Expected Free and Pro dashboards");
     }
 
-    const free = buildSummaryInput(freeDashboard);
-    const pro = buildSummaryInput(proDashboard);
+    const free = buildSummaryInput(freeDashboard, {});
+    const pro = buildSummaryInput(proDashboard, {});
     if (pro.plan !== "pro") throw new Error("Expected a Pro summary input");
 
     expect(free.categories.map(({ category }) => category)).toEqual(
@@ -227,6 +228,49 @@ describe("buildSummaryInput", () => {
       .toBe(true);
   });
 
+  it("adds the highest positive merchant and only matching category feedback", () => {
+    const transactions = [
+      transaction({ id: "food-main-one", merchant: "큰 식당", merchantKey: "food-main", amount: 9_000, category: "food" }),
+      transaction({ id: "food-main-two", merchant: "큰 식당", merchantKey: "food-main", amount: 9_000, category: "food" }),
+      transaction({ id: "food-next", merchant: "다음 식당", merchantKey: "food-next", amount: 17_000, category: "food" }),
+      ...([
+        ["cafe", "카페", 30_000], ["shopping", "쇼핑", 29_000], ["grocery", "마트", 28_000],
+        ["delivery", "배달", 27_000], ["transport", "교통", 26_000], ["health", "병원", 25_000],
+      ] as const).map(([category, merchant, amount], index) => transaction({
+        id: `other-${index}`, merchant, merchantKey: `other-${index}`, amount, category,
+      })),
+    ];
+    const dashboard = getDashboard("free", transactions);
+    const input = buildSummaryInput(dashboard, { food: "평일 아침 커피는 줄이기 어려워요", travel: "입력에 없는 카테고리" });
+
+    expect(input.categories.find(({ category }) => category === CATEGORY_LABELS.food)).toMatchObject({
+      topMerchant: { merchant: "큰 식당", amount: 18_000, count: 2 },
+      feedback: "평일 아침 커피는 줄이기 어려워요",
+    });
+    expect(input.categories.find(({ category }) => category === CATEGORY_LABELS.cafe)).toMatchObject({
+      topMerchant: { merchant: "카페", amount: 30_000, count: 1 },
+      feedback: null,
+    });
+    expect(JSON.stringify(input)).not.toContain("입력에 없는 카테고리");
+  });
+
+  it("uses a positive merchant from otherMerchants and leaves refund-only categories without one", () => {
+    const transactions = [
+      transaction({ id: "food-refund", amount: -1_000, category: "food", merchant: "환불 식당", merchantKey: "refund-food" }),
+      ...Array.from({ length: 6 }, (_, index) => transaction({
+        id: `other-positive-${index}`, amount: 10_000 + index, category: "shopping",
+        merchant: `상점 ${index}`, merchantKey: `shop-${index}`,
+      })),
+      transaction({ id: "food-positive", amount: 5_000, category: "food", merchant: "외부 식당", merchantKey: "outside-food" }),
+    ];
+    const input = buildSummaryInput(getDashboard("free", transactions), {});
+
+    expect(input.categories.find(({ category }) => category === CATEGORY_LABELS.food)?.topMerchant)
+      .toEqual({ merchant: "외부 식당", amount: 5_000, count: 1 });
+    const refundOnly = buildSummaryInput(getDashboard("free", [transactions[0]]), {});
+    expect(refundOnly.categories.find(({ category }) => category === CATEGORY_LABELS.food)?.topMerchant).toBeNull();
+  });
+
   it("maps month-over-month differences to directions and keeps null comparisons", () => {
     expect(inputForMonthOverMonth(100, 120).monthOverMonth).toMatchObject({
       diff: 20,
@@ -242,8 +286,8 @@ describe("buildSummaryInput", () => {
     });
 
     const singleMonth = [transaction()];
-    const free = buildSummaryInput(getDashboard("free", singleMonth));
-    const pro = buildSummaryInput(getDashboard("pro", singleMonth));
+    const free = buildSummaryInput(getDashboard("free", singleMonth), {});
+    const pro = buildSummaryInput(getDashboard("pro", singleMonth), {});
     expect(free.monthOverMonth).toBeNull();
     if (pro.plan !== "pro") throw new Error("Expected a Pro summary input");
     expect(pro.trend).toBeNull();
@@ -256,20 +300,20 @@ describe("buildSummaryInput", () => {
       transaction({ id: "last", date: "2026-10-01" }),
     ];
     for (const plan of ["free", "pro"] as const) {
-      const input = buildSummaryInput(getDashboard(plan, transactions));
+      const input = buildSummaryInput(getDashboard(plan, transactions), {});
       expect(input.monthOverMonth).toBeNull();
       expect(input.partialMonth).toBe("2026-08");
       if (input.plan === "pro") expect(input.trend?.categoryChanges).toBeNull();
     }
-    expect(buildSummaryInput(getDashboard("free")).partialMonth).toBeNull();
+    expect(buildSummaryInput(getDashboard("free"), {}).partialMonth).toBeNull();
   });
 
   it("preserves the DTO nested key order", () => {
-    const free = buildSummaryInput(getDashboard("free"));
-    const pro = buildSummaryInput(getDashboard("pro"));
+    const free = buildSummaryInput(getDashboard("free"), {});
+    const pro = buildSummaryInput(getDashboard("pro"), {});
 
     expect(Object.keys(free.period)).toEqual(["from", "to"]);
-    expect(Object.keys(free.categories[0])).toEqual(["category", "amount", "ratio"]);
+    expect(Object.keys(free.categories[0])).toEqual(["category", "amount", "ratio", "topMerchant", "feedback"]);
     expect(Object.keys(free.topMerchants[0])).toEqual(["merchant", "category", "amount", "count"]);
     expect(Object.keys(free.monthOverMonth!)).toEqual([
       "previousMonth", "previousTotal", "diff", "direction",
@@ -286,8 +330,8 @@ describe("buildSummaryInput", () => {
   });
 
   it("is deterministic for the same DTO and changes when a category changes", () => {
-    const first = buildSummaryInput(getDashboard("free"));
-    const second = buildSummaryInput(getDashboard("free", [...DEMO_TRANSACTIONS]));
+    const first = buildSummaryInput(getDashboard("free"), {});
+    const second = buildSummaryInput(getDashboard("free", [...DEMO_TRANSACTIONS]), {});
     expect(JSON.stringify(first)).toBe(JSON.stringify(second));
 
     const changedTransaction = DEMO_TRANSACTIONS.find((item) => item.date.startsWith(`${month}-`));
@@ -297,7 +341,7 @@ describe("buildSummaryInput", () => {
         ? { ...item, category: item.category === "food" ? "shopping" : "food" }
         : item,
     );
-    const changed = buildSummaryInput(getDashboard("free", changedTransactions));
+    const changed = buildSummaryInput(getDashboard("free", changedTransactions), {});
     expect(JSON.stringify(changed)).not.toBe(JSON.stringify(first));
   });
 });
@@ -318,6 +362,7 @@ function buildCardInput(
   transactions: Transaction[],
   statements: StatementRecord[] = [],
   selection: { month?: string; statement?: string } = {},
+  feedback: SummaryFeedback = {},
 ) {
   const dashboard = buildCardDashboard({
     card: summaryCard(analysisBasis),
@@ -328,7 +373,7 @@ function buildCardInput(
     today: "2026-10-14",
   });
   if (!dashboard) throw new Error("Expected a card dashboard");
-  return buildCardSummaryInput(dashboard);
+  return buildCardSummaryInput(dashboard, feedback);
 }
 
 describe("buildCardSummaryInput", () => {
@@ -414,5 +459,74 @@ describe("buildCardSummaryInput", () => {
 
     expect(incomplete).toMatchObject({ scope: "statement", inProgress: true, comparison: null, comparisonSkipped: true });
     expect(partialMonth).toMatchObject({ scope: "month", comparison: null, comparisonSkipped: true });
+  });
+
+  it("maps monthly flow periods and Pro category amounts while keeping Free flow total-only", () => {
+    const transactions = [
+      transaction({ id: "flow-june", cardId: "private-card-id", date: "2026-06-01", amount: 0 }),
+      transaction({ id: "flow-july", cardId: "private-card-id", date: "2026-07-01", amount: 100, category: "food" }),
+      transaction({ id: "flow-july-end", cardId: "private-card-id", date: "2026-07-31", amount: 0 }),
+      transaction({ id: "flow-august", cardId: "private-card-id", date: "2026-08-01", amount: 200, category: "food" }),
+      transaction({ id: "flow-august-end", cardId: "private-card-id", date: "2026-08-31", amount: 0 }),
+      transaction({ id: "flow-september", cardId: "private-card-id", date: "2026-09-01", amount: 300, category: "shopping" }),
+      transaction({ id: "flow-september-end", cardId: "private-card-id", date: "2026-09-30", amount: 0 }),
+    ];
+    const free = buildCardInput("free", "month", transactions, [], { month: "2026-09" });
+    const pro = buildCardInput("pro", "month", transactions, [], { month: "2026-09" });
+
+    expect(free.flow).toEqual({
+      periods: [
+        { month: "2026-07", total: 100 },
+        { month: "2026-08", total: 200 },
+        { month: "2026-09", total: 300 },
+      ],
+      direction: "rising",
+    });
+    expect("categories" in free.flow!).toBe(false);
+    if (pro.plan !== "pro" || pro.flow === null) throw new Error("Expected Pro flow");
+    expect(pro.flow.categories).toEqual([{
+      category: CATEGORY_LABELS.shopping,
+      direction: "mixed",
+      periods: [
+        { month: "2026-07", amount: 0 },
+        { month: "2026-08", amount: 0 },
+        { month: "2026-09", amount: 300 },
+      ],
+    }]);
+    expect(JSON.stringify(free)).not.toContain('"amounts"');
+    expect(JSON.stringify(free)).not.toContain("private-card-id");
+    expect(JSON.stringify(free)).not.toContain("비공개 카드 라벨");
+  });
+
+  it("pairs statement flow amounts with the payment month and category name", () => {
+    const statementDates = ["2026-08-23", "2026-09-23", "2026-10-23"];
+    const transactions = statementDates.map((statementDate, index) => transaction({
+      id: `statement-flow-${index}`,
+      cardId: "private-card-id",
+      statementDate,
+      date: `${statementDate.slice(0, 7)}-05`,
+      amount: (index + 1) * 100,
+      category: index === 2 ? "shopping" : "food",
+    }));
+    const records = statementDates.map((statementDate) => ({
+      cardId: "private-card-id", statementDate, savedOn: `${statementDate.slice(0, 7)}-28`,
+    }));
+    const pro = buildCardInput("pro", "cycle", transactions, records, { statement: "2026-10-23" });
+
+    if (pro.plan !== "pro" || pro.flow === null) throw new Error("Expected Pro statement flow");
+    expect(pro.flow.periods).toEqual([
+      { month: "2026-08", total: 100 },
+      { month: "2026-09", total: 200 },
+      { month: "2026-10", total: 300 },
+    ]);
+    expect(pro.flow.categories).toEqual([{
+      category: CATEGORY_LABELS.shopping,
+      direction: "mixed",
+      periods: [
+        { month: "2026-08", amount: 0 },
+        { month: "2026-09", amount: 0 },
+        { month: "2026-10", amount: 300 },
+      ],
+    }]);
   });
 });

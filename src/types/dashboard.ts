@@ -3,6 +3,11 @@ import type { CardOption } from "./upload";
 import type { IsoDate, YearMonth } from "./transaction";
 
 export type Plan = "free" | "pro";
+export type FlowDirection = "rising" | "falling" | "steady" | "mixed";
+// 월별 카드는 그 달, 이용 기간 카드는 명세서 결제일의 달
+export type FlowPeriod = { month: YearMonth; total: number };
+export type CardFlow = { periods: FlowPeriod[]; direction: FlowDirection };
+export type CategoryFlow = { category: CategoryId; direction: FlowDirection; amounts: number[] };
 export type Period = { from: IsoDate; to: IsoDate };
 export type MonthOption = { month: YearMonth; period: Period };
 
@@ -131,9 +136,10 @@ export type CardStatementView = {
   comparisonSkipped: boolean;
 };
 type CardDashboardBase = { card: CardOption } & (CardMonthView | CardStatementView);
-export type FreeCardDashboard = CardDashboardBase & { plan: "free" };
+export type FreeCardDashboard = CardDashboardBase & { plan: "free"; flow: CardFlow | null };
 export type ProCardDashboard = CardDashboardBase & {
   plan: "pro";
+  flow: (CardFlow & { categories: CategoryFlow[] }) | null;
   categoryChanges: CategoryChange[] | null;
 };
 export type CardDashboard = FreeCardDashboard | ProCardDashboard;

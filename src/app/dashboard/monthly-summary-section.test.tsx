@@ -18,7 +18,7 @@ function makePrepared(plan: "free" | "pro") {
   const dashboard = buildDashboard({ transactions: DEMO_TRANSACTIONS, plan, today: DEMO_TODAY });
   if (!dashboard) throw new Error("Expected dashboard DTO");
   const summarizer = makeSummarizer();
-  return prepareSummary(dashboard as Dashboard, summarizer);
+  return prepareSummary(dashboard as Dashboard, summarizer, {});
 }
 
 function makeSummarizer(result: SummaryResult = { ok: true, summary: "새 요약이에요.", tips: ["새 팁이에요."], tipCategories: ["food"] }): MonthlySummarizer {

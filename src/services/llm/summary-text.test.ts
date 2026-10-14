@@ -11,7 +11,7 @@ function freeInput(overrides: Partial<FreeSummaryInput> = {}): FreeSummaryInput 
     period: { from: "2026-09-01", to: "2026-09-30" },
     total: 1000,
     transactionCount: 1,
-    categories: [{ category: "식비", amount: 1000, ratio: 1 }],
+    categories: [{ category: "식비", amount: 1000, ratio: 1, topMerchant: null, feedback: null }],
     topMerchants: [],
     monthOverMonth: null,
     partialMonth: null,
@@ -173,8 +173,8 @@ describe("checkSummaryContent", () => {
 
 describe("checkSummaryContent comparison and category contract", () => {
   const input = freeInput({ categories: [
-    { category: "식비", amount: 700, ratio: 0.7 },
-    { category: "기타", amount: 300, ratio: 0.3 },
+    { category: "식비", amount: 700, ratio: 0.7, topMerchant: null, feedback: null },
+    { category: "기타", amount: 300, ratio: 0.3, topMerchant: null, feedback: null },
   ] });
 
   it("stores a single paragraph when comparison is empty and joins nonempty paragraphs", () => {
@@ -236,9 +236,9 @@ describe("checkSummaryContent placeholders", () => {
     total: 1_820_075,
     transactionCount: 78,
     categories: [
-      { category: "문화·여가", amount: 691_600, ratio: 0.38 },
-      { category: "식비", amount: 436_800, ratio: 0.24 },
-      { category: "기타", amount: 0, ratio: null },
+      { category: "문화·여가", amount: 691_600, ratio: 0.38, topMerchant: null, feedback: null },
+      { category: "식비", amount: 436_800, ratio: 0.24, topMerchant: null, feedback: null },
+      { category: "기타", amount: 0, ratio: null, topMerchant: null, feedback: null },
     ],
     topMerchants: [{ merchant: "스타벅스 강남점", category: "카페·간식", amount: 52_000, count: 9 }],
     monthOverMonth: { previousMonth: "2026-08", previousTotal: 1_605_775, diff: 214_300, direction: "up" },
@@ -356,10 +356,11 @@ describe("checkSummaryContent card placeholders", () => {
       inProgress: false,
       total: 120_000,
       transactionCount: 8,
-      categories: [{ category: "식비", amount: 80_000, ratio: 0.67 }],
+      categories: [{ category: "식비", amount: 80_000, ratio: 0.67, topMerchant: null, feedback: null }],
       topMerchants: [{ merchant: "가게", category: "식비", amount: 40_000, count: 2 }],
       comparison: { previousTotal: 100_000, diff: 20_000, direction: "up" as const },
       comparisonSkipped: false,
+      flow: null,
     };
     return { plan: "free", ...shared, ...overrides } as CardSummaryInput;
   }

@@ -1,4 +1,6 @@
-import type { CardDashboard, Dashboard, PeriodSnapshot, Plan } from "@/types/dashboard";
+import type {
+  CardDashboard, CardFlow, CategoryFlow, Dashboard, FlowPeriod, PeriodSnapshot, Plan,
+} from "@/types/dashboard";
 import type { StatementRecord } from "@/types/card";
 import type { IsoDate, Transaction } from "@/types/transaction";
 import type { CardOption } from "@/types/upload";
@@ -7,6 +9,22 @@ import { detectFindings, summarizeFindings } from "./detection";
 import { addMonths, datesBetween, monthOf } from "./dates";
 import { statementCyclePeriod } from "./statements";
 import { buildPeriodSnapshot, buildSnapshot, listDataMonths } from "./snapshot";
+import { FLOW_CATEGORY_LIMIT, flowDirection } from "./flow";
+
+function categoryFlows(
+  current: PeriodSnapshot,
+  snapshots: PeriodSnapshot[],
+): CategoryFlow[] {
+  return current.categories
+    .filter(({ category, amount }) => category !== "etc" && amount > 0)
+    .slice(0, FLOW_CATEGORY_LIMIT)
+    .map(({ category }) => {
+      const amounts = snapshots.map((snapshot) =>
+        snapshot.categories.find((item) => item.category === category)?.amount ?? 0,
+      );
+      return { category, amounts, direction: flowDirection(amounts) };
+    });
+}
 
 export type BuildDashboardInput = {
   transactions: Transaction[];
@@ -86,6 +104,24 @@ export function buildCardDashboard(input: BuildCardDashboardInput): CardDashboar
       ?? months[0].month;
     const snapshot = buildSnapshot(cardTransactions, month, today);
     const { mom, partialMonth } = buildMonthComparison(cardTransactions, month, today);
+    const earlierComparison = mom === null
+      ? null
+      : buildMonthComparison(cardTransactions, mom.previousMonth, today).mom;
+    const flowMonths = mom === null || earlierComparison === null
+      ? null
+      : [earlierComparison.previousMonth, mom.previousMonth, month] as const;
+    const flowSnapshots = flowMonths === null
+      ? null
+      : flowMonths.map((flowMonth) => buildSnapshot(cardTransactions, flowMonth, today));
+    const flow: CardFlow | null = flowMonths === null || flowSnapshots === null
+      ? null
+      : {
+        periods: flowMonths.map((flowMonth, index): FlowPeriod => ({
+          month: flowMonth,
+          total: flowSnapshots[index].total,
+        })),
+        direction: flowDirection(flowSnapshots.map(({ total }) => total)),
+      };
     const common = {
       card,
       basis: "month" as const,
@@ -97,7 +133,7 @@ export function buildCardDashboard(input: BuildCardDashboardInput): CardDashboar
       partialMonth,
     };
 
-    if (plan === "free") return { ...common, plan: "free" };
+    if (plan === "free") return { ...common, plan: "free", flow };
 
     const previousSnapshot = mom === null
       ? undefined
@@ -105,6 +141,9 @@ export function buildCardDashboard(input: BuildCardDashboardInput): CardDashboar
     return {
       ...common,
       plan: "pro",
+      flow: flow === null || flowSnapshots === null
+        ? null
+        : { ...flow, categories: categoryFlows(flowSnapshots[2], flowSnapshots) },
       categoryChanges: mom === null
         ? null
         : buildCategoryChanges(snapshot, previousSnapshot),
@@ -181,6 +220,42 @@ export function buildCardDashboard(input: BuildCardDashboardInput): CardDashboar
     }
   }
 
+  let statementFlow: CardFlow | null = null;
+  let statementFlowSnapshots: PeriodSnapshot[] | null = null;
+  if (comparison !== null && previousSnapshot !== undefined && previousStatementDate !== undefined) {
+    const olderPaymentMonth = addMonths(monthOf(previousStatementDate), -1);
+    const olderStatementDate = statementDates
+      .filter((date) => monthOf(date) === olderPaymentMonth)
+      .sort()
+      .at(-1);
+    if (olderStatementDate !== undefined && statementIsComplete(
+      card.id,
+      olderStatementDate,
+      cycleStartDay,
+      statements,
+    )) {
+      const olderTransactions = statementTransactions.filter(
+        (transaction) => transaction.statementDate === olderStatementDate,
+      );
+      const olderSnapshot = buildPeriodSnapshot(olderTransactions, []);
+      const currentFlowSnapshot = buildPeriodSnapshot(selectedTransactions, []);
+      const flowSnapshots = [olderSnapshot, previousSnapshot, currentFlowSnapshot];
+      statementFlowSnapshots = flowSnapshots;
+      const flowMonths = [
+        monthOf(olderStatementDate),
+        monthOf(previousStatementDate),
+        monthOf(statementDate),
+      ] as const;
+      statementFlow = {
+        periods: flowMonths.map((flowMonth, index): FlowPeriod => ({
+          month: flowMonth,
+          total: flowSnapshots[index].total,
+        })),
+        direction: flowDirection(flowSnapshots.map(({ total }) => total)),
+      };
+    }
+  }
+
   const common = {
     card,
     basis: "cycle" as const,
@@ -193,11 +268,14 @@ export function buildCardDashboard(input: BuildCardDashboardInput): CardDashboar
     comparisonSkipped,
   };
 
-  if (plan === "free") return { ...common, plan: "free" };
+  if (plan === "free") return { ...common, plan: "free", flow: statementFlow };
 
   return {
     ...common,
     plan: "pro",
+    flow: statementFlow === null || statementFlowSnapshots === null
+      ? null
+      : { ...statementFlow, categories: categoryFlows(statementFlowSnapshots[2], statementFlowSnapshots) },
     categoryChanges: comparison === null
       ? null
       : buildCategoryChanges(snapshot, previousSnapshot),

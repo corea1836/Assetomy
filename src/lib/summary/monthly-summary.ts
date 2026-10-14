@@ -5,7 +5,7 @@ import { QueryError } from "@/lib/queries/query-error";
 import { StoreError } from "@/lib/store/store-error";
 import type { Dashboard } from "@/types/dashboard";
 import type {
-  MonthlySummaryView, SaveSummaryInput, SaveSummaryResult, StoredSummary, SummaryInput,
+  MonthlySummaryView, SaveSummaryInput, SaveSummaryResult, StoredSummary, SummaryFeedback, SummaryInput,
 } from "@/types/summary";
 import type { YearMonth } from "@/types/transaction";
 import type { MonthlySummarizer } from "@/services/llm/types";
@@ -21,8 +21,9 @@ export type PreparedSummary = {
 export function prepareSummary(
   dashboard: Dashboard,
   summarizer: Pick<MonthlySummarizer, "modelFor" | "promptFor">,
+  feedback: SummaryFeedback,
 ): PreparedSummary {
-  const input = buildSummaryInput(dashboard);
+  const input = buildSummaryInput(dashboard, feedback);
   const model = summarizer.modelFor(dashboard.plan);
   const prompt = summarizer.promptFor(dashboard.plan);
   const inputHash = createHash("sha256").update(JSON.stringify({ model, prompt, input })).digest("hex");

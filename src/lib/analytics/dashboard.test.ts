@@ -346,6 +346,138 @@ const cycleRecords: StatementRecord[] = [
 ];
 
 describe("buildCardDashboard", () => {
+  it("builds monthly flow only when both adjacent month comparisons are complete", () => {
+    const covered = [
+      transaction({ id: "flow-june", date: "2026-06-01", amount: 0 }),
+      transaction({ id: "flow-july", date: "2026-07-01", amount: 100 }),
+      transaction({ id: "flow-july-end", date: "2026-07-31", amount: 0 }),
+      transaction({ id: "flow-august", date: "2026-08-01", amount: 200 }),
+      transaction({ id: "flow-august-end", date: "2026-08-31", amount: 0 }),
+      transaction({ id: "flow-september", date: "2026-09-01", amount: 300 }),
+      transaction({ id: "flow-september-end", date: "2026-09-30", amount: 0 }),
+    ];
+    const result = buildCardDashboard({
+      card: cardOption(), transactions: covered, statements: [], plan: "free",
+      month: "2026-09", today: "2026-10-14",
+    });
+    const twoMonths = buildCardDashboard({
+      card: cardOption(), transactions: covered.filter(({ date }) => date >= "2026-08-01"), statements: [], plan: "free",
+      month: "2026-09", today: "2026-10-14",
+    });
+    const partialMiddle = buildCardDashboard({
+      card: cardOption(),
+      transactions: covered.filter(({ id }) => id !== "flow-june").map((row) =>
+        row.id === "flow-july" ? { ...row, date: "2026-07-10" } : row,
+      ),
+      statements: [], plan: "free", month: "2026-09", today: "2026-10-14",
+    });
+    const inProgress = buildCardDashboard({
+      card: cardOption(), transactions: [...covered, transaction({ id: "flow-october", date: "2026-10-01", amount: 400 })],
+      statements: [], plan: "free", month: "2026-10", today: "2026-10-14",
+    });
+
+    expect(result?.flow).toEqual({
+      periods: [
+        { month: "2026-07", total: 100 },
+        { month: "2026-08", total: 200 },
+        { month: "2026-09", total: 300 },
+      ],
+      direction: "rising",
+    });
+    expect(twoMonths?.flow).toBeNull();
+    expect(partialMiddle?.flow).toBeNull();
+    expect(inProgress?.flow).toBeNull();
+  });
+
+  it("adds up to five positive non-etc category flows only to the Pro DTO", () => {
+    const categories = ["food", "cafe", "grocery", "shopping", "housing", "health", "etc"] as const;
+    const transactions = [
+      transaction({ id: "flow-june", date: "2026-06-01", amount: 0 }),
+      ...["2026-07", "2026-08", "2026-09"].flatMap((month, monthIndex) => [
+        transaction({ id: `${month}-start`, date: `${month}-01`, amount: 0 }),
+        ...categories.map((category, categoryIndex) => transaction({
+          id: `${month}-${category}`,
+          date: `${month}-15`,
+          category,
+          amount: categoryIndex < 6 ? (monthIndex + 1) * (categoryIndex + 1) * 100 : 10_000,
+        })),
+        transaction({ id: `${month}-end`, date: `${month}-${month === "2026-09" ? "30" : "28"}`, amount: 0 }),
+      ]),
+    ];
+    const pro = buildCardDashboard({
+      card: cardOption(), transactions, statements: [], plan: "pro", month: "2026-09", today: "2026-10-14",
+    });
+    const free = buildCardDashboard({
+      card: cardOption(), transactions, statements: [], plan: "free", month: "2026-09", today: "2026-10-14",
+    });
+    if (free === null || pro === null) throw new Error("Expected card dashboards");
+
+    expect(pro.flow).toMatchObject({
+      categories: [
+        { category: "health", amounts: [600, 1_200, 1_800] },
+        { category: "housing", amounts: [500, 1_000, 1_500] },
+        { category: "shopping", amounts: [400, 800, 1_200] },
+        { category: "grocery", amounts: [300, 600, 900] },
+        { category: "cafe", amounts: [200, 400, 600] },
+      ],
+    });
+    expect("categories" in pro.flow!).toBe(true);
+    expect("categories" in free.flow!).toBe(false);
+    expect(JSON.stringify(free.flow)).not.toContain('"categories"');
+    expect(JSON.stringify(free.flow)).not.toContain('"amounts"');
+  });
+
+  it("builds statement flow from three consecutive completed statements", () => {
+    const dates = ["2026-08-23", "2026-09-23", "2026-10-23"];
+    const transactions = dates.map((statementDate, index) => transaction({
+      id: `statement-flow-${index}`,
+      statementDate,
+      date: `${statementDate.slice(0, 7)}-05`,
+      amount: (index + 1) * 100,
+    }));
+    const records = dates.map((statementDate) => ({
+      cardId: "card-a",
+      statementDate,
+      savedOn: `${statementDate.slice(0, 7)}-28`,
+    }));
+    const result = buildCardDashboard({
+      card: cycleCard, transactions, statements: records, plan: "free",
+      statement: "2026-10-23", today: "2026-10-14",
+    });
+
+    expect(result?.flow).toEqual({
+      periods: [
+        { month: "2026-08", total: 100 },
+        { month: "2026-09", total: 200 },
+        { month: "2026-10", total: 300 },
+      ],
+      direction: "rising",
+    });
+  });
+
+  it.each(["missing", "incomplete", "gap"] as const)("omits statement flow when the older statement is %s", (older) => {
+    const dates = older === "gap"
+      ? ["2026-09-23", "2026-10-23"]
+      : ["2026-08-23", "2026-09-23", "2026-10-23"];
+    const transactions = dates.map((statementDate, index) => transaction({
+      id: `statement-flow-${index}`,
+      statementDate,
+      date: `${statementDate.slice(0, 7)}-05`,
+      amount: 100,
+    }));
+    const records = dates.filter((statementDate) => !(older === "missing" && statementDate.startsWith("2026-08"))).map((statementDate) => ({
+      cardId: "card-a",
+      statementDate,
+      savedOn: statementDate.startsWith("2026-08") && older === "incomplete" ? "2026-08-11" : `${statementDate.slice(0, 7)}-28`,
+    }));
+    const result = buildCardDashboard({
+      card: cycleCard, transactions, statements: records, plan: "free",
+      statement: "2026-10-23", today: "2026-10-14",
+    });
+
+    expect(result?.flow).toBeNull();
+  });
+
   it("uses only this card for a calendar month and chooses a valid requested month", () => {
     const transactions = [
       transaction({ id: "a-august", cardId: "card-a", date: "2026-08-15", amount: 1_000 }),

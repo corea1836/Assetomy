@@ -1,4 +1,4 @@
-import type { FindingKind, KindSummary, Period, Plan } from "./dashboard";
+import type { FindingKind, FlowDirection, KindSummary, Period, Plan } from "./dashboard";
 import type { CategoryId } from "./category";
 import type { YearMonth } from "./transaction";
 
@@ -44,7 +44,13 @@ export type SaveCardSummaryResult = {
 };
 export type MonthlySummaryView = ({ kind: "ready" } & SummaryContent) | { kind: "failed" };
 
-export type SummaryCategory = { category: string; amount: number; ratio: number | null };
+export type SummaryCategory = {
+  category: string;
+  amount: number;
+  ratio: number | null;
+  topMerchant: { merchant: string; amount: number; count: number } | null;
+  feedback: string | null;
+};
 export type SummaryMerchant = { merchant: string; category: string; amount: number; count: number };
 export type SummaryMonthOverMonth = {
   previousMonth: YearMonth;
@@ -94,6 +100,15 @@ export type CardSummaryComparison = {
   diff: number;
   direction: "up" | "down" | "same";
 };
+export type SummaryFlow = {
+  direction: FlowDirection;
+  periods: { month: YearMonth; total: number }[];
+};
+export type SummaryCategoryFlow = {
+  category: string;
+  direction: FlowDirection;
+  periods: { month: YearMonth; amount: number }[];
+};
 type CardSummaryBase = {
   scope: "month" | "statement";
   period: Period;
@@ -105,8 +120,9 @@ type CardSummaryBase = {
   comparison: CardSummaryComparison | null;
   comparisonSkipped: boolean;
 };
-export type FreeCardSummaryInput = { plan: "free" } & CardSummaryBase;
+export type FreeCardSummaryInput = { plan: "free"; flow: SummaryFlow | null } & CardSummaryBase;
 export type ProCardSummaryInput = { plan: "pro" } & CardSummaryBase & {
+  flow: (SummaryFlow & { categories: SummaryCategoryFlow[] }) | null;
   categoryChanges: { category: string; current: number; previous: number; diff: number }[] | null;
 };
 export type CardSummaryInput = FreeCardSummaryInput | ProCardSummaryInput;

@@ -15,7 +15,7 @@ function freeInput(): FreeSummaryInput {
   return {
     plan: "free", month: "2026-09", inProgress: false,
     period: { from: "2026-09-01", to: "2026-09-30" }, total: 1000, transactionCount: 1,
-    categories: [{ category: "식비", amount: 1000, ratio: 1 }], topMerchants: [], monthOverMonth: null, partialMonth: null,
+    categories: [{ category: "식비", amount: 1000, ratio: 1, topMerchant: null, feedback: null }], topMerchants: [], monthOverMonth: null, partialMonth: null,
     candidates: {
       recurring: { count: 0, amount: 0 }, duplicate: { count: 0, amount: 0 },
       large: { count: 0, amount: 0 }, candidateTotal: 0,
@@ -30,9 +30,9 @@ function proInput(): ProSummaryInput {
 function cardInputs(): { freeMonth: FreeCardSummaryInput; freeStatement: FreeCardSummaryInput; proMonth: ProCardSummaryInput; proStatement: ProCardSummaryInput } {
   const shared = {
     period: { from: "2026-09-01", to: "2026-09-30" }, inProgress: false, total: 1000, transactionCount: 1,
-    categories: [{ category: "식비", amount: 1000, ratio: 1 }],
+    categories: [{ category: "식비", amount: 1000, ratio: 1, topMerchant: null, feedback: null }],
     topMerchants: [{ merchant: "가게", category: "식비", amount: 1000, count: 1 }],
-    comparison: { previousTotal: 900, diff: 100, direction: "up" as const }, comparisonSkipped: false,
+    comparison: { previousTotal: 900, diff: 100, direction: "up" as const }, comparisonSkipped: false, flow: null,
   };
   const freeMonth: FreeCardSummaryInput = { ...shared, plan: "free", scope: "month" };
   const freeStatement: FreeCardSummaryInput = { ...shared, plan: "free", scope: "statement" };

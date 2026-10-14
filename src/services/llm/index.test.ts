@@ -87,7 +87,7 @@ describe("getMonthlySummarizer", () => {
     await expect(summarizer.summarize({
       plan: "free", month: "2026-09", inProgress: false,
       period: { from: "2026-09-01", to: "2026-09-30" }, total: 0, transactionCount: 0,
-      categories: [{ category: "식비", amount: 0, ratio: null }], topMerchants: [], monthOverMonth: null, partialMonth: null,
+      categories: [{ category: "식비", amount: 0, ratio: null, topMerchant: null, feedback: null }], topMerchants: [], monthOverMonth: null, partialMonth: null,
       candidates: {
         recurring: { count: 0, amount: 0 }, duplicate: { count: 0, amount: 0 },
         large: { count: 0, amount: 0 }, candidateTotal: 0,
@@ -130,8 +130,8 @@ describe("getCardSummarizer", () => {
     expect(summarizer.modelFor("free")).toBe("mock");
     await expect(summarizer.summarize({
       plan: "free", scope: "month", period: { from: "2026-09-01", to: "2026-09-30" },
-      inProgress: false, total: 0, transactionCount: 0, categories: [{ category: "식비", amount: 0, ratio: null }], topMerchants: [],
-      comparison: null, comparisonSkipped: false,
+      inProgress: false, total: 0, transactionCount: 0, categories: [{ category: "식비", amount: 0, ratio: null, topMerchant: null, feedback: null }], topMerchants: [],
+      comparison: null, comparisonSkipped: false, flow: null,
     })).resolves.toMatchObject({ ok: true });
     expect(getAnthropicApiKey).not.toHaveBeenCalled();
     expect(Anthropic).not.toHaveBeenCalled();
@@ -153,7 +153,7 @@ describe("getCardSummarizer", () => {
     await expect(summarizer.summarize({
       plan: "free", scope: "month", period: { from: "2026-09-01", to: "2026-09-30" },
       inProgress: false, total: 0, transactionCount: 0, categories: [], topMerchants: [],
-      comparison: null, comparisonSkipped: false,
+      comparison: null, comparisonSkipped: false, flow: null,
     })).resolves.toEqual({ ok: false, reason: "request_failed" });
     expect(getAnthropicApiKey).toHaveBeenCalledOnce();
   });

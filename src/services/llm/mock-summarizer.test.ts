@@ -3,12 +3,14 @@ import { describe, expect, it } from "vitest";
 import type { CardSummaryInput, FreeSummaryInput, ProSummaryInput, SummaryCategory } from "@/types/summary";
 import { createMockCardSummarizer, createMockSummarizer, MOCK_CARD_SUMMARY_MODEL, MOCK_SUMMARY_MODEL } from "./mock-summarizer";
 
-function categories(values: SummaryCategory[] = [
+type CategoryFixture = Pick<SummaryCategory, "category" | "amount" | "ratio"> & Partial<Pick<SummaryCategory, "topMerchant" | "feedback">>;
+
+function categories(values: CategoryFixture[] = [
   { category: "식비", amount: 1000, ratio: 0.5 },
   { category: "카페·간식", amount: 500, ratio: 0.25 },
   { category: "기타", amount: 500, ratio: 0.25 },
 ]): SummaryCategory[] {
-  return values;
+  return values.map((value) => ({ ...value, topMerchant: value.topMerchant ?? null, feedback: value.feedback ?? null }));
 }
 
 function monthlyInputs() {
@@ -33,6 +35,7 @@ function cardInput(plan: "free" | "pro", overrides: Partial<CardSummaryInput> = 
     period: { from: "2026-09-01", to: "2026-09-30" }, inProgress: false,
     total: 10_000, transactionCount: 4, categories: categories(),
     topMerchants: [], comparison: null, comparisonSkipped: false,
+    flow: null,
   };
   return (plan === "free"
     ? { ...base, plan, ...overrides }

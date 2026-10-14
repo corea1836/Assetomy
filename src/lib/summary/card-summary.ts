@@ -5,7 +5,7 @@ import { QueryError } from "@/lib/queries/query-error";
 import { StoreError } from "@/lib/store/store-error";
 import type { CardDashboard } from "@/types/dashboard";
 import type {
-  CardSummaryInput, MonthlySummaryView, SaveCardSummaryInput, SaveCardSummaryResult, StoredSummary,
+  CardSummaryInput, MonthlySummaryView, SaveCardSummaryInput, SaveCardSummaryResult, StoredSummary, SummaryFeedback,
 } from "@/types/summary";
 import type { CardSummarizer } from "@/services/llm/types";
 
@@ -21,8 +21,9 @@ export type PreparedCardSummary = {
 export function prepareCardSummary(
   dashboard: CardDashboard,
   summarizer: Pick<CardSummarizer, "modelFor" | "promptFor">,
+  feedback: SummaryFeedback,
 ): PreparedCardSummary {
-  const input = buildCardSummaryInput(dashboard);
+  const input = buildCardSummaryInput(dashboard, feedback);
   const model = summarizer.modelFor(dashboard.plan);
   const prompt = summarizer.promptFor(dashboard.plan);
   const period = dashboard.basis === "month" ? dashboard.month : dashboard.statementDate;

@@ -20,12 +20,14 @@ import { formatWon } from "@/lib/format";
 import { listTransactions } from "@/lib/queries/transactions";
 import { listDoneUploads } from "@/lib/queries/uploads";
 import { listStatements } from "@/lib/queries/statements";
+import { listSummaryFeedback } from "@/lib/queries/summary-feedback";
 import { createSupabaseServerClient } from "@/lib/supabase/server";
 import { defaultSummaryDeps } from "@/lib/summary/deps";
 import { defaultCardSummaryDeps } from "@/lib/summary/deps";
 import type { SummaryDeps } from "@/lib/summary/monthly-summary";
 import type { CardSummaryDeps } from "@/lib/summary/card-summary";
 import { prepareCardSummary } from "@/lib/summary/card-summary";
+import { prepareSummary } from "@/lib/summary/monthly-summary";
 import { UploadHistory } from "@/components/upload/upload-history";
 import { UploadPanel } from "@/components/upload/upload-panel";
 import { MonthlySummarySection } from "./monthly-summary-section";
@@ -41,6 +43,10 @@ vi.mock("@/lib/summary/card-summary", async (importOriginal) => {
   const original = await importOriginal<typeof import("@/lib/summary/card-summary")>();
   return { ...original, prepareCardSummary: vi.fn(original.prepareCardSummary) };
 });
+vi.mock("@/lib/summary/monthly-summary", async (importOriginal) => {
+  const original = await importOriginal<typeof import("@/lib/summary/monthly-summary")>();
+  return { ...original, prepareSummary: vi.fn(original.prepareSummary) };
+});
 vi.mock("@/lib/billing/plan", () => ({ getPlanState: vi.fn() }));
 vi.mock("@/lib/queries/subscriptions", () => ({ getSubscription: vi.fn() }));
 vi.mock("@/lib/clock", () => ({ seoulToday: vi.fn() }));
@@ -52,6 +58,7 @@ vi.mock("@/lib/queries/cards", () => ({ listCards: vi.fn() }));
 vi.mock("@/lib/queries/transactions", () => ({ listTransactions: vi.fn() }));
 vi.mock("@/lib/queries/uploads", () => ({ listDoneUploads: vi.fn() }));
 vi.mock("@/lib/queries/statements", () => ({ listStatements: vi.fn() }));
+vi.mock("@/lib/queries/summary-feedback", () => ({ listSummaryFeedback: vi.fn() }));
 vi.mock("@/lib/supabase/server", () => ({ createSupabaseServerClient: vi.fn() }));
 vi.mock("@/components/upload/upload-panel", () => ({ UploadPanel: vi.fn(() => <div>업로드 패널</div>) }));
 vi.mock("@/components/upload/upload-history", () => ({ UploadHistory: vi.fn(() => <div>올린 파일 목록</div>) }));
@@ -131,6 +138,7 @@ beforeEach(() => {
   vi.mocked(seoulToday).mockReset().mockReturnValue(DEMO_TODAY);
   vi.mocked(listDoneUploads).mockReset().mockResolvedValue([]);
   vi.mocked(listStatements).mockReset().mockResolvedValue([]);
+  vi.mocked(listSummaryFeedback).mockReset().mockResolvedValue({});
   vi.mocked(getSubscription).mockReset().mockResolvedValue(null);
   vi.mocked(defaultBillingDeps).mockReset().mockReturnValue(deps);
   vi.mocked(defaultSummaryDeps).mockReset().mockReturnValue(summaryDeps);
@@ -141,6 +149,7 @@ beforeEach(() => {
   vi.mocked(MonthlySummarySection).mockClear();
   vi.mocked(CardSummarySection).mockClear();
   vi.mocked(prepareCardSummary).mockClear();
+  vi.mocked(prepareSummary).mockClear();
   for (const component of [DailyChart, FindingsList, MonthSelect, TeaserCard, TopMerchants, TrendChart, TrendLockCard, PricingUpgrade]) {
     vi.mocked(component).mockClear();
   }
@@ -202,6 +211,8 @@ describe("dashboard page", () => {
 
   it("builds a Free summary input from the Free dashboard DTO only", async () => {
     vi.mocked(listTransactions).mockResolvedValue(DEMO_TRANSACTIONS);
+    const feedback = { food: "평일 점심은 회사에서 먹어요" };
+    vi.mocked(listSummaryFeedback).mockResolvedValue(feedback);
     render(await page());
 
     expect(defaultSummaryDeps).toHaveBeenCalledExactlyOnceWith(supabase);
@@ -209,6 +220,10 @@ describe("dashboard page", () => {
     expect(props.userId).toBe("private-user-id");
     expect(props.prepared.plan).toBe("free");
     expect(props.prepared.month).toBe(freeDashboard.month);
+    expect(vi.mocked(listSummaryFeedback)).toHaveBeenCalledExactlyOnceWith(supabase, "private-user-id");
+    expect(vi.mocked(prepareSummary).mock.calls[0][2]).toBe(feedback);
+    expect(props.prepared.input.categories.find(({ category }) => category === "식비")?.feedback)
+      .toBe("평일 점심은 회사에서 먹어요");
     expect("findings" in props.prepared.input).toBe(false);
     expect(props.deps).toBe(summaryDeps);
   });
@@ -290,6 +305,7 @@ describe("dashboard page", () => {
       expect("categoryChanges" in cardDTO).toBe(true);
       if ("categoryChanges" in cardDTO) expect(cardDTO.categoryChanges).toHaveLength(2);
     }
+    expect(vi.mocked(prepareCardSummary).mock.calls[0][2]).toEqual({});
   });
 
   it("falls back to the overall tab for an unknown or malformed card id", async () => {

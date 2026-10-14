@@ -1,6 +1,8 @@
 import { CATEGORY_LABELS } from "@/types/category";
-import type { CardDashboard, Dashboard, FindingSummary } from "@/types/dashboard";
-import type { CardSummaryInput, SummaryCandidates, SummaryInput } from "@/types/summary";
+import type { CardDashboard, CardFlow, Dashboard, FindingSummary, PeriodSnapshot } from "@/types/dashboard";
+import type {
+  CardSummaryInput, SummaryCandidates, SummaryFeedback, SummaryFlow, SummaryInput,
+} from "@/types/summary";
 
 function mapCandidates(summary: FindingSummary): SummaryCandidates {
   return {
@@ -11,7 +13,32 @@ function mapCandidates(summary: FindingSummary): SummaryCandidates {
   };
 }
 
-export function buildSummaryInput(dashboard: Dashboard): SummaryInput {
+function mapCategories(snapshot: PeriodSnapshot, feedback: SummaryFeedback) {
+  const merchants = [...snapshot.topMerchants, ...snapshot.otherMerchants];
+  return snapshot.categories.map(({ category, amount, ratio }) => {
+    const topMerchant = merchants.find((merchant) => merchant.category === category && merchant.amount > 0);
+    return {
+      category: CATEGORY_LABELS[category],
+      amount,
+      ratio,
+      topMerchant: topMerchant === undefined
+        ? null
+        : { merchant: topMerchant.merchant, amount: topMerchant.amount, count: topMerchant.count },
+      feedback: feedback[category] ?? null,
+    };
+  });
+}
+
+function mapFlow(flow: CardFlow | null): SummaryFlow | null {
+  return flow === null
+    ? null
+    : {
+      direction: flow.direction,
+      periods: flow.periods.map(({ month, total }) => ({ month, total })),
+    };
+}
+
+export function buildSummaryInput(dashboard: Dashboard, feedback: SummaryFeedback): SummaryInput {
   const { snapshot } = dashboard;
   const shared = {
     month: dashboard.month,
@@ -19,11 +46,7 @@ export function buildSummaryInput(dashboard: Dashboard): SummaryInput {
     period: snapshot.period,
     total: snapshot.total,
     transactionCount: snapshot.transactionCount,
-    categories: snapshot.categories.map(({ category, amount, ratio }) => ({
-      category: CATEGORY_LABELS[category],
-      amount,
-      ratio,
-    })),
+    categories: mapCategories(snapshot, feedback),
     topMerchants: snapshot.topMerchants.map(({ merchant, category, amount, count }) => ({
       merchant,
       category: CATEGORY_LABELS[category],
@@ -85,7 +108,7 @@ export function buildSummaryInput(dashboard: Dashboard): SummaryInput {
   };
 }
 
-export function buildCardSummaryInput(dashboard: CardDashboard): CardSummaryInput {
+export function buildCardSummaryInput(dashboard: CardDashboard, feedback: SummaryFeedback): CardSummaryInput {
   const { snapshot } = dashboard;
   const comparison = dashboard.basis === "month"
     ? dashboard.mom === null
@@ -116,11 +139,7 @@ export function buildCardSummaryInput(dashboard: CardDashboard): CardSummaryInpu
     inProgress: dashboard.basis === "month" ? dashboard.snapshot.inProgress : !dashboard.complete,
     total: snapshot.total,
     transactionCount: snapshot.transactionCount,
-    categories: snapshot.categories.map(({ category, amount, ratio }) => ({
-      category: CATEGORY_LABELS[category],
-      amount,
-      ratio,
-    })),
+    categories: mapCategories(snapshot, feedback),
     topMerchants: snapshot.topMerchants.map(({ merchant, category, amount, count }) => ({
       merchant,
       category: CATEGORY_LABELS[category],
@@ -134,12 +153,24 @@ export function buildCardSummaryInput(dashboard: CardDashboard): CardSummaryInpu
   };
 
   if (dashboard.plan === "free") {
-    return { plan: "free", ...shared };
+    return { plan: "free", ...shared, flow: mapFlow(dashboard.flow) };
   }
 
+  const flow = dashboard.flow;
   return {
     plan: "pro",
     ...shared,
+    flow: flow === null
+      ? null
+      : {
+        direction: flow.direction,
+        periods: flow.periods.map(({ month, total }) => ({ month, total })),
+        categories: flow.categories.map(({ category, direction, amounts }) => ({
+          category: CATEGORY_LABELS[category],
+          direction,
+          periods: flow.periods.map(({ month }, index) => ({ month, amount: amounts[index] })),
+        })),
+      },
     categoryChanges: dashboard.categoryChanges === null
       ? null
       : dashboard.categoryChanges.map(({ category, current, previous, diff }) => ({
