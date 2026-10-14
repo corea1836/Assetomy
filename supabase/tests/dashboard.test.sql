@@ -150,16 +150,16 @@ insert into _rpc(name, result) values ('rows_equal', jsonb_build_array(
 
 set local role service_role;
 insert into _rpc select 'card_a', public.create_card(
-  '00000000-0000-4000-8000-000000000031', '테스트 카드'
+  '00000000-0000-4000-8000-000000000031', '테스트 카드', 'hyundai', 'month', null
 );
 insert into _rpc select 'card_b', public.create_card(
-  '00000000-0000-4000-8000-000000000032', '테스트 카드'
+  '00000000-0000-4000-8000-000000000032', '테스트 카드', 'hyundai', 'month', null
 );
 insert into _rpc select 'card_unsuccessful', public.create_card(
-  '00000000-0000-4000-8000-000000000033', '테스트 카드'
+  '00000000-0000-4000-8000-000000000033', '테스트 카드', 'hyundai', 'month', null
 );
 insert into _rpc select 'card_fallback', public.create_card(
-  '00000000-0000-4000-8000-000000000036', '테스트 카드'
+  '00000000-0000-4000-8000-000000000036', '테스트 카드', 'hyundai', 'month', null
 );
 
 insert into _rpc select 'upload_first', public.begin_upload(

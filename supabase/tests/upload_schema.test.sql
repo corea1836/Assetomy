@@ -92,11 +92,11 @@ insert into auth.users (id, email) values
   ('00000000-0000-4000-8000-000000000001', 'upload-schema-a@example.invalid'),
   ('00000000-0000-4000-8000-000000000002', 'upload-schema-b@example.invalid');
 
-insert into public.cards (id, user_id, label, identity_scope, cancel_style) values
+insert into public.cards (id, user_id, label, issuer, analysis_basis, identity_scope, cancel_style) values
   ('10000000-0000-4000-8000-000000000001', '00000000-0000-4000-8000-000000000001',
-   '테스트 카드', 'content', 'negative_amount'),
+   '테스트 카드', 'hyundai', 'month', 'content', 'negative_amount'),
   ('10000000-0000-4000-8000-000000000002', '00000000-0000-4000-8000-000000000002',
-   '테스트 카드', null, null);
+   '테스트 카드', 'hyundai', 'month', null, null);
 
 insert into public.uploads (
   id, user_id, card_id, file_name, file_hash, file_size, status,

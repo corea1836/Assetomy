@@ -18,9 +18,9 @@ select ok(
   role_name || '의 ' || signature || ' EXECUTE 권한이 올바르다'
 )
 from (values
-  ('public.create_card(uuid,text)'),
+  ('public.create_card(uuid,text,text,text,integer)'),
   ('public.begin_upload(uuid,uuid,text,text,integer)'),
-  ('public.ingest_upload(uuid,uuid,text,text,jsonb,integer)'),
+  ('public.ingest_upload(uuid,uuid,text,text,jsonb,integer,text,text,date,timestamptz)'),
   ('public.fail_upload(uuid,uuid,text,text)'),
   ('public.delete_upload(uuid,uuid)'),
   ('private.lock_user(uuid)')
@@ -40,9 +40,9 @@ insert into _tap(line) select ok(
     )
     from pg_proc as p
     where p.oid in (
-      'public.create_card(uuid,text)'::regprocedure,
+      'public.create_card(uuid,text,text,text,integer)'::regprocedure,
       'public.begin_upload(uuid,uuid,text,text,integer)'::regprocedure,
-      'public.ingest_upload(uuid,uuid,text,text,jsonb,integer)'::regprocedure,
+      'public.ingest_upload(uuid,uuid,text,text,jsonb,integer,text,text,date,timestamptz)'::regprocedure,
       'public.fail_upload(uuid,uuid,text,text)'::regprocedure,
       'public.delete_upload(uuid,uuid)'::regprocedure,
       'private.lock_user(uuid)'::regprocedure
@@ -75,7 +75,7 @@ insert into _rpc(name, result) values ('rows_new', jsonb_build_array(
 set local role service_role;
 
 insert into _rpc select 'card_a', public.create_card(
-  '00000000-0000-4000-8000-000000000011', ' 테스트 카드 '
+  '00000000-0000-4000-8000-000000000011', ' 테스트 카드 ', 'hyundai', 'month', null
 );
 insert into _tap(line) select is(
   (select result->>'kind' from _rpc where name = 'card_a'), 'created',
@@ -86,30 +86,30 @@ insert into _tap(line) select is(
   '테스트 카드', 'trim한 라벨을 저장한다'
 );
 insert into _tap(line) select is(
-  public.create_card('00000000-0000-4000-8000-000000000011', '테스트 카드'),
+  public.create_card('00000000-0000-4000-8000-000000000011', '테스트 카드', 'hyundai', 'month', null),
   '{"kind":"duplicate_label"}'::jsonb, '같은 사용자의 같은 라벨은 중복이다'
 );
 insert into _tap(line) select is(
-  public.create_card('00000000-0000-4000-8000-000000000011', '   '),
+  public.create_card('00000000-0000-4000-8000-000000000011', '   ', 'hyundai', 'month', null),
   '{"kind":"invalid_label"}'::jsonb, '공백만 있는 라벨은 거절한다'
 );
 insert into _tap(line) select is(
-  public.create_card('00000000-0000-4000-8000-000000000011', null),
+  public.create_card('00000000-0000-4000-8000-000000000011', null, 'hyundai', 'month', null),
   '{"kind":"invalid_label"}'::jsonb, 'null 라벨은 거절한다'
 );
 insert into _tap(line) select is(
-  public.create_card('00000000-0000-4000-8000-000000000011', repeat('가', 31)),
+  public.create_card('00000000-0000-4000-8000-000000000011', repeat('가', 31), 'hyundai', 'month', null),
   '{"kind":"invalid_label"}'::jsonb, '31자 라벨은 거절한다'
 );
 insert into _rpc select 'card_b', public.create_card(
-  '00000000-0000-4000-8000-000000000012', '테스트 카드'
+  '00000000-0000-4000-8000-000000000012', '테스트 카드', 'hyundai', 'month', null
 );
 insert into _tap(line) select is(
   (select result->>'kind' from _rpc where name = 'card_b'), 'created',
   '다른 사용자는 같은 라벨로 카드를 만들 수 있다'
 );
 insert into _rpc select 'card_a_other', public.create_card(
-  '00000000-0000-4000-8000-000000000011', '다른 카드'
+  '00000000-0000-4000-8000-000000000011', '다른 카드', 'hyundai', 'month', null
 );
 
 insert into _tap(line) select is(
@@ -225,7 +225,7 @@ insert into _rpc select 'ingest_three', public.ingest_upload(
 ) from _rpc as u cross join _rpc as r where u.name = 'upload_three' and r.name = 'rows_three';
 insert into _tap(line) select is(
   (select result from _rpc where name = 'ingest_three'),
-  '{"kind":"done","inserted":3,"duplicates":0,"skipped":2,"period_from":"2026-09-30","period_to":"2026-10-03","net_amount":25000}'::jsonb,
+  '{"kind":"done","inserted":3,"duplicates":0,"skipped":2,"period_from":"2026-09-30","period_to":"2026-10-03","net_amount":25000,"statement_date":null,"replaced_upload_id":null}'::jsonb,
   '3행을 저장하고 실제 행의 기간과 환불 포함 합계를 반환한다'
 );
 insert into _tap(line) select is(
@@ -284,7 +284,7 @@ insert into _rpc select 'ingest_fingerprints', public.ingest_upload(
 ) from _rpc as u cross join _rpc as r where u.name = 'upload_fingerprints' and r.name = 'rows_three';
 insert into _tap(line) select is(
   (select result from _rpc where name = 'ingest_fingerprints'),
-  '{"kind":"no_new","inserted":0,"duplicates":3,"skipped":1,"period_from":null,"period_to":null,"net_amount":0}'::jsonb,
+  '{"kind":"no_new","inserted":0,"duplicates":3,"skipped":1,"period_from":null,"period_to":null,"net_amount":0,"statement_date":null,"replaced_upload_id":null}'::jsonb,
   '다른 업로드의 같은 fingerprint 3행은 no_new이며 기간은 null이다'
 );
 insert into _tap(line) select is(
@@ -307,7 +307,7 @@ insert into _rpc select 'ingest_mixed', public.ingest_upload(
 where u.name = 'upload_mixed' and old_rows.name = 'rows_three' and new_rows.name = 'rows_new';
 insert into _tap(line) select is(
   (select result from _rpc where name = 'ingest_mixed'),
-  '{"kind":"done","inserted":1,"duplicates":3,"skipped":0,"period_from":"2026-10-04","period_to":"2026-10-04","net_amount":7000}'::jsonb,
+  '{"kind":"done","inserted":1,"duplicates":3,"skipped":0,"period_from":"2026-10-04","period_to":"2026-10-04","net_amount":7000,"statement_date":null,"replaced_upload_id":null}'::jsonb,
   '일부 중복에서는 새로 들어간 행만으로 기간과 합계를 계산한다'
 );
 

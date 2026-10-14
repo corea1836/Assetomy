@@ -87,13 +87,13 @@ insert into auth.users (id, email) values
 
 set local role service_role;
 insert into _rpc select 'card_a', public.create_card(
-  '00000000-0000-4000-8000-000000000041', '요약 테스트 카드 A'
+  '00000000-0000-4000-8000-000000000041', '요약 테스트 카드 A', 'hyundai', 'month', null
 );
 insert into _rpc select 'card_b', public.create_card(
-  '00000000-0000-4000-8000-000000000042', '요약 테스트 카드 B'
+  '00000000-0000-4000-8000-000000000042', '요약 테스트 카드 B', 'hyundai', 'month', null
 );
 insert into _rpc select 'card_c', public.create_card(
-  '00000000-0000-4000-8000-000000000043', '요약 테스트 카드 C'
+  '00000000-0000-4000-8000-000000000043', '요약 테스트 카드 C', 'hyundai', 'month', null
 );
 
 insert into _rpc select 'upload_a1', public.begin_upload(
