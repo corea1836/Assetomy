@@ -31,7 +31,10 @@
     {
       "step": 2,
       "name": "card-analytics",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T16:11:09+0900",
+      "summary": "datesBetween·statementCyclePeriod·buildPeriodSnapshot·buildCategoryChanges·buildCardDashboard·buildCardSummaryInput을 src/lib/analytics에 구현하고 PeriodSnapshot·CardDashboard/CardMonthView/CardStatementView·CardSummaryInput 타입을 추가했다.",
+      "completed_at": "2026-10-14T16:18:10+0900"
     },
     {
       "step": 3,
