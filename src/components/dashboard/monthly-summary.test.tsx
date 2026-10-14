@@ -171,4 +171,26 @@ describe("MonthlySummary", () => {
     expect(screen.getByText(summary)).toBeInTheDocument();
     expect(document.querySelector("b")).toBeNull();
   });
+
+  it.each([
+    ["card-month", "이번 달 요약", "이번 달 요약을 만들고 있어요"],
+    ["statement", "이번 명세서 요약", "이번 명세서 요약을 만들고 있어요"],
+  ] as const)("supports the %s heading and pending status", (variant, title, pending) => {
+    const { rerender } = render(<MonthlySummary summary="요약 문장이에요." source="ai" variant={variant} />);
+    expect(screen.getByRole("heading", { name: title })).toBeInTheDocument();
+
+    rerender(<MonthlySummaryStatus state="pending" variant={variant} />);
+    expect(screen.getByText(pending)).toBeInTheDocument();
+  });
+
+  it.each(["card-month", "statement"] as const)("uses the card upgrade prompt for %s", (variant) => {
+    render(<MonthlySummary summary="요약 문장이에요." source="ai" upgrade variant={variant} />);
+    expect(screen.getByText("Pro에서는 달라진 카테고리까지 요약해요")).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Pro로 보기" })).toBeInTheDocument();
+  });
+
+  it("keeps the monthly upgrade prompt for the default variant", () => {
+    render(<MonthlySummary summary="요약 문장이에요." source="ai" upgrade />);
+    expect(screen.getByText("Pro에서는 확인할 지출 상세와 여러 달 추세까지 요약해요")).toBeInTheDocument();
+  });
 });

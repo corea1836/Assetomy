@@ -6,11 +6,14 @@ const CARD_CLASS = "rounded-3xl border border-primary/25 bg-primary-soft bg-line
 // 코드가 자리표시자로 채운 숫자(기간·금액·건수·비율·개월)
 const FILLED_NUMBER = /((?:1[0-2]|[1-9])월 [0-9]{1,2}일~(?:1[0-2]|[1-9])월 [0-9]{1,2}일|[−+]?[0-9][0-9,]*(?:원|건|%|개월))/;
 
-function SummaryHeading(): React.JSX.Element {
+type SummaryVariant = "month" | "card-month" | "statement";
+
+function SummaryHeading({ variant }: { variant: SummaryVariant }): React.JSX.Element {
+  const title = variant === "statement" ? "이번 명세서 요약" : "이번 달 요약";
   return (
     <div className="flex items-center gap-2">
       <SparklesIcon size={20} className="shrink-0 text-primary" />
-      <h2 className="text-lg font-semibold text-ink">이번 달 요약</h2>
+      <h2 className="text-lg font-semibold text-ink">{title}</h2>
     </div>
   );
 }
@@ -47,10 +50,13 @@ function SummarySkeleton(): React.JSX.Element {
   );
 }
 
-function FreeUpgradePrompt(): React.JSX.Element {
+function FreeUpgradePrompt({ variant }: { variant: SummaryVariant }): React.JSX.Element {
+  const message = variant === "month"
+    ? "Pro에서는 확인할 지출 상세와 여러 달 추세까지 요약해요"
+    : "Pro에서는 달라진 카테고리까지 요약해요";
   return (
     <>
-      <p className="mt-4 text-sm text-body">Pro에서는 확인할 지출 상세와 여러 달 추세까지 요약해요</p>
+      <p className="mt-4 text-sm text-body">{message}</p>
       <div className="mt-2">
         <UpgradeButton source="summary" label="Pro로 보기" variant="text" />
       </div>
@@ -58,15 +64,17 @@ function FreeUpgradePrompt(): React.JSX.Element {
   );
 }
 
-export function MonthlySummary({ summary, source, tips = [], upgrade }: {
+export function MonthlySummary({ summary, source, tips = [], upgrade, variant: requestedVariant = "month" }: {
   summary: string;
   source: "ai" | "example";
   tips?: string[];
   upgrade?: boolean;
+  variant?: SummaryVariant;
 }): React.JSX.Element {
+  const variant = requestedVariant;
   return (
     <section className={CARD_CLASS}>
-      <SummaryHeading />
+      <SummaryHeading variant={variant} />
       <div className={tips.length > 0 ? "mt-4 grid gap-6 md:grid-cols-2 md:gap-8" : "mt-4"}>
         <p className="whitespace-pre-line text-lg leading-relaxed text-ink">
           <EmphasizedNumbers text={summary} />
@@ -85,33 +93,35 @@ export function MonthlySummary({ summary, source, tips = [], upgrade }: {
           ? "AI가 가맹점명과 집계로 쓴 요약이에요. 금액은 코드로 계산해요."
           : "예시 요약이에요. 가입하면 AI가 내 가맹점명과 집계로 요약해요."}
       </p>
-      {upgrade && <FreeUpgradePrompt />}
+      {upgrade && <FreeUpgradePrompt variant={variant} />}
     </section>
   );
 }
 
-export function MonthlySummaryStatus({ state, upgrade }: {
+export function MonthlySummaryStatus({ state, upgrade, variant: requestedVariant = "month" }: {
   state: "pending" | "failed";
   upgrade?: boolean;
+  variant?: SummaryVariant;
 }): React.JSX.Element {
+  const variant = requestedVariant;
   return (
     <section
       className={CARD_CLASS}
       {...(state === "pending" ? { "aria-busy": true } : {})}
     >
-      <SummaryHeading />
+      <SummaryHeading variant={variant} />
       {state === "pending" ? (
         <>
           <div className="mt-4 flex items-center gap-2">
             <LoaderCircleIcon size={20} className="shrink-0 text-primary motion-safe:animate-spin" />
-            <p className="text-base text-body">{SUMMARY_STATUS_MESSAGES.pending}</p>
+            <p className="text-base text-body">{variant === "statement" ? SUMMARY_STATUS_MESSAGES.statementPending : SUMMARY_STATUS_MESSAGES.pending}</p>
           </div>
           <SummarySkeleton />
         </>
       ) : (
         <p className="mt-4 text-base text-body">{SUMMARY_STATUS_MESSAGES.failed}</p>
       )}
-      {upgrade && <FreeUpgradePrompt />}
+      {upgrade && <FreeUpgradePrompt variant={variant} />}
     </section>
   );
 }

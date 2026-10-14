@@ -3,8 +3,19 @@ import type { ApiErrorCode } from "@/types/upload";
 
 export const SUMMARY_STATUS_MESSAGES = {
   pending: "이번 달 요약을 만들고 있어요",
+  statementPending: "이번 명세서 요약을 만들고 있어요",
   failed: "요약을 만들지 못했어요. 새로고침하면 다시 만들어요.",
 } as const;
+
+export function cardEditErrorMessage(code: string): string {
+  switch (code) {
+    case "INVALID_LABEL": return "카드 이름은 1~30자로 입력해 주세요.";
+    case "DUPLICATE_LABEL": return "같은 이름의 카드가 있어요. 다른 이름을 입력해 주세요.";
+    case "INVALID_CARD": return "분석 기준을 확인해 주세요. 이용 기간은 매달 1~31일 중 시작일을 입력해요.";
+    case "NOT_FOUND": return "카드를 찾을 수 없어요. 새로고침해 주세요.";
+    default: return "잠시 후 다시 시도해 주세요.";
+  }
+}
 
 export const LOGIN_ERROR_MESSAGES: Record<LoginErrorCode, string> = {
   cancelled: "구글 로그인을 취소했어요. 계속하려면 다시 시도해 주세요.",

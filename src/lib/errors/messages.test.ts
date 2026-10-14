@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { LOGIN_ERROR_MESSAGES, parseLoginErrorCode } from "./messages";
+import { LOGIN_ERROR_MESSAGES, SUMMARY_STATUS_MESSAGES, cardEditErrorMessage, parseLoginErrorCode } from "./messages";
 import { billingErrorMessage, categoryErrorMessage, uploadErrorMessage } from "./messages";
 import type { ApiErrorCode } from "@/types/upload";
 
@@ -19,6 +19,24 @@ describe("parseLoginErrorCode", () => {
   ])("rejects an invalid search parameter: $value", ({ value }) => {
     expect(parseLoginErrorCode(value)).toBeNull();
   });
+});
+
+describe("cardEditErrorMessage", () => {
+  it.each([
+    ["INVALID_LABEL", "카드 이름은 1~30자로 입력해 주세요."],
+    ["DUPLICATE_LABEL", "같은 이름의 카드가 있어요. 다른 이름을 입력해 주세요."],
+    ["INVALID_CARD", "분석 기준을 확인해 주세요. 이용 기간은 매달 1~31일 중 시작일을 입력해요."],
+    ["NOT_FOUND", "카드를 찾을 수 없어요. 새로고침해 주세요."],
+    ["TEMPORARY_FAILURE", "잠시 후 다시 시도해 주세요."],
+    ["unknown", "잠시 후 다시 시도해 주세요."],
+  ])("maps %s", (code, message) => {
+    expect(cardEditErrorMessage(code)).toBe(message);
+  });
+});
+
+it("has a separate pending message for statement summaries", () => {
+  expect(SUMMARY_STATUS_MESSAGES.statementPending).toBe("이번 명세서 요약을 만들고 있어요");
+  expect(SUMMARY_STATUS_MESSAGES.pending).toBe("이번 달 요약을 만들고 있어요");
 });
 
 describe("LOGIN_ERROR_MESSAGES", () => {

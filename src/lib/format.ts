@@ -1,4 +1,6 @@
 import type { Period } from "@/types/dashboard";
+import { CARD_ISSUER_LABELS } from "@/types/card";
+import type { CardOption } from "@/types/upload";
 import type { IsoDate, YearMonth } from "@/types/transaction";
 
 const numberFormat = new Intl.NumberFormat("ko-KR");
@@ -48,6 +50,18 @@ export function formatDate(date: IsoDate): string {
 
 export function formatStatementDate(date: IsoDate): string {
   return `${formatDate(date)} 명세서`;
+}
+
+export function formatStatementOption(date: IsoDate): string {
+  const [year, month, day] = date.split("-");
+  return `${year}년 ${Number(month)}월 ${Number(day)}일 명세서`;
+}
+
+export function formatCardBasis(card: Pick<CardOption, "issuer" | "analysisBasis" | "cycleStartDay">): string {
+  const basis = card.analysisBasis === "month"
+    ? "월별"
+    : card.cycleStartDay === null ? "이용 기간" : `이용 기간 매달 ${card.cycleStartDay}일부터`;
+  return `${CARD_ISSUER_LABELS[card.issuer]} · ${basis}`;
 }
 
 function formatPeriodDate(date: IsoDate, includeYear: boolean): string {

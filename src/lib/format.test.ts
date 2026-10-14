@@ -1,6 +1,7 @@
 import { describe, expect, it } from "vitest";
 import {
   formatAxisWon,
+  formatCardBasis,
   formatDate,
   formatMonth,
   formatMonthShort,
@@ -8,6 +9,7 @@ import {
   formatRatio,
   formatSignedWon,
   formatStatementDate,
+  formatStatementOption,
   formatWon,
 } from "./format";
 
@@ -113,6 +115,19 @@ describe("formatStatementDate", () => {
     ["2026-01-05", "1월 5일 명세서"],
   ] as const)("formats %s without leading zeroes", (date, expected) => {
     expect(formatStatementDate(date)).toBe(expected);
+  });
+});
+
+describe("card formatting", () => {
+  it("formats a statement option with its year", () => {
+    expect(formatStatementOption("2026-10-23")).toBe("2026년 10월 23일 명세서");
+  });
+
+  it.each([
+    [{ issuer: "hyundai", analysisBasis: "month", cycleStartDay: null }, "현대카드 · 월별"],
+    [{ issuer: "shinhan", analysisBasis: "cycle", cycleStartDay: 12 }, "신한카드 · 이용 기간 매달 12일부터"],
+  ] as const)("formats a card basis: %o", (card, expected) => {
+    expect(formatCardBasis(card)).toBe(expected);
   });
 });
 
