@@ -64,14 +64,13 @@ function FreeUpgradePrompt({ variant }: { variant: SummaryVariant }): React.JSX.
   );
 }
 
-export function MonthlySummary({ summary, source, tips = [], upgrade, variant: requestedVariant = "month" }: {
+export function MonthlySummary({ summary, source, tips = [], upgrade, variant = "month" }: {
   summary: string;
   source: "ai" | "example";
   tips?: string[];
   upgrade?: boolean;
   variant?: SummaryVariant;
 }): React.JSX.Element {
-  const variant = requestedVariant;
   return (
     <section className={CARD_CLASS}>
       <SummaryHeading variant={variant} />
@@ -98,12 +97,11 @@ export function MonthlySummary({ summary, source, tips = [], upgrade, variant: r
   );
 }
 
-export function MonthlySummaryStatus({ state, upgrade, variant: requestedVariant = "month" }: {
+export function MonthlySummaryStatus({ state, upgrade, variant = "month" }: {
   state: "pending" | "failed";
   upgrade?: boolean;
   variant?: SummaryVariant;
 }): React.JSX.Element {
-  const variant = requestedVariant;
   return (
     <section
       className={CARD_CLASS}
