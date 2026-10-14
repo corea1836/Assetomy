@@ -55,7 +55,10 @@
     {
       "step": 5,
       "name": "summary-prompts",
-      "status": "pending"
+      "status": "completed",
+      "started_at": "2026-10-14T20:31:50+0900",
+      "summary": "formatDiffWon과 경로상 모든 중첩 객체의 이름 검증(topMerchant 포함)을 반영하고, 월·카드 Free/Pro 프롬프트를 두 문단·카테고리 팁·피드백·▲▼·흐름 규칙으로 갱신했다(sha256: dc5b37ba/fd530c44/946457af/0b0b89d4). mock 월·카드 comparison은 direction·partial/skipped·flow에 따라 만들고 입력 독립 고정 프롬프트에 새 문장 틀을 담았다.",
+      "completed_at": "2026-10-14T20:38:32+0900"
     },
     {
       "step": 6,
