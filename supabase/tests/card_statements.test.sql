@@ -309,11 +309,11 @@ insert into _tap(line) select is(
   3::bigint, '첫 청구서의 세 거래가 저장된다'
 );
 insert into _tap(line) select is(
-  public.save_ai_summary('00000000-0000-4000-8000-000000000051', '2026-09', 'free', 'claude-sonnet-5-5', repeat('a', 64), '9월 A', array['팁'])->>'kind',
+  public.save_ai_summary('00000000-0000-4000-8000-000000000051', '2026-09', 'free', 'claude-sonnet-5-5', repeat('a', 64), '9월 A', array['팁'], array['food'])->>'kind',
   'saved', '9월 A 요약을 교체 전 저장한다'
 );
 insert into _tap(line) select is(
-  public.save_ai_summary('00000000-0000-4000-8000-000000000051', '2026-10', 'free', 'claude-sonnet-5-5', repeat('b', 64), '10월 A', array['팁'])->>'kind',
+  public.save_ai_summary('00000000-0000-4000-8000-000000000051', '2026-10', 'free', 'claude-sonnet-5-5', repeat('b', 64), '10월 A', array['팁'], array['food'])->>'kind',
   'saved', '10월 A 요약을 교체 전 저장한다'
 );
 
@@ -326,7 +326,7 @@ insert into _rpc select 'ingest_user_b', public.ingest_upload(
   'content', 'negative_amount', r.result, 0, null, null, null, null
 ) from _rpc as u cross join _rpc as r where u.name = 'upload_user_b' and r.name = 'rows_user_b';
 insert into _tap(line) select is(
-  public.save_ai_summary('00000000-0000-4000-8000-000000000052', '2026-09', 'free', 'claude-sonnet-5-5', repeat('c', 64), '9월 B', array['팁'])->>'kind',
+  public.save_ai_summary('00000000-0000-4000-8000-000000000052', '2026-09', 'free', 'claude-sonnet-5-5', repeat('c', 64), '9월 B', array['팁'], array['food'])->>'kind',
   'saved', '다른 사용자의 9월 요약을 저장한다'
 );
 

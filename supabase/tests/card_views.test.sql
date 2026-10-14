@@ -14,8 +14,8 @@ grant insert, select on _rpc to service_role;
 insert into _tap(line) select has_table('public', 'card_summaries', 'card_summaries 테이블이 있다');
 insert into _tap(line) select columns_are(
   'public', 'card_summaries', array[
-    'user_id', 'card_id', 'period', 'plan', 'model', 'input_hash', 'summary', 'tips', 'created_at', 'updated_at'
-  ], '카드 요약에 필요한 열 열 개가 있다'
+    'user_id', 'card_id', 'period', 'plan', 'model', 'input_hash', 'summary', 'tips', 'created_at', 'updated_at', 'tip_categories'
+  ], '카드 요약에 필요한 열 열한 개가 있다'
 );
 insert into _tap(line) select col_type_is(
   'public', 'card_summaries', 'tips', 'text[]', 'tips는 text[]다'
@@ -57,7 +57,7 @@ insert into _tap(line) select ok(
 insert into _tap(line)
 select ok(
   has_function_privilege(role_name,
-    'public.save_card_summary(uuid,uuid,text,text,text,text,text,text[])', 'EXECUTE')
+    'public.save_card_summary(uuid,uuid,text,text,text,text,text,text[],text[])', 'EXECUTE')
     = (role_name = 'service_role'),
   role_name || '의 save_card_summary EXECUTE 권한이 올바르다'
 )
@@ -72,7 +72,7 @@ select ok(
 from unnest(array['anon', 'authenticated', 'service_role']) as roles(role_name);
 insert into _tap(line) select ok(
   (select not prosecdef and proconfig @> array['search_path=""']::text[]
-    from pg_proc where oid = 'public.save_card_summary(uuid,uuid,text,text,text,text,text,text[])'::regprocedure),
+    from pg_proc where oid = 'public.save_card_summary(uuid,uuid,text,text,text,text,text,text[],text[])'::regprocedure),
   'save_card_summary는 invoker 권한과 빈 search_path를 쓴다'
 );
 insert into _tap(line) select ok(
@@ -174,7 +174,7 @@ set local role service_role;
 insert into _tap(line) select is(
   public.save_card_summary('00000000-0000-4000-8000-000000000061',
     (select (result->>'card_id')::uuid from _rpc where name = 'card_ma'), '2026-10', 'free',
-    'claude-sonnet-5-5', repeat('1', 64), 'MA 10월 요약', array['카드 앱에서 확인해 보세요'])->>'kind',
+    'claude-sonnet-5-5', repeat('1', 64), 'MA 10월 요약', array['카드 앱에서 확인해 보세요'], array['food'])->>'kind',
   'saved', 'MA의 2026-10 월 요약을 저장한다'
 );
 reset role;
@@ -191,7 +191,7 @@ set local role service_role;
 insert into _tap(line) select is(
   public.save_card_summary('00000000-0000-4000-8000-000000000061',
     (select (result->>'card_id')::uuid from _rpc where name = 'card_ma'), '2026-10', 'pro',
-    'claude-opus-5-5', repeat('2', 64), 'MA 다시 쓴 요약', array['첫 팁', '둘째 팁'])->>'kind',
+    'claude-opus-5-5', repeat('2', 64), 'MA 다시 쓴 요약', array['첫 팁', '둘째 팁'], array['food', 'grocery'])->>'kind',
   'saved', '같은 MA 월 키를 새 입력으로 다시 저장한다'
 );
 reset role;
@@ -208,55 +208,55 @@ set local role service_role;
 insert into _tap(line) select is(
   public.save_card_summary('00000000-0000-4000-8000-000000000061',
     (select (result->>'card_id')::uuid from _rpc where name = 'card_ma'), '2026-09', 'free',
-    'claude-sonnet-5-5', repeat('3', 64), '없는 달', array['팁'])->>'kind',
+    'claude-sonnet-5-5', repeat('3', 64), '없는 달', array['팁'], array['food'])->>'kind',
   'no_data', 'MA에 2026-09 거래가 없으면 no_data다'
 );
 insert into _tap(line) select is(
   public.save_card_summary('00000000-0000-4000-8000-000000000061',
     (select (result->>'card_id')::uuid from _rpc where name = 'card_ma'), '2026-10-23', 'free',
-    'claude-sonnet-5-5', repeat('3', 64), '잘못된 기준', array['팁'])->>'kind',
+    'claude-sonnet-5-5', repeat('3', 64), '잘못된 기준', array['팁'], array['food'])->>'kind',
   'basis_mismatch', '월별 MA에 날짜 period를 주면 basis_mismatch다'
 );
 insert into _tap(line) select is(
   public.save_card_summary('00000000-0000-4000-8000-000000000061',
     (select (result->>'card_id')::uuid from _rpc where name = 'card_ca'), '2026-10-23', 'free',
-    'claude-sonnet-5-5', repeat('4', 64), 'CA 명세서 요약', array['팁'])->>'kind',
+    'claude-sonnet-5-5', repeat('4', 64), 'CA 명세서 요약', array['팁'], array['food'])->>'kind',
   'saved', 'CA의 2026-10-23 done 청구서 요약을 저장한다'
 );
 insert into _tap(line) select is(
   public.save_card_summary('00000000-0000-4000-8000-000000000061',
     (select (result->>'card_id')::uuid from _rpc where name = 'card_ca'), '2026-09-23', 'free',
-    'claude-sonnet-5-5', repeat('5', 64), '없는 명세서', array['팁'])->>'kind',
+    'claude-sonnet-5-5', repeat('5', 64), '없는 명세서', array['팁'], array['food'])->>'kind',
   'no_data', 'CA에 2026-09-23 done 업로드가 없으면 no_data다'
 );
 insert into _tap(line) select is(
   public.save_card_summary('00000000-0000-4000-8000-000000000061',
     (select (result->>'card_id')::uuid from _rpc where name = 'card_ca'), '2026-10', 'free',
-    'claude-sonnet-5-5', repeat('5', 64), '잘못된 월', array['팁'])->>'kind',
+    'claude-sonnet-5-5', repeat('5', 64), '잘못된 월', array['팁'], array['food'])->>'kind',
   'basis_mismatch', 'cycle CA에 월 period를 주면 basis_mismatch다'
 );
 insert into _tap(line) select is(
   public.save_card_summary('00000000-0000-4000-8000-000000000061',
     (select (result->>'card_id')::uuid from _rpc where name = 'card_ca'), '2026-02-30', 'free',
-    'claude-sonnet-5-5', repeat('5', 64), '없는 날짜', array['팁'])->>'kind',
+    'claude-sonnet-5-5', repeat('5', 64), '없는 날짜', array['팁'], array['food'])->>'kind',
   'no_data', '존재하지 않는 날짜 문자열은 예외 없이 no_data다'
 );
 insert into _tap(line) select is(
   public.save_card_summary('00000000-0000-4000-8000-000000000062',
     (select (result->>'card_id')::uuid from _rpc where name = 'card_ma'), '2026-10', 'free',
-    'claude-sonnet-5-5', repeat('6', 64), '타인 카드', array['팁'])->>'kind',
+    'claude-sonnet-5-5', repeat('6', 64), '타인 카드', array['팁'], array['food'])->>'kind',
   'card_not_found', 'B가 A의 카드 id를 넘기면 card_not_found다'
 );
 insert into _tap(line) select is(
   public.save_card_summary('00000000-0000-4000-8000-000000000061',
     '00000000-0000-4000-8000-000000000099', '2026-10', 'free',
-    'claude-sonnet-5-5', repeat('6', 64), '없는 카드', array['팁'])->>'kind',
+    'claude-sonnet-5-5', repeat('6', 64), '없는 카드', array['팁'], array['food'])->>'kind',
   'card_not_found', '없는 카드 id는 card_not_found다'
 );
 insert into _tap(line) select throws_ok(
   $$select public.save_card_summary('00000000-0000-4000-8000-000000000061',
     (select (result->>'card_id')::uuid from _rpc where name = 'card_ma'), null, 'free',
-    'claude-sonnet-5-5', repeat('6', 64), 'null period', array['팁'])$$,
+    'claude-sonnet-5-5', repeat('6', 64), 'null period', array['팁'], array['food'])$$,
   '22023', 'INVALID_PERIOD', 'null period는 INVALID_PERIOD다'
 );
 
@@ -264,45 +264,45 @@ insert into _tap(line) select throws_ok(
 reset role;
 set local role postgres;
 insert into _tap(line) select throws_ok(
-  $$insert into public.card_summaries (user_id, card_id, period, plan, model, input_hash, summary, tips)
+  $$insert into public.card_summaries (user_id, card_id, period, plan, model, input_hash, summary, tips, tip_categories)
     values ('00000000-0000-4000-8000-000000000061',
-      (select (result->>'card_id')::uuid from _rpc where name = 'card_ma'), '2026-13', 'free', 'm', repeat('a', 64), 's', array['t'])$$,
+      (select (result->>'card_id')::uuid from _rpc where name = 'card_ma'), '2026-13', 'free', 'm', repeat('a', 64), 's', array['t'], array['food'])$$,
   '23514', null, 'period 2026-13은 제약 오류다'
 );
 insert into _tap(line) select throws_ok(
-  $$insert into public.card_summaries (user_id, card_id, period, plan, model, input_hash, summary, tips)
+  $$insert into public.card_summaries (user_id, card_id, period, plan, model, input_hash, summary, tips, tip_categories)
     values ('00000000-0000-4000-8000-000000000061',
-      (select (result->>'card_id')::uuid from _rpc where name = 'card_ma'), '2026-10-32', 'free', 'm', repeat('a', 64), 's', array['t'])$$,
+      (select (result->>'card_id')::uuid from _rpc where name = 'card_ma'), '2026-10-32', 'free', 'm', repeat('a', 64), 's', array['t'], array['food'])$$,
   '23514', null, 'period 2026-10-32는 제약 오류다'
 );
 insert into _tap(line) select throws_ok(
-  $$insert into public.card_summaries (user_id, card_id, period, plan, model, input_hash, summary, tips)
+  $$insert into public.card_summaries (user_id, card_id, period, plan, model, input_hash, summary, tips, tip_categories)
     values ('00000000-0000-4000-8000-000000000061',
-      (select (result->>'card_id')::uuid from _rpc where name = 'card_ma'), '202610', 'free', 'm', repeat('a', 64), 's', array['t'])$$,
+      (select (result->>'card_id')::uuid from _rpc where name = 'card_ma'), '202610', 'free', 'm', repeat('a', 64), 's', array['t'], array['food'])$$,
   '23514', null, '기간의 구분 기호가 없으면 제약 오류다'
 );
 insert into _tap(line) select throws_ok(
-  $$insert into public.card_summaries (user_id, card_id, period, plan, model, input_hash, summary, tips)
+  $$insert into public.card_summaries (user_id, card_id, period, plan, model, input_hash, summary, tips, tip_categories)
     values ('00000000-0000-4000-8000-000000000061',
-      (select (result->>'card_id')::uuid from _rpc where name = 'card_ma'), '2026-10', 'team', 'm', repeat('a', 64), 's', array['t'])$$,
+      (select (result->>'card_id')::uuid from _rpc where name = 'card_ma'), '2026-10', 'team', 'm', repeat('a', 64), 's', array['t'], array['food'])$$,
   '23514', null, '허용되지 않은 plan은 제약 오류다'
 );
 insert into _tap(line) select throws_ok(
-  $$insert into public.card_summaries (user_id, card_id, period, plan, model, input_hash, summary, tips)
+  $$insert into public.card_summaries (user_id, card_id, period, plan, model, input_hash, summary, tips, tip_categories)
     values ('00000000-0000-4000-8000-000000000061',
-      (select (result->>'card_id')::uuid from _rpc where name = 'card_ma'), '2026-10', 'free', 'm', 'abc', 's', array['t'])$$,
+      (select (result->>'card_id')::uuid from _rpc where name = 'card_ma'), '2026-10', 'free', 'm', 'abc', 's', array['t'], array['food'])$$,
   '23514', null, '잘못된 input_hash는 제약 오류다'
 );
 insert into _tap(line) select throws_ok(
-  $$insert into public.card_summaries (user_id, card_id, period, plan, model, input_hash, summary, tips)
+  $$insert into public.card_summaries (user_id, card_id, period, plan, model, input_hash, summary, tips, tip_categories)
     values ('00000000-0000-4000-8000-000000000061',
-      (select (result->>'card_id')::uuid from _rpc where name = 'card_ma'), '2026-10', 'free', 'm', repeat('a', 64), 's', array[]::text[])$$,
+      (select (result->>'card_id')::uuid from _rpc where name = 'card_ma'), '2026-10', 'free', 'm', repeat('a', 64), 's', array[]::text[], array[]::text[])$$,
   '23514', null, '빈 tips 배열은 제약 오류다'
 );
 insert into _tap(line) select throws_ok(
-  $$insert into public.card_summaries (user_id, card_id, period, plan, model, input_hash, summary, tips)
+  $$insert into public.card_summaries (user_id, card_id, period, plan, model, input_hash, summary, tips, tip_categories)
     values ('00000000-0000-4000-8000-000000000061',
-      (select (result->>'card_id')::uuid from _rpc where name = 'card_ma'), '2026-10', 'free', 'm', repeat('a', 64), 's', array['1','2','3','4','5','6'])$$,
+      (select (result->>'card_id')::uuid from _rpc where name = 'card_ma'), '2026-10', 'free', 'm', repeat('a', 64), 's', array['1','2','3','4','5','6'], array['food','food','food','food','food','food'])$$,
   '23514', null, 'tips 여섯 개는 제약 오류다'
 );
 reset role;
@@ -312,13 +312,13 @@ set local role service_role;
 insert into _tap(line) select is(
   public.save_card_summary('00000000-0000-4000-8000-000000000061',
     (select (result->>'card_id')::uuid from _rpc where name = 'card_mb'), '2026-10', 'free',
-    'claude-sonnet-5-5', repeat('7', 64), 'MB 요약', array['팁'])->>'kind',
+    'claude-sonnet-5-5', repeat('7', 64), 'MB 요약', array['팁'], array['food'])->>'kind',
   'saved', 'MB 보존용 요약을 저장한다'
 );
 insert into _tap(line) select is(
   public.save_card_summary('00000000-0000-4000-8000-000000000062',
     (select (result->>'card_id')::uuid from _rpc where name = 'card_b'), '2026-10', 'free',
-    'claude-sonnet-5-5', repeat('8', 64), 'B 요약', array['팁'])->>'kind',
+    'claude-sonnet-5-5', repeat('8', 64), 'B 요약', array['팁'], array['food'])->>'kind',
   'saved', 'B 사용자의 보존용 요약을 저장한다'
 );
 insert into _tap(line) select is(
@@ -355,7 +355,7 @@ insert into _tap(line) select is((select result->>'kind' from _rpc where name = 
 insert into _tap(line) select is(
   public.save_card_summary('00000000-0000-4000-8000-000000000061',
     (select (result->>'card_id')::uuid from _rpc where name = 'card_ma'), '2026-10', 'free',
-    'claude-sonnet-5-5', repeat('9', 64), 'MA 재생성 요약', array['팁'])->>'kind',
+    'claude-sonnet-5-5', repeat('9', 64), 'MA 재생성 요약', array['팁'], array['food'])->>'kind',
   'saved', 'MA 재업로드 거래로 요약을 다시 만든다'
 );
 insert into _tap(line) select is(
@@ -444,7 +444,7 @@ set local role service_role;
 insert into _tap(line) select is(
   public.save_card_summary('00000000-0000-4000-8000-000000000061',
     (select (result->>'card_id')::uuid from _rpc where name = 'card_ca'), '2026-10-23', 'pro',
-    'claude-opus-5-5', repeat('a', 64), 'CA 교체 전 요약', array['팁'])->>'kind',
+    'claude-opus-5-5', repeat('a', 64), 'CA 교체 전 요약', array['팁'], array['food'])->>'kind',
   'saved', 'CA 교체 트리거 검증용 요약을 저장한다'
 );
 insert into _rpc select 'upload_ca_replacement', public.begin_upload(
@@ -474,7 +474,7 @@ set local role service_role;
 insert into _tap(line) select is(
   public.save_card_summary('00000000-0000-4000-8000-000000000061',
     (select (result->>'card_id')::uuid from _rpc where name = 'card_ca'), '2026-10-23', 'free',
-    'claude-sonnet-5-5', repeat('b', 64), 'CA 다시 저장한 요약', array['팁'])->>'kind',
+    'claude-sonnet-5-5', repeat('b', 64), 'CA 다시 저장한 요약', array['팁'], array['food'])->>'kind',
   'saved', '교체 후 CA 요약을 다시 저장한다'
 );
 insert into _tap(line) select is(

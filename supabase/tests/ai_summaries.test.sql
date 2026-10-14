@@ -14,8 +14,8 @@ grant insert, select on _rpc to service_role;
 insert into _tap(line) select has_table('public', 'ai_summaries', 'ai_summaries 테이블이 있다');
 insert into _tap(line) select columns_are(
   'public', 'ai_summaries', array[
-    'user_id', 'month', 'plan', 'model', 'input_hash', 'summary', 'created_at', 'updated_at', 'tips'
-  ], '요약 저장에 필요한 아홉 컬럼이 있다'
+    'user_id', 'month', 'plan', 'model', 'input_hash', 'summary', 'created_at', 'updated_at', 'tips', 'tip_categories'
+  ], '요약 저장에 필요한 열 개 컬럼이 있다'
 );
 insert into _tap(line) select col_type_is(
   'public', 'ai_summaries', 'tips', 'text[]', 'tips는 text[]다'
@@ -55,7 +55,7 @@ insert into _tap(line) select ok(
 insert into _tap(line)
 select ok(
   has_function_privilege(role_name,
-    'public.save_ai_summary(uuid,text,text,text,text,text,text[])', 'EXECUTE')
+    'public.save_ai_summary(uuid,text,text,text,text,text,text[],text[])', 'EXECUTE')
     = (role_name = 'service_role'),
   role_name || '의 save_ai_summary EXECUTE 권한이 올바르다'
 )
@@ -69,7 +69,7 @@ select ok(
 from unnest(array['anon', 'authenticated', 'service_role']) as roles(role_name);
 insert into _tap(line) select ok(
   (select not prosecdef and proconfig @> array['search_path=""']::text[]
-    from pg_proc where oid = 'public.save_ai_summary(uuid,text,text,text,text,text,text[])'::regprocedure),
+    from pg_proc where oid = 'public.save_ai_summary(uuid,text,text,text,text,text,text[],text[])'::regprocedure),
   'save_ai_summary는 invoker 권한과 빈 search_path를 쓴다'
 );
 insert into _tap(line) select ok(
@@ -111,7 +111,7 @@ insert into _rpc select 'upload_b', public.begin_upload(
 
 insert into _tap(line) select is(
   public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-07', 'free',
-    'claude-sonnet-5-5', repeat('a', 64), '7월 요약', array['카드사 앱에서 확인해 보세요'])->>'kind',
+    'claude-sonnet-5-5', repeat('a', 64), '7월 요약', array['카드사 앱에서 확인해 보세요'], array['food'])->>'kind',
   'no_transactions', '거래가 없는 A의 달은 no_transactions다'
 );
 insert into _tap(line) select is(
@@ -121,7 +121,7 @@ insert into _tap(line) select is(
 );
 insert into _tap(line) select is(
   public.save_ai_summary('00000000-0000-4000-8000-000000000042', '2026-09', 'free',
-    'claude-sonnet-5-5', repeat('b', 64), '9월 요약', array['카드사 앱에서 확인해 보세요'])->>'kind',
+    'claude-sonnet-5-5', repeat('b', 64), '9월 요약', array['카드사 앱에서 확인해 보세요'], array['food'])->>'kind',
   'no_transactions', 'A의 거래는 B의 거래로 세지 않는다'
 );
 insert into _tap(line) select is(
@@ -179,12 +179,12 @@ insert into _tap(line) select is(
 
 insert into _tap(line) select is(
   public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-08', 'free',
-    'claude-sonnet-5-5', repeat('8', 64), '8월 요약 A', array['카드사 앱에서 확인해 보세요'])->>'kind',
+    'claude-sonnet-5-5', repeat('8', 64), '8월 요약 A', array['카드사 앱에서 확인해 보세요'], array['food'])->>'kind',
   'saved', 'A의 8월 말 거래로 8월 요약을 저장한다'
 );
 insert into _tap(line) select is(
   public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-09', 'free',
-    'claude-sonnet-5-5', repeat('a', 64), '9월 요약 A', array['카드사 앱에서 확인해 보세요'])->>'kind',
+    'claude-sonnet-5-5', repeat('a', 64), '9월 요약 A', array['카드사 앱에서 확인해 보세요'], array['food'])->>'kind',
   'saved', 'A의 거래가 있는 9월 요약을 저장한다'
 );
 insert into _tap(line) select is(
@@ -198,7 +198,7 @@ update public.ai_summaries set created_at = '2001-01-01T00:00:00Z'
 where user_id = '00000000-0000-4000-8000-000000000041' and month = '2026-09';
 insert into _tap(line) select is(
   public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-09', 'pro',
-    'claude-opus-5-5', repeat('f', 64), '다시 쓴 9월 요약', array['첫 팁', '둘째 팁'])->>'kind',
+    'claude-opus-5-5', repeat('f', 64), '다시 쓴 9월 요약', array['첫 팁', '둘째 팁'], array['food', 'grocery'])->>'kind',
   'saved', '같은 달 요약을 새 입력으로 갱신한다'
 );
 insert into _tap(line) select is(
@@ -212,53 +212,53 @@ insert into _tap(line) select is(
   '재저장은 행 하나를 갱신하고 created_at을 보존한다'
 );
 insert into _tap(line) select throws_ok(
-  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-13', 'free', 'm', repeat('a', 64), 's', array['카드사 앱에서 확인해 보세요'])$$,
+  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-13', 'free', 'm', repeat('a', 64), 's', array['카드사 앱에서 확인해 보세요'], array['food'])$$,
   '22023', null, '13월은 입력 오류다'
 );
 insert into _tap(line) select throws_ok(
-  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-9', 'free', 'm', repeat('a', 64), 's', array['카드사 앱에서 확인해 보세요'])$$,
+  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-9', 'free', 'm', repeat('a', 64), 's', array['카드사 앱에서 확인해 보세요'], array['food'])$$,
   '22023', null, '연월 형식이 아니면 입력 오류다'
 );
 insert into _tap(line) select throws_ok(
-  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', null, 'free', 'm', repeat('a', 64), 's', array['카드사 앱에서 확인해 보세요'])$$,
+  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', null, 'free', 'm', repeat('a', 64), 's', array['카드사 앱에서 확인해 보세요'], array['food'])$$,
   '22023', null, '월이 null이면 입력 오류다'
 );
 insert into _tap(line) select throws_ok(
-  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-09', 'team', 'm', repeat('a', 64), 's', array['카드사 앱에서 확인해 보세요'])$$,
+  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-09', 'team', 'm', repeat('a', 64), 's', array['카드사 앱에서 확인해 보세요'], array['food'])$$,
   '23514', null, '허용되지 않은 플랜은 제약 오류다'
 );
 insert into _tap(line) select throws_ok(
-  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-09', 'free', 'm', repeat('A', 64), 's', array['카드사 앱에서 확인해 보세요'])$$,
+  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-09', 'free', 'm', repeat('A', 64), 's', array['카드사 앱에서 확인해 보세요'], array['food'])$$,
   '23514', null, '대문자가 섞인 해시는 제약 오류다'
 );
 insert into _tap(line) select throws_ok(
-  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-09', 'free', 'm', repeat('a', 64), '', array['카드사 앱에서 확인해 보세요'])$$,
+  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-09', 'free', 'm', repeat('a', 64), '', array['카드사 앱에서 확인해 보세요'], array['food'])$$,
   '23514', null, '빈 요약은 제약 오류다'
 );
 insert into _tap(line) select throws_ok(
-  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-09', 'free', 'm', repeat('a', 64), 's', array[]::text[])$$,
+  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-09', 'free', 'm', repeat('a', 64), 's', array[]::text[], array[]::text[])$$,
   '23514', null, '팁이 없으면 제약 오류다'
 );
 insert into _tap(line) select throws_ok(
-  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-09', 'free', 'm', repeat('a', 64), 's', array['1', '2', '3', '4', '5', '6'])$$,
+  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-09', 'free', 'm', repeat('a', 64), 's', array['1', '2', '3', '4', '5', '6'], array['food', 'grocery', 'food', 'grocery', 'food', 'grocery'])$$,
   '23514', null, '팁이 여섯 개면 제약 오류다'
 );
 insert into _tap(line) select throws_ok(
-  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-09', 'free', 'm', repeat('a', 64), 's', array['팁', null])$$,
+  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-09', 'free', 'm', repeat('a', 64), 's', array['팁', null], array['food', 'grocery'])$$,
   '23514', null, 'null 팁은 제약 오류다'
 );
 insert into _tap(line) select throws_ok(
-  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-09', 'free', 'm', repeat('a', 64), 's', array['팁', ''])$$,
+  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-09', 'free', 'm', repeat('a', 64), 's', array['팁', ''], array['food', 'grocery'])$$,
   '23514', null, '빈 팁은 제약 오류다'
 );
 insert into _tap(line) select throws_ok(
-  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-09', 'free', 'm', repeat('a', 64), 's', array[repeat('가', 1501)])$$,
+  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-09', 'free', 'm', repeat('a', 64), 's', array[repeat('가', 1501)], array['food'])$$,
   '23514', null, '팁 전체가 1500자를 넘으면 제약 오류다'
 );
 
 insert into _tap(line) select is(
   public.save_ai_summary('00000000-0000-4000-8000-000000000042', '2026-09', 'free',
-    'claude-sonnet-5-5', repeat('b', 64), '9월 요약 B', array['카드사 앱에서 확인해 보세요'])->>'kind',
+    'claude-sonnet-5-5', repeat('b', 64), '9월 요약 B', array['카드사 앱에서 확인해 보세요'], array['food'])->>'kind',
   'saved', 'B 자신의 거래로 요약을 저장한다'
 );
 insert into _tap(line) select is(
@@ -268,7 +268,7 @@ insert into _tap(line) select is(
 );
 insert into _tap(line) select is(
   public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-10', 'free',
-    'claude-sonnet-5-5', repeat('c', 64), '10월 요약 A', array['카드사 앱에서 확인해 보세요'])->>'kind',
+    'claude-sonnet-5-5', repeat('c', 64), '10월 요약 A', array['카드사 앱에서 확인해 보세요'], array['food'])->>'kind',
   'saved', 'A의 10월 요약을 업로드 삭제 회귀 fixture로 저장한다'
 );
 
@@ -285,8 +285,8 @@ insert into _tap(line) select is(
   0::bigint, 'authenticated A에게 B 요약은 보이지 않는다'
 );
 insert into _tap(line) select throws_ok(
-  $$insert into public.ai_summaries (user_id, month, plan, model, input_hash, summary)
-    values ('00000000-0000-4000-8000-000000000041', '2026-11', 'free', 'm', repeat('d', 64), 's')$$,
+  $$insert into public.ai_summaries (user_id, month, plan, model, input_hash, summary, tips, tip_categories)
+    values ('00000000-0000-4000-8000-000000000041', '2026-11', 'free', 'm', repeat('d', 64), 's', array['팁'], array['food'])$$,
   '42501', null, 'authenticated는 요약을 직접 insert할 수 없다'
 );
 insert into _tap(line) select throws_ok(
@@ -300,7 +300,7 @@ insert into _tap(line) select throws_ok(
   '42501', null, 'authenticated는 요약을 직접 delete할 수 없다'
 );
 insert into _tap(line) select throws_ok(
-  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-09', 'free', 'm', repeat('a', 64), 's', array['카드사 앱에서 확인해 보세요'])$$,
+  $$select public.save_ai_summary('00000000-0000-4000-8000-000000000041', '2026-09', 'free', 'm', repeat('a', 64), 's', array['카드사 앱에서 확인해 보세요'], array['food'])$$,
   '42501', null, 'authenticated는 요약 RPC를 실행할 수 없다'
 );
 reset role;
