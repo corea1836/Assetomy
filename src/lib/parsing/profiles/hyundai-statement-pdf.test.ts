@@ -281,7 +281,7 @@ describe("parseHyundaiStatement layout and limits", () => {
     ));
     expect(transactions[0]).toMatchObject({
       merchant: "Acme* Cloud ＳＵＢ", merchantKey: "ACME* CLOUD SUB",
-      sourceEventKey: "2026-10-11|ACME* CLOUD SUB|1000|0",
+      sourceEventKey: "2026-10-11|ACME*CLOUDSU|1000|0",
     });
   });
 
@@ -291,6 +291,80 @@ describe("parseHyundaiStatement layout and limits", () => {
         "1,000", [...merchant, "1,000", "원"], ["일시불 현대카드MM"],
       ))).toEqual({ ok: false, code: "UNREADABLE", reason: "broken_layout" });
     });
+
+  // 2026-10-14에 받은 명세서는 해외 결제 가맹점명을 20자로 자르고 ",통화:금액"을 붙여 다음 줄로 넘긴다.
+  it("appends a wrapped foreign-currency tail to the merchant name", () => {
+    const { transactions } = parseSuccess(statementRows(
+      "30,131", ["ANTHROPIC* CLAUDE", "30,131", "원"], ["SU,USD:22.00"], ["일시불 현대카드MM"],
+    ));
+    expect(transactions).toEqual([{
+      date: "2026-10-11",
+      merchant: "ANTHROPIC* CLAUDE SU",
+      merchantKey: "ANTHROPIC* CLAUDE SU",
+      amount: 30_131,
+      eventKind: "purchase",
+      sourceEventKey: "2026-10-11|ANTHROPIC*CL|30131|0",
+    }]);
+  });
+
+  it.each([
+    { tail: [",USD:22.00"], merchant: "ANTHROPIC* CLAUDE" },
+    { tail: ["SUBS,KRW:29000.00"], merchant: "ANTHROPIC* CLAUDE SUBS" },
+    { tail: ["SUR , EUR : 2,00"], merchant: "ANTHROPIC* CLAUDE SUR" },
+  ])("reads the currency tail line $tail", ({ tail, merchant }) => {
+    const { transactions } = parseSuccess(statementRows(
+      "30,131", ["ANTHROPIC* CLAUDE", "30,131원"], tail, ["일시불 현대카드MM"],
+    ));
+    expect(transactions[0].merchant).toBe(merchant);
+  });
+
+  it("strips a comma currency suffix on the merchant line", () => {
+    const { transactions } = parseSuccess(statementRows(
+      "15,073", ["OPENAI", ",USD:", "11.00", "15,073", "원"], ["일시불 현대카드MM"],
+    ));
+    expect(transactions[0]).toMatchObject({ merchant: "OPENAI", sourceEventKey: "2026-10-11|OPENAI|15073|0" });
+  });
+
+  // 취소된 거래는 결제 방식 줄이 0원이 되고, 적립 줄 아래에 "결제 취소 -금액원" 줄이 붙는다.
+  it("reads a payment cancellation row as a cancel of the transaction above", () => {
+    const { transactions, statementTotal } = parseSuccess(statementRows(
+      "3,000",
+      ["(주)결제대행 - 결제가게 햇살마을점", "254,000", "원"],
+      ["일시불 현대카드MM", "0원"],
+      ["현대 포인트 3,810(1.5%)"],
+      ["결제 취소 ", "-254,000", "원"],
+      ["QS25", "3,000원"],
+      ["일시불 현대카드MM"],
+    ));
+    expect(statementTotal).toBe(3_000);
+    expect(transactions.map(({ merchant, amount, eventKind, sourceEventKey }) => ({
+      merchant, amount, eventKind, sourceEventKey,
+    }))).toEqual([
+      {
+        merchant: "(주)결제대행 - 결제가게 햇살마을점", amount: 254_000, eventKind: "purchase",
+        sourceEventKey: "2026-10-11|(주)결제대행-결제가게|254000|0",
+      },
+      {
+        merchant: "(주)결제대행 - 결제가게 햇살마을점", amount: -254_000, eventKind: "cancel",
+        sourceEventKey: "2026-10-11|(주)결제대행-결제가게|-254000|0",
+      },
+      { merchant: "QS25", amount: 3_000, eventKind: "purchase", sourceEventKey: "2026-10-11|QS25|3000|0" },
+    ]);
+  });
+
+  it("rejects a payment cancellation row with no transaction above it on the same date", () => {
+    expect(parseHyundaiStatement(statementRows("-1,000", ["결제 취소", "-1,000원"])))
+      .toEqual({ ok: false, code: "UNREADABLE", reason: "broken_layout" });
+    const rows = statementRows("0", ["QS25", "1,000원"], ["일시불 현대카드MM"]);
+    rows.push(row(["26. 10. 10 (토)"]), row(["결제 취소", "-1,000원"]));
+    expect(parseHyundaiStatement(rows)).toEqual({ ok: false, code: "UNREADABLE", reason: "broken_layout" });
+  });
+
+  it("rejects a payment cancellation row with a positive amount", () => {
+    expect(parseHyundaiStatement(statementRows(
+      "2,000", ["QS25", "1,000원"], ["일시불 현대카드MM"], ["결제 취소", "1,000원"],
+    ))).toEqual({ ok: false, code: "UNREADABLE", reason: "cancel_label" });
+  });
 
   it("skips multiple currency lines across pages before the payment method", () => {
     const rows = statementRows("1,000", ["QS25", "1,000원"]);

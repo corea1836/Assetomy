@@ -15,6 +15,10 @@ const HEADER = /^\d{1,2}월 \d{1,2}일 명세서$/;
 const WON_AMOUNT = /^(-?\d{1,3}(?:,\d{3})*)원$/;
 const DATE_ROW = /^(\d{2})\. (\d{1,2})\. (\d{1,2}) \([월화수목금토일]\)$/;
 const CURRENCY_ROW = /^\([A-Z]{3}\s*:\s*[\d,.]+\)$/;
+// 20자에서 잘린 가맹점명의 남은 부분 + ",통화:금액"(예: "SU,USD:22.00")
+const CURRENCY_TAIL_ROW = /^(.*?)\s*,\s*[A-Z]{3}\s*:\s*[\d,.]+$/;
+// 취소된 거래의 적립 줄 아래에 붙는 줄
+const PAYMENT_CANCEL = "결제 취소";
 
 function isHeader(row: PdfRow): boolean {
   return row.page === 1 && HEADER.test(row.text);
@@ -44,6 +48,7 @@ function readTransaction(row: PdfRow): { merchant: string; amount: number } | nu
   const merchant = merchantCells.map((cell) => cell.str).join("")
     .replace(/\s+/g, " ").trim()
     .replace(/\s*\([A-Z]{3}\s*:\s*[\d,.]+\)$/, "")
+    .replace(/\s*,\s*[A-Z]{3}\s*:\s*[\d,.]+$/, "")
     .replace(/\s+\d+건$/, "")
     .trim();
   return { merchant, amount };
@@ -65,6 +70,8 @@ export function parseHyundaiStatement(rows: PdfRow[]): ParseResult {
   if (statementTotal === null) return unreadable("broken_layout");
 
   let currentDate: IsoDate | undefined;
+  // 같은 날짜 아래 바로 앞 거래. "결제 취소" 줄은 이 거래의 취소다.
+  let previousMerchant: string | null = null;
   const transactions: Omit<ParsedTransaction, "sourceEventKey">[] = [];
   for (let index = headerIndex + 2; index < rows.length; index += 1) {
     const row = rows[index];
@@ -81,17 +88,37 @@ export function parseHyundaiStatement(rows: PdfRow[]): ParseResult {
         return unreadable("broken_layout");
       }
       currentDate = `${yearMonth}-${day.padStart(2, "0")}`;
+      previousMerchant = null;
       continue;
     }
 
     const transaction = readTransaction(row);
     if (!transaction) continue;
-    const { merchant, amount } = transaction;
+    const { amount } = transaction;
+    let { merchant } = transaction;
+    if (merchant === PAYMENT_CANCEL) {
+      if (amount > 0) return unreadable("cancel_label");
+      if (!previousMerchant || !currentDate) return unreadable("broken_layout");
+      if (amount !== 0) {
+        transactions.push({
+          date: currentDate,
+          merchant: previousMerchant,
+          merchantKey: normalizeMerchantKey(previousMerchant),
+          amount,
+          eventKind: "cancel",
+        });
+      }
+      continue;
+    }
     if (!merchant || !currentDate) return unreadable("broken_layout");
 
     let paymentIndex = index + 1;
-    while (paymentIndex < rows.length && CURRENCY_ROW.test(rows[paymentIndex].text)) {
-      paymentIndex += 1;
+    for (; paymentIndex < rows.length; paymentIndex += 1) {
+      const text = rows[paymentIndex].text;
+      if (CURRENCY_ROW.test(text)) continue;
+      const tail = text.match(CURRENCY_TAIL_ROW);
+      if (!tail) break;
+      merchant = `${merchant} ${tail[1]}`.replace(/\s+/g, " ").trim();
     }
     const payment = rows[paymentIndex];
     if (!payment || !payment.text.includes("현대카드")) return unreadable("broken_layout");
@@ -109,6 +136,7 @@ export function parseHyundaiStatement(rows: PdfRow[]): ParseResult {
         eventKind: amount < 0 ? "cancel" : "purchase",
       });
     }
+    previousMerchant = merchant;
     index = paymentIndex;
   }
 
