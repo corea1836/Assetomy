@@ -4,9 +4,9 @@ import { getAnthropicApiKey } from "@/lib/env";
 import { getMode } from "@/lib/mode";
 import { createHaikuClassifier } from "./haiku-classifier";
 import { createMockClassifier } from "./mock-classifier";
-import { createClaudeSummarizer } from "./claude-summarizer";
-import { createMockSummarizer } from "./mock-summarizer";
-import type { MerchantClassifier, MonthlySummarizer } from "./types";
+import { createClaudeCardSummarizer, createClaudeSummarizer } from "./claude-summarizer";
+import { createMockCardSummarizer, createMockSummarizer } from "./mock-summarizer";
+import type { CardSummarizer, MerchantClassifier, MonthlySummarizer } from "./types";
 
 export function getMerchantClassifier(): MerchantClassifier {
   if (getMode() === "mock") return createMockClassifier();
@@ -19,6 +19,15 @@ export function getMerchantClassifier(): MerchantClassifier {
 export function getMonthlySummarizer(): MonthlySummarizer {
   if (getMode() === "mock") return createMockSummarizer();
   return createClaudeSummarizer(() => new Anthropic({
+    apiKey: getAnthropicApiKey(),
+    timeout: 60_000,
+    maxRetries: 1,
+  }));
+}
+
+export function getCardSummarizer(): CardSummarizer {
+  if (getMode() === "mock") return createMockCardSummarizer();
+  return createClaudeCardSummarizer(() => new Anthropic({
     apiKey: getAnthropicApiKey(),
     timeout: 60_000,
     maxRetries: 1,

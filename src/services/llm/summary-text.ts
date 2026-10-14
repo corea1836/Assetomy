@@ -1,6 +1,6 @@
 import "server-only";
 import { formatDate, formatRatio, formatWon } from "@/lib/format";
-import type { SummaryContent, SummaryInput } from "@/types/summary";
+import type { CardSummaryInput, SummaryContent, SummaryInput } from "@/types/summary";
 
 export type SummaryContentCheck =
   | ({ ok: true } & SummaryContent)
@@ -42,7 +42,9 @@ function itemName(item: Record<string, unknown>): string | null {
   return null;
 }
 
-function resolvePlaceholder(path: string, input: SummaryInput): { value: string; names: string[] } | null {
+type SummaryCheckInput = SummaryInput | CardSummaryInput;
+
+function resolvePlaceholder(path: string, input: SummaryCheckInput): { value: string; names: string[] } | null {
   if (path === "period") {
     return { value: `${formatDate(input.period.from)}~${formatDate(input.period.to)}`, names: [] };
   }
@@ -72,7 +74,7 @@ function resolvePlaceholder(path: string, input: SummaryInput): { value: string;
 
 function renderText(
   text: string,
-  input: SummaryInput,
+  input: SummaryCheckInput,
   merchantNames: string[],
   length: { min: number; max: number },
 ): { text: string } | { reason: TextReason } {
@@ -114,13 +116,13 @@ function renderText(
 }
 
 // 검증을 통과하면 자리표시자를 입력 값으로 채운 요약·팁을 돌려준다.
-export function checkSummaryContent(raw: SummaryContent, input: SummaryInput): SummaryContentCheck {
+export function checkSummaryContent(raw: SummaryContent, input: SummaryInput | CardSummaryInput): SummaryContentCheck {
   const tips = raw.tips.map((tip) => tip.trim());
   if (tips.length < TIP_COUNT.min || tips.length > TIP_COUNT.max) return { ok: false, reason: "length" };
 
   const merchantNames = [
     ...input.topMerchants.map(({ merchant }) => merchant),
-    ...(input.plan === "pro" ? input.findings.map(({ merchant }) => merchant) : []),
+    ...("findings" in input ? input.findings.map(({ merchant }) => merchant) : []),
   ].filter((merchant) => merchant.length > 0)
     .sort((left, right) => Array.from(right).length - Array.from(left).length);
 

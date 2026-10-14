@@ -4,7 +4,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { getAnthropicApiKey } from "@/lib/env";
 import { getMode } from "@/lib/mode";
 import { SUMMARY_MODELS } from "./claude-summarizer";
-import { getMerchantClassifier, getMonthlySummarizer } from "./index";
+import { getCardSummarizer, getMerchantClassifier, getMonthlySummarizer } from "./index";
 
 const { fakeClient, getModeMock, getAnthropicApiKeyMock } = vi.hoisted(() => ({
   fakeClient: {
@@ -118,6 +118,42 @@ describe("getMonthlySummarizer", () => {
         recurring: { count: 0, amount: 0 }, duplicate: { count: 0, amount: 0 },
         large: { count: 0, amount: 0 }, candidateTotal: 0,
       },
+    })).resolves.toEqual({ ok: false, reason: "request_failed" });
+    expect(getAnthropicApiKey).toHaveBeenCalledOnce();
+  });
+});
+
+describe("getCardSummarizer", () => {
+  it("returns the mock card summarizer without reading an API key in mock mode", async () => {
+    getModeMock.mockReturnValue("mock");
+    const summarizer = getCardSummarizer();
+    expect(summarizer.modelFor("free")).toBe("mock");
+    await expect(summarizer.summarize({
+      plan: "free", scope: "month", period: { from: "2026-09-01", to: "2026-09-30" },
+      inProgress: false, total: 0, transactionCount: 0, categories: [], topMerchants: [],
+      comparison: null, comparisonSkipped: false,
+    })).resolves.toMatchObject({ ok: true });
+    expect(getAnthropicApiKey).not.toHaveBeenCalled();
+    expect(Anthropic).not.toHaveBeenCalled();
+  });
+
+  it("defers live key access and model client creation until summarize", () => {
+    getModeMock.mockReturnValue("live");
+    const summarizer = getCardSummarizer();
+    expect(getAnthropicApiKey).not.toHaveBeenCalled();
+    expect(Anthropic).not.toHaveBeenCalled();
+    expect(summarizer.modelFor("free")).toBe(SUMMARY_MODELS.free);
+    expect(summarizer.modelFor("pro")).toBe(SUMMARY_MODELS.pro);
+  });
+
+  it("maps missing live key to request_failed at summarize time", async () => {
+    getModeMock.mockReturnValue("live");
+    getAnthropicApiKeyMock.mockImplementation(() => { throw new Error("missing key"); });
+    const summarizer = getCardSummarizer();
+    await expect(summarizer.summarize({
+      plan: "free", scope: "month", period: { from: "2026-09-01", to: "2026-09-30" },
+      inProgress: false, total: 0, transactionCount: 0, categories: [], topMerchants: [],
+      comparison: null, comparisonSkipped: false,
     })).resolves.toEqual({ ok: false, reason: "request_failed" });
     expect(getAnthropicApiKey).toHaveBeenCalledOnce();
   });

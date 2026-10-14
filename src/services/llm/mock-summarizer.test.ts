@@ -1,8 +1,8 @@
 import "server-only";
 import { describe, expect, it } from "vitest";
-import type { FreeSummaryInput, ProSummaryInput } from "@/types/summary";
+import type { CardSummaryInput, FreeSummaryInput, ProSummaryInput } from "@/types/summary";
 import { checkSummaryContent } from "./summary-text";
-import { createMockSummarizer, MOCK_SUMMARY_MODEL } from "./mock-summarizer";
+import { createMockCardSummarizer, createMockSummarizer, MOCK_SUMMARY_MODEL, MOCK_CARD_SUMMARY_MODEL } from "./mock-summarizer";
 
 function inputs() {
   const shared = {
@@ -61,5 +61,37 @@ describe("createMockSummarizer", () => {
       expect(checkSummaryContent(template, inputs()[plan])).toMatchObject({ ok: true });
     }
     expect(summarizer.promptFor("free")).not.toBe(summarizer.promptFor("pro"));
+  });
+});
+
+describe("createMockCardSummarizer", () => {
+  it.each([
+    { plan: "free", scope: "month" },
+    { plan: "free", scope: "statement" },
+    { plan: "pro", scope: "month" },
+    { plan: "pro", scope: "statement" },
+  ] as const)("returns validated card content for $plan/$scope", async ({ plan, scope }) => {
+    const shared = {
+      scope, period: { from: "2026-09-12", to: "2026-10-11" }, inProgress: false,
+      total: 10_000, transactionCount: 4,
+      categories: [{ category: "식비", amount: 8_000, ratio: 0.8 }],
+      topMerchants: [{ merchant: "가게", category: "식비", amount: 8_000, count: 2 }],
+      comparison: null, comparisonSkipped: false,
+    };
+    const input: CardSummaryInput = plan === "free"
+      ? { ...shared, plan }
+      : { ...shared, plan, categoryChanges: null };
+    const summarizer = createMockCardSummarizer();
+    const result = await summarizer.summarize(input);
+    expect(MOCK_CARD_SUMMARY_MODEL).toBe("mock");
+    expect(summarizer.modelFor(plan)).toBe("mock");
+    expect(result).toMatchObject({ ok: true });
+    if (!result.ok) throw new Error("Expected mock card summary to validate");
+    expect(result.summary).toContain("9월 12일~10월 11일");
+    expect(result.summary).toContain("4건");
+    expect(result.summary).toContain("10,000원");
+    expect(checkSummaryContent(JSON.parse(summarizer.promptFor(plan)), input)).toMatchObject({ ok: true });
+    expect(result.tips.length).toBeGreaterThanOrEqual(2);
+    expect(result.tips.length).toBeLessThanOrEqual(3);
   });
 });

@@ -1,8 +1,8 @@
 import "server-only";
 import type { Plan } from "@/types/dashboard";
-import type { SummaryContent, SummaryInput } from "@/types/summary";
+import type { CardSummaryInput, SummaryContent, SummaryInput } from "@/types/summary";
 import { checkSummaryContent } from "./summary-text";
-import type { MonthlySummarizer } from "./types";
+import type { CardSummarizer, MonthlySummarizer } from "./types";
 
 export const MOCK_SUMMARY_MODEL = "mock";
 
@@ -26,6 +26,26 @@ const MOCK_CONTENT: Record<Plan, SummaryContent> = {
   },
 };
 
+export const MOCK_CARD_SUMMARY_MODEL = MOCK_SUMMARY_MODEL;
+
+const MOCK_CARD_CONTENT: Record<Plan, SummaryContent> = {
+  free: {
+    summary: "{period} 동안 이 카드로 {transactionCount}, {total}을 썼어요. 비중이 큰 카테고리와 자주 쓴 곳을 함께 보면 지출 흐름을 파악하기 쉬워요.",
+    tips: [
+      "비중이 큰 카테고리의 예산을 정하고 다음 이용 기간 뒤에 살펴보세요.",
+      "자주 결제한 가맹점은 한 주에 이용할 횟수를 정해 보세요.",
+    ],
+  },
+  pro: {
+    summary: "{period} 동안 이 카드로 {transactionCount}, {total}을 썼어요. 비중이 큰 카테고리와 자주 쓴 곳을 함께 보면 지출 흐름을 파악하기 쉬워요.",
+    tips: [
+      "비중이 큰 카테고리의 예산을 정하고 다음 이용 기간 뒤에 살펴보세요.",
+      "자주 결제한 가맹점은 한 주에 이용할 횟수를 정해 보세요.",
+      "지난달이나 지난 명세서와 달라진 카테고리가 있으면 그 이유를 살펴보세요.",
+    ],
+  },
+};
+
 export function createMockSummarizer(): MonthlySummarizer {
   return {
     modelFor(plan: Plan) {
@@ -37,6 +57,21 @@ export function createMockSummarizer(): MonthlySummarizer {
     },
     async summarize(input: SummaryInput) {
       return checkSummaryContent(MOCK_CONTENT[input.plan], input);
+    },
+  };
+}
+
+export function createMockCardSummarizer(): CardSummarizer {
+  return {
+    modelFor(plan: Plan) {
+      void plan;
+      return MOCK_CARD_SUMMARY_MODEL;
+    },
+    promptFor(plan: Plan) {
+      return JSON.stringify(MOCK_CARD_CONTENT[plan]);
+    },
+    async summarize(input: CardSummaryInput) {
+      return checkSummaryContent(MOCK_CARD_CONTENT[input.plan], input);
     },
   };
 }

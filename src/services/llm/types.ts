@@ -1,7 +1,7 @@
 import "server-only";
 import type { CategoryId } from "@/types/category";
 import type { Plan } from "@/types/dashboard";
-import type { SummaryContent, SummaryInput } from "@/types/summary";
+import type { CardSummaryInput, SummaryContent, SummaryInput } from "@/types/summary";
 
 export type MerchantInput = { merchantKey: string; merchant: string };
 
@@ -23,4 +23,12 @@ export interface MonthlySummarizer {
   promptFor(plan: Plan): string;
   // Uses the model for input.plan and never rejects for any failure.
   summarize(input: SummaryInput): Promise<SummaryResult>;
+}
+
+export interface CardSummarizer {
+  modelFor(plan: Plan): string;
+  // 해시에 넣는 프롬프트(mock은 고정 결과). 바뀌면 저장된 카드 요약을 다시 만든다.
+  promptFor(plan: Plan): string;
+  // Uses the model for input.plan and never rejects for any failure.
+  summarize(input: CardSummaryInput): Promise<SummaryResult>;
 }

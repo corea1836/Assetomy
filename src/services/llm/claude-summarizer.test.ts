@@ -1,9 +1,13 @@
 import "server-only";
 import Anthropic from "@anthropic-ai/sdk";
+import { createHash } from "node:crypto";
 import { describe, expect, it, vi } from "vitest";
-import type { FreeSummaryInput, ProSummaryInput } from "@/types/summary";
+import type { FreeCardSummaryInput, FreeSummaryInput, ProCardSummaryInput, ProSummaryInput } from "@/types/summary";
 import { checkSummaryContent } from "./summary-text";
-import { createClaudeSummarizer, FREE_SYSTEM, PRO_SYSTEM, SUMMARY_MODELS } from "./claude-summarizer";
+import {
+  CARD_FREE_SYSTEM, CARD_PRO_SYSTEM, createClaudeCardSummarizer, createClaudeSummarizer,
+  FREE_SYSTEM, PRO_SYSTEM, SUMMARY_MODELS,
+} from "./claude-summarizer";
 
 type ParseRequest = Parameters<Anthropic["beta"]["messages"]["parse"]>[0];
 
@@ -21,6 +25,23 @@ function freeInput(): FreeSummaryInput {
 
 function proInput(): ProSummaryInput {
   return { ...freeInput(), plan: "pro", findings: [], trend: null };
+}
+
+function cardInputs(): { freeMonth: FreeCardSummaryInput; freeStatement: FreeCardSummaryInput; proMonth: ProCardSummaryInput; proStatement: ProCardSummaryInput } {
+  const shared = {
+    period: { from: "2026-09-01", to: "2026-09-30" }, inProgress: false, total: 1000, transactionCount: 1,
+    categories: [{ category: "식비", amount: 1000, ratio: 1 }],
+    topMerchants: [{ merchant: "가게", category: "식비", amount: 1000, count: 1 }],
+    comparison: { previousTotal: 900, diff: 100, direction: "up" as const }, comparisonSkipped: false,
+  };
+  const freeMonth: FreeCardSummaryInput = { ...shared, plan: "free", scope: "month" };
+  const freeStatement: FreeCardSummaryInput = { ...shared, plan: "free", scope: "statement" };
+  const proMonth: ProCardSummaryInput = {
+    ...shared, plan: "pro", scope: "month",
+    categoryChanges: [{ category: "식비", current: 1000, previous: 900, diff: 100 }],
+  };
+  const proStatement: ProCardSummaryInput = { ...proMonth, scope: "statement" };
+  return { freeMonth, freeStatement, proMonth, proStatement };
 }
 
 function validContent() {
@@ -41,6 +62,13 @@ function response(parsed_output: unknown, stop_reason = "end_turn") {
 }
 
 describe("createClaudeSummarizer", () => {
+  it("keeps the existing monthly prompt hashes stable", () => {
+    expect(createHash("sha256").update(FREE_SYSTEM).digest("hex"))
+      .toBe("422a5999f7d3039af4750d718a47a1a5f97a0109cacf87b1c703ef64bd682c96");
+    expect(createHash("sha256").update(PRO_SYSTEM).digest("hex"))
+      .toBe("5396c81eee1cf2b4f203b772986c988cc062fc1d4949f5d45b3ce984ca37a748");
+  });
+
   it.each([
     { input: freeInput(), model: "claude-sonnet-5-5" },
     { input: proInput(), model: "claude-opus-5-5" },
@@ -150,6 +178,78 @@ describe("createClaudeSummarizer", () => {
   it("does not create the client until summarize is called", () => {
     const createClient = vi.fn(() => fakeClient().client);
     const summarizer = createClaudeSummarizer(createClient);
+    expect(createClient).not.toHaveBeenCalled();
+    expect(summarizer.modelFor("free")).toBe(SUMMARY_MODELS.free);
+  });
+});
+
+describe("createClaudeCardSummarizer", () => {
+  it.each([
+    { input: cardInputs().freeMonth, model: SUMMARY_MODELS.free },
+    { input: cardInputs().freeStatement, model: SUMMARY_MODELS.free },
+    { input: cardInputs().proMonth, model: SUMMARY_MODELS.pro },
+    { input: cardInputs().proStatement, model: SUMMARY_MODELS.pro },
+  ])("uses the plan's model, card prompt, and structured request for $input.plan/$input.scope", async ({ input, model }) => {
+    const content = {
+      summary: "{period} 동안 {transactionCount}, {total}을 썼어요. 식비가 {categories[0].ratio}로 큰 비중을 차지해요.",
+      tips: ["식비 예산을 정하고 다음 달 지출 흐름을 살펴보세요."],
+    };
+    const { parse, client } = fakeClient();
+    parse.mockResolvedValue(response(content));
+    const summarizer = createClaudeCardSummarizer(() => client);
+
+    await expect(summarizer.summarize(input)).resolves.toEqual({
+      ok: true,
+      summary: "9월 1일~9월 30일 동안 1건, 1,000원을 썼어요. 식비가 100%로 큰 비중을 차지해요.",
+      tips: content.tips,
+    });
+    expect(summarizer.modelFor(input.plan)).toBe(model);
+    expect(summarizer.promptFor(input.plan)).toBe(input.plan === "free" ? CARD_FREE_SYSTEM : CARD_PRO_SYSTEM);
+    expect(parse.mock.calls[0][0]).toMatchObject({
+      model, max_tokens: 16000, betas: ["server-side-fallback-2026-07-01"], fallbacks: "default",
+      output_config: { effort: "medium", format: { type: "json_schema" } },
+      messages: [{ role: "user", content: JSON.stringify(input) }],
+    });
+  });
+
+  it("includes the card-specific scope and safety rules", () => {
+    expect(CARD_FREE_SYSTEM).toContain("이번 명세서");
+    expect(CARD_FREE_SYSTEM).toContain("comparisonSkipped");
+    expect(CARD_FREE_SYSTEM).toContain("카드 이름");
+    expect(CARD_FREE_SYSTEM).toContain("금융상품");
+    expect(CARD_PRO_SYSTEM).toContain(CARD_FREE_SYSTEM);
+    expect(CARD_PRO_SYSTEM).toContain("categoryChanges");
+  });
+
+  it.each([
+    ["refusal", response({}, "refusal"), "refusal"],
+    ["max_tokens", response({}, "max_tokens"), "max_tokens"],
+    ["invalid output", response(null), "invalid_output"],
+  ] as const)("maps card summary %s", async (_name, result, reason) => {
+    const { client } = fakeClient();
+    client.beta.messages.parse = vi.fn().mockResolvedValue(result) as typeof client.beta.messages.parse;
+    await expect(createClaudeCardSummarizer(() => client).summarize(cardInputs().freeMonth))
+      .resolves.toEqual({ ok: false, reason });
+  });
+
+  it("maps content, request, and client creation failures without rejecting", async () => {
+    const invalid = { summary: "이번 달 이 카드에서는 3건의 지출을 확인했어요.", tips: ["식비 예산을 정하고 다음 달 지출 흐름을 살펴보세요."] };
+    const { parse, client } = fakeClient();
+    parse.mockResolvedValue(response(invalid));
+    await expect(createClaudeCardSummarizer(() => client).summarize(cardInputs().freeMonth))
+      .resolves.toEqual(checkSummaryContent(invalid, cardInputs().freeMonth));
+    await expect(createClaudeCardSummarizer(() => client).summarize(cardInputs().freeMonth))
+      .resolves.toEqual({ ok: false, reason: "number" });
+    parse.mockRejectedValue(new Error("sensitive response"));
+    await expect(createClaudeCardSummarizer(() => client).summarize(cardInputs().freeMonth))
+      .resolves.toEqual({ ok: false, reason: "request_failed" });
+    await expect(createClaudeCardSummarizer(() => { throw new Error("sensitive key error"); }).summarize(cardInputs().freeMonth))
+      .resolves.toEqual({ ok: false, reason: "request_failed" });
+  });
+
+  it("does not create the client until summarize is called", () => {
+    const createClient = vi.fn(() => fakeClient().client);
+    const summarizer = createClaudeCardSummarizer(createClient);
     expect(createClient).not.toHaveBeenCalled();
     expect(summarizer.modelFor("free")).toBe(SUMMARY_MODELS.free);
   });

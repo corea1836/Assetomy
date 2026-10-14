@@ -1,6 +1,6 @@
 import "server-only";
 import { describe, expect, it } from "vitest";
-import type { FreeSummaryInput, ProSummaryInput, SummaryInput } from "@/types/summary";
+import type { CardSummaryInput, FreeSummaryInput, ProSummaryInput, SummaryInput } from "@/types/summary";
 import { checkSummaryContent } from "./summary-text";
 
 function freeInput(overrides: Partial<FreeSummaryInput> = {}): FreeSummaryInput {
@@ -262,5 +262,70 @@ describe("checkSummaryContent placeholders", () => {
 
   it("still rejects digits written outside placeholders", () => {
     expect(check("{period} 동안 78건, {total}을 썼어요.", [TIP], input)).toEqual({ ok: false, reason: "number" });
+  });
+});
+
+describe("checkSummaryContent card placeholders", () => {
+  function cardInput(overrides: Partial<CardSummaryInput> = {}): CardSummaryInput {
+    const shared = {
+      scope: "statement" as const,
+      period: { from: "2026-09-12", to: "2026-10-11" },
+      inProgress: false,
+      total: 120_000,
+      transactionCount: 8,
+      categories: [{ category: "식비", amount: 80_000, ratio: 0.67 }],
+      topMerchants: [{ merchant: "가게", category: "식비", amount: 40_000, count: 2 }],
+      comparison: { previousTotal: 100_000, diff: 20_000, direction: "up" as const },
+      comparisonSkipped: false,
+    };
+    return { plan: "free", ...shared, ...overrides } as CardSummaryInput;
+  }
+
+  it("fills card period, comparison, and category change placeholders", () => {
+    const input = cardInput({
+      plan: "pro",
+      categoryChanges: [{ category: "식비", current: 80_000, previous: 60_000, diff: 20_000 }],
+    });
+    expect(checkSummaryContent({
+      summary: "{period} 동안 {transactionCount}, {total}을 썼어요. 지난 명세서의 {comparison.previousTotal}보다 {comparison.diff} 늘었고 식비는 {categoryChanges[0].diff} 더 썼어요.",
+      tips: ["식비 예산을 정하고 다음 명세서까지 지출을 살펴보세요."],
+    }, input)).toEqual({
+      ok: true,
+      summary: "9월 12일~10월 11일 동안 8건, 120,000원을 썼어요. 지난 명세서의 100,000원보다 20,000원 늘었고 식비는 20,000원 더 썼어요.",
+      tips: ["식비 예산을 정하고 다음 명세서까지 지출을 살펴보세요."],
+    });
+  });
+
+  it("fills a monthly card comparison difference without a sign", () => {
+    const input = cardInput({
+      scope: "month",
+      period: { from: "2026-09-01", to: "2026-09-30" },
+      comparison: { previousTotal: 150_000, diff: -30_000, direction: "down" },
+    });
+    expect(checkSummaryContent({
+      summary: "이번 달 {period} 동안 {transactionCount}, {total}을 썼어요. 지난달 {comparison.previousTotal}보다 {comparison.diff} 줄었어요.",
+      tips: ["다음 달 예산을 정해 이번 달 지출 흐름을 이어서 살펴보세요."],
+    }, input)).toMatchObject({
+      ok: true,
+      summary: "이번 달 9월 1일~9월 30일 동안 8건, 120,000원을 썼어요. 지난달 150,000원보다 30,000원 줄었어요.",
+    });
+  });
+
+  it("requires the category name next to a category change placeholder", () => {
+    const input = cardInput({
+      plan: "pro",
+      categoryChanges: [{ category: "식비", current: 80_000, previous: 60_000, diff: 20_000 }],
+    });
+    expect(checkSummaryContent({
+      summary: "이번 명세서 지출은 {categoryChanges[0].diff} 달라졌어요. 확인해 보세요.",
+      tips: ["식비 예산을 정하고 다음 명세서까지 지출을 살펴보세요."],
+    }, input)).toEqual({ ok: false, reason: "placeholder" });
+  });
+
+  it("rejects Pro-only category change placeholders for Free card input", () => {
+    expect(checkSummaryContent({
+      summary: "이번 달 식비는 {categoryChanges[0].diff} 달라졌어요. 지출을 살펴봐요.",
+      tips: ["식비 예산을 정하고 다음 달 지출을 살펴보세요."],
+    }, cardInput())).toEqual({ ok: false, reason: "placeholder" });
   });
 });
