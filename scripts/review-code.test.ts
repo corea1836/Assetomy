@@ -99,13 +99,22 @@ describe("review-code.sh", () => {
     expect(run(["staged"], "Error: unknown option", 1).stderr).toContain("Error: unknown option");
   });
 
-  it("거부된 도구가 있으면 이름만 stderr에 남긴다", () => {
+  it("거부된 도구는 Bash면 명령을, 파일 도구면 경로만 stderr에 남긴다(파일 내용은 남기지 않음)", () => {
     const r = run(["staged"], result("Approve", {
-      permission_denials: [{ tool_name: "Bash", tool_use_id: "t1", tool_input: { command: "secret-cmd" } }],
+      permission_denials: [
+        { tool_name: "Bash", tool_use_id: "t1", tool_input: { command: "git fetch origin main && cd x" } },
+        { tool_name: "Write", tool_use_id: "t2", tool_input: { file_path: ".review-tmp/review.json", content: "리뷰 본문" } },
+      ],
     }));
     expect(r.status).toBe(0);
-    expect(r.stderr).toContain("Bash");
-    expect(r.stderr).not.toContain("secret-cmd");
+    expect(r.stderr).toContain("Bash: git fetch origin main && cd x");
+    expect(r.stderr).toContain("Write: .review-tmp/review.json");
+    expect(r.stderr).not.toContain("리뷰 본문");
+  });
+
+  it("Bash 명령을 묶지 말고 하나씩 실행하라고 지시한다(허용 규칙이 명령 단위라서)", () => {
+    const r = run(["staged"], result("Approve"));
+    expect(argAfter(r.claudeArgs, "--append-system-prompt")).toContain("하나씩");
   });
 
   it("모드가 없거나 PR 번호가 숫자가 아니면 claude를 부르지 않고 2로 끝난다", () => {
