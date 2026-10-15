@@ -13,19 +13,20 @@ beforeEach(() => {
   dir = mkdtempSync(join(tmpdir(), "review-post-"));
   mkdirSync(join(dir, "bin"));
   mkdirSync(join(dir, ".review-tmp"));
-  // 실제 gh처럼 POST면 --jq '.id, .html_url' 결과를 두 줄로, 그 밖(코멘트 목록)이면 FAKE_COUNT를 출력한다.
+  // 실제 gh처럼 POST면 보낸 본문(stdin)을 posted.json에 남기고 --jq '.id, .html_url' 결과를 두 줄로,
+  // 그 밖(코멘트 목록)이면 FAKE_COUNT를 출력한다.
   writeFileSync(
     join(dir, "bin/gh"),
     '#!/usr/bin/env bash\necho "$*" >> calls.txt\n' +
-      'if [[ " $* " == *" --method POST "* ]]; then printf \'777\\nhttps://github.com/o/r/pull/4#pullrequestreview-777\\n\'; else echo "$FAKE_COUNT"; fi\n',
+      'if [[ " $* " == *" --method POST "* ]]; then cat > posted.json; printf \'777\\nhttps://github.com/o/r/pull/4#pullrequestreview-777\\n\'; else echo "$FAKE_COUNT"; fi\n',
   );
   chmodSync(join(dir, "bin/gh"), 0o755);
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
 // count는 페이지별 코멘트 수다(예: "30\n5"면 두 페이지).
-function run(args: string[], comments: number, count: number | string) {
-  writeFileSync(join(dir, ".review-tmp/review.json"), JSON.stringify({ body: "요약", comments: Array(comments).fill({}) }));
+function run(args: string[], comments: number, count: number | string, event = "COMMENT") {
+  writeFileSync(join(dir, ".review-tmp/review.json"), JSON.stringify({ event, body: "요약", comments: Array(comments).fill({}) }));
   const r = spawnSync("bash", [script, ...args], {
     cwd: dir,
     encoding: "utf8",
@@ -39,9 +40,17 @@ describe("review-code post.sh", () => {
   it("review.json을 그 PR 리뷰로 게시하고, 인라인 수가 맞으면 리뷰 링크를 출력한다", () => {
     const r = run(["4"], 2, 2);
     expect(r.status).toBe(0);
-    expect(r.calls[0]).toBe("api --method POST repos/{owner}/{repo}/pulls/4/reviews --input .review-tmp/review.json --jq .id, .html_url");
+    expect(r.calls[0]).toBe("api --method POST repos/{owner}/{repo}/pulls/4/reviews --input - --jq .id, .html_url");
     expect(r.calls[1]).toBe("api --paginate repos/{owner}/{repo}/pulls/4/reviews/777/comments --jq length");
     expect(r.stdout.trim()).toBe("https://github.com/o/r/pull/4#pullrequestreview-777");
+  });
+
+  it("review.json의 event가 무엇이든 COMMENT로 게시한다(승인·변경 요청 리뷰를 달지 못하게)", () => {
+    for (const event of ["APPROVE", "REQUEST_CHANGES"]) {
+      expect(run(["4"], 1, 1, event).status).toBe(0);
+      const posted = JSON.parse(readFileSync(join(dir, "posted.json"), "utf8"));
+      expect(posted).toMatchObject({ event: "COMMENT", body: "요약" });
+    }
   });
 
   it("인라인 코멘트가 여러 페이지면 모두 더해서 확인한다(기본 30개씩 잘림)", () => {

@@ -10,7 +10,9 @@ if ! [[ "${1:-}" =~ ^[0-9]+$ ]]; then
   exit 2
 fi
 
-{ read -r id; read -r url; } < <(gh api --method POST "repos/{owner}/{repo}/pulls/$1/reviews" --input .review-tmp/review.json --jq '.id, .html_url')
+# event는 COMMENT로 고정한다. 프롬프트 인젝션이 review.json을 바꿔도 승인·변경 요청 리뷰를 달지 못하게 한다.
+{ read -r id; read -r url; } < <(jq '.event = "COMMENT"' .review-tmp/review.json |
+  gh api --method POST "repos/{owner}/{repo}/pulls/$1/reviews" --input - --jq '.id, .html_url')
 want=$(jq '.comments | length' .review-tmp/review.json)
 # 코멘트 목록은 기본 30개씩 잘리므로 모든 페이지를 읽어 페이지별 개수를 더한다.
 got=$(gh api --paginate "repos/{owner}/{repo}/pulls/$1/reviews/$id/comments" --jq length | awk '{ s += $1 } END { print s + 0 }')
