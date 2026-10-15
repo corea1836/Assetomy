@@ -28,14 +28,15 @@ case "${1:-}" in
 esac
 
 SCHEMA='{"type":"object","required":["verdict","report"],"properties":{"verdict":{"type":"string","enum":["Approve","Changes Requested","Blocked","Error","Pending"]},"report":{"type":"string"}}}'
-APPEND="최종 응답의 report에는 /review-code 3의 두 층 출력 전체를, verdict에는 그 판정을 넣는다. 전제 조건 실패나 workflow 실패로 리뷰를 끝내지 못했으면 verdict는 Error이고 report에 이유를 쓴다. 리뷰할 변경이 없으면 verdict는 Approve다. workflow 결과 알림이 오기 전에 응답을 끝내야 하면 verdict는 Pending이고 판정을 미리 짐작하지 않는다."
+APPEND="최종 응답의 report에는 /review-code 3의 두 층 출력 전체를, verdict에는 그 판정을 넣는다. 전제 조건 실패나 workflow 실패로 리뷰를 끝내지 못했으면 verdict는 Error이고 report에 이유를 쓴다. 리뷰할 변경이 없으면 verdict는 Approve다. workflow 결과 알림이 오기 전에 응답을 끝내야 하면 verdict는 Pending이고 판정을 미리 짐작하지 않는다. Bash 명령은 하나씩 실행한다(&&·;·|로 묶지 않고 \$(…)를 쓰지 않는다). 허용 규칙이 명령 단위라 묶인 명령은 거부될 수 있다."
 
 out=$(claude -p "$PROMPT" --output-format json --json-schema "$SCHEMA" --append-system-prompt "$APPEND" \
   --settings '{"disableAllHooks":true}' --permission-mode dontAsk --permission-prompts none --allowedTools "$TOOLS")
 code=$?
 
-denied=$(printf '%s' "$out" | jq -r '[.permission_denials[]?.tool_name] | unique | join(", ")' 2>/dev/null)
-[ -n "$denied" ] && echo "거부된 도구: $denied" >&2
+# 거부된 Bash는 명령을, 파일 도구는 경로만 남긴다(파일 내용은 남기지 않는다).
+denied=$(printf '%s' "$out" | jq -r '.permission_denials[]? | "- \(.tool_name): \((.tool_input.command // .tool_input.file_path // "") | .[0:300])"' 2>/dev/null)
+[ -n "$denied" ] && printf '거부된 도구:\n%s\n' "$denied" >&2
 
 verdict=$(printf '%s' "$out" | jq -r '.structured_output.verdict // empty' 2>/dev/null)
 if [ "$code" -ne 0 ] || [ -z "$verdict" ]; then
