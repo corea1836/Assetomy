@@ -21,4 +21,7 @@ coverage/
 
 # claude code worktrees
 .claude/worktrees/
+
+# /review-code 임시 diff·게시 payload
+.claude/review-tmp/
 phases/**/run-*.log
