@@ -73,7 +73,7 @@ argument-hint: "[git 범위, 예: main...HEAD]"
 3. 확인하면 `.claude/review-tmp/review.json`을 쓴다: `{ "commit_id": headRefOid, "event": "COMMENT", "body": 요약, "comments": [{ "path", "line", "side": "RIGHT", "body": 인라인 }] }`
    - 인라인 body는 4줄 형식에서 `### 인라인 코멘트 · ...` 제목 줄을 뺀 것이다(GitHub가 위치를 보여 준다).
    - diff 밖 지적은 요약 body의 **critical·major** 뒤에 **diff 밖 지적** 목록으로 같은 한 줄 형식(`- 🟡 [minor] {title} — `{file}:{line}``)으로 적는다. 없으면 이 항목을 넣지 않는다.
-4. `gh api --method POST 'repos/{owner}/{repo}/pulls/<n>/reviews' --input .claude/review-tmp/review.json`
+4. `gh api --method POST 'repos/{owner}/{repo}/pulls/<n>/reviews' --input .claude/review-tmp/review.json --jq '.id, .html_url'` (응답 전체를 셸 변수·echo로 넘기지 않는다. zsh echo가 JSON의 `\n`을 줄바꿈으로 바꿔 파싱이 깨진다)
 5. 응답의 `id`로 `gh api 'repos/{owner}/{repo}/pulls/<n>/reviews/<id>/comments' --jq length`가 comments 수와 같은지 확인하고, 리뷰 링크(`html_url`)를 알린다.
 
 ## 금지사항
