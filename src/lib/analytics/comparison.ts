@@ -130,7 +130,7 @@ export function buildTrend(
       buildSnapshot(transactions, item.month, today),
     ]),
   );
-  const currentMonth = monthOf(today);
+  const currentMonth = new Date().toISOString().slice(0, 7);
   const months: TrendMonth[] = [];
   for (let m = start; m <= month; m = addMonths(m, 1)) {
     months.push({

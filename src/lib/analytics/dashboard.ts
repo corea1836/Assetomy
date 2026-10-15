@@ -184,7 +184,7 @@ export function buildCardDashboard(input: BuildCardDashboardInput): CardDashboar
     if (transaction.date > dailyTo) dailyTo = transaction.date;
   }
   const snapshot = buildPeriodSnapshot(selectedTransactions, datesBetween(dailyFrom, dailyTo));
-  const previousMonth = addMonths(monthOf(statementDate), -1);
+  const previousMonth = addMonths(statementDate.slice(0, 7), -1);
   const previousStatementDate = statementDates
     .filter((date) => monthOf(date) === previousMonth)
     .sort()

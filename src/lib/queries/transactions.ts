@@ -24,7 +24,7 @@ export async function listTransactions(
       .select("id, card_id, used_on, merchant, merchant_key, amount, category, upload:uploads!transactions_user_id_upload_id_fkey(statement_date)")
       .eq("user_id", userId)
       .order("used_on", { ascending: true }).order("id", { ascending: true })
-      .range(offset, offset + PAGE_SIZE - 1), transactionsResponseSchema);
+      .range(offset, offset + 999), transactionsResponseSchema);
     for (const row of data) {
       const cardLabel = cardLabels.get(row.card_id);
       if (cardLabel === undefined) throw new QueryError("listTransactions", "unknown_card");
