@@ -12,7 +12,8 @@ fi
 
 { read -r id; read -r url; } < <(gh api --method POST "repos/{owner}/{repo}/pulls/$1/reviews" --input .review-tmp/review.json --jq '.id, .html_url')
 want=$(jq '.comments | length' .review-tmp/review.json)
-got=$(gh api "repos/{owner}/{repo}/pulls/$1/reviews/$id/comments" --jq length)
+# 코멘트 목록은 기본 30개씩 잘리므로 모든 페이지를 읽어 페이지별 개수를 더한다.
+got=$(gh api --paginate "repos/{owner}/{repo}/pulls/$1/reviews/$id/comments" --jq length | awk '{ s += $1 } END { print s + 0 }')
 
 if [ "$got" != "$want" ]; then
   echo "인라인 코멘트가 ${got}/${want}개만 게시됐습니다: ${url}" >&2

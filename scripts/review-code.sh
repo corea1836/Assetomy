@@ -19,7 +19,8 @@ case "${1:-}" in
       exit 2
     fi
     PROMPT="/review-code --pr $2 --post"
-    TOOLS="$TOOLS,Bash(git fetch *),Bash(gh pr view *),Bash(bash .claude/skills/review-code/hunks.sh *),Bash(bash .claude/skills/review-code/post.sh *)"
+    # 게시는 리뷰 중인 PR 번호로 고정한다. 다른 PR에 CI 토큰으로 리뷰를 달지 못하게 한다.
+    TOOLS="$TOOLS,Bash(git fetch *),Bash(gh pr view *),Bash(bash .claude/skills/review-code/hunks.sh *),Bash(bash .claude/skills/review-code/post.sh $2)"
     ;;
   *)
     echo "사용: scripts/review-code.sh staged | pr <번호>" >&2

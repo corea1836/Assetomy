@@ -64,7 +64,9 @@ describe("review-code.sh", () => {
     const r = run(["pr", "12"], result("Approve"));
     expect(r.status).toBe(0);
     expect(r.claudeArgs).toContain("/review-code --pr 12 --post");
-    expect(argAfter(r.claudeArgs, "--allowedTools")).toContain("Bash(bash .claude/skills/review-code/post.sh *)");
+    // 다른 PR에 게시하지 못하게 리뷰 중인 PR 번호로 고정한다.
+    expect(argAfter(r.claudeArgs, "--allowedTools")).toContain("Bash(bash .claude/skills/review-code/post.sh 12)");
+    expect(argAfter(r.claudeArgs, "--allowedTools")).not.toContain("post.sh *");
     expect(argAfter(r.claudeArgs, "--allowedTools")).not.toContain("gh api");
   });
 

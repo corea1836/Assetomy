@@ -23,7 +23,8 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
-function run(args: string[], comments: number, count: number) {
+// count는 페이지별 코멘트 수다(예: "30\n5"면 두 페이지).
+function run(args: string[], comments: number, count: number | string) {
   writeFileSync(join(dir, ".review-tmp/review.json"), JSON.stringify({ body: "요약", comments: Array(comments).fill({}) }));
   const r = spawnSync("bash", [script, ...args], {
     cwd: dir,
@@ -39,8 +40,12 @@ describe("review-code post.sh", () => {
     const r = run(["4"], 2, 2);
     expect(r.status).toBe(0);
     expect(r.calls[0]).toBe("api --method POST repos/{owner}/{repo}/pulls/4/reviews --input .review-tmp/review.json --jq .id, .html_url");
-    expect(r.calls[1]).toBe("api repos/{owner}/{repo}/pulls/4/reviews/777/comments --jq length");
+    expect(r.calls[1]).toBe("api --paginate repos/{owner}/{repo}/pulls/4/reviews/777/comments --jq length");
     expect(r.stdout.trim()).toBe("https://github.com/o/r/pull/4#pullrequestreview-777");
+  });
+
+  it("인라인 코멘트가 여러 페이지면 모두 더해서 확인한다(기본 30개씩 잘림)", () => {
+    expect(run(["4"], 35, "30\n5").status).toBe(0);
   });
 
   it("게시된 인라인 수가 review.json과 다르면 실패한다", () => {
