@@ -19,13 +19,19 @@ case "${1:-}" in
       exit 2
     fi
     PROMPT="/review-code --pr $2 --post"
-    TOOLS="$TOOLS,Bash(git fetch *),Bash(gh pr view *),Bash(gh api *),Bash(bash .claude/skills/review-code/hunks.sh *)"
+    TOOLS="$TOOLS,Bash(git fetch *),Bash(gh pr view *),Bash(bash .claude/skills/review-code/hunks.sh *),Bash(bash .claude/skills/review-code/post.sh *)"
     ;;
   *)
     echo "사용: scripts/review-code.sh staged | pr <번호>" >&2
     exit 2
     ;;
 esac
+
+# GitHub Actions면 check 요약에 이유가 보이게 annotation을 남긴다. 리뷰가 막은 것과 리뷰가 고장 난 것을 구분하기 위해서다.
+annotate() {
+  [ "${GITHUB_ACTIONS:-}" = true ] && echo "::$1 title=review-code::$2"
+  return 0
+}
 
 SCHEMA='{"type":"object","required":["verdict","report"],"properties":{"verdict":{"type":"string","enum":["Approve","Changes Requested","Blocked","Error","Pending"]},"report":{"type":"string"}}}'
 APPEND="최종 응답의 report에는 /review-code 3의 두 층 출력 전체를, verdict에는 그 판정을 넣는다. 전제 조건 실패나 workflow 실패로 리뷰를 끝내지 못했으면 verdict는 Error이고 report에 이유를 쓴다. 리뷰할 변경이 없으면 verdict는 Approve다. workflow 결과 알림이 오기 전에 응답을 끝내야 하면 verdict는 Pending이고 판정을 미리 짐작하지 않는다. Bash 명령은 하나씩 실행한다(&&·;·|로 묶지 않고 \$(…)를 쓰지 않는다). 허용 규칙이 명령 단위라 묶인 명령은 거부될 수 있다."
@@ -47,12 +53,17 @@ if [ "$code" -ne 0 ] || [ -z "$verdict" ]; then
   else
     printf '%s\n' "$out" | head -c 2000 >&2
   fi
+  reason=$(printf '%s' "$out" | jq -r '.result // (.errors // [])[0] // empty' 2>/dev/null | head -n 1)
+  annotate error "리뷰 실패: ${reason:-claude 종료 코드 $code}"
   exit 2
 fi
 
-printf '%s\n' "$out" | jq -r '.structured_output.report'
+report=$(printf '%s' "$out" | jq -r '.structured_output.report')
+printf '%s\n' "$report"
+summary=$(printf '%s\n' "$report" | grep -m1 '판정:' | tr -d '*')
+[ -n "$summary" ] || summary="판정: $verdict"
 case "$verdict" in
-  Approve) exit 0 ;;
-  "Changes Requested" | Blocked) exit 1 ;;
-  *) exit 2 ;;
+  Approve) annotate notice "$summary"; exit 0 ;;
+  "Changes Requested" | Blocked) annotate error "$summary"; exit 1 ;;
+  *) annotate error "리뷰 실패: $summary"; exit 2 ;;
 esac

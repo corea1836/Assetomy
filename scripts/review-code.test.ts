@@ -19,7 +19,7 @@ beforeEach(() => {
 });
 afterEach(() => rmSync(dir, { recursive: true, force: true }));
 
-function run(args: string[], output: unknown, code = 0) {
+function run(args: string[], output: unknown, code = 0, env: Record<string, string> = {}) {
   writeFileSync(join(dir, "out.json"), typeof output === "string" ? output : JSON.stringify(output));
   const r = spawnSync("bash", [script, ...args], {
     encoding: "utf8",
@@ -29,6 +29,8 @@ function run(args: string[], output: unknown, code = 0) {
       FAKE_ARGS: join(dir, "args.txt"),
       FAKE_OUT: join(dir, "out.json"),
       FAKE_CODE: String(code),
+      GITHUB_ACTIONS: "",
+      ...env,
     },
   });
   const called = existsSync(join(dir, "args.txt"));
@@ -58,11 +60,24 @@ describe("review-code.sh", () => {
     expect(r.stdout).toContain("**판정: Approve**");
   });
 
-  it("pr 모드는 /review-code --pr <번호> --post를 실행하고 게시 도구를 허용한다", () => {
+  it("pr 모드는 /review-code --pr <번호> --post를 실행하고, 게시는 post.sh로만 허용한다(gh api 통째 허용 금지)", () => {
     const r = run(["pr", "12"], result("Approve"));
     expect(r.status).toBe(0);
     expect(r.claudeArgs).toContain("/review-code --pr 12 --post");
-    expect(argAfter(r.claudeArgs, "--allowedTools")).toContain("Bash(gh api *)");
+    expect(argAfter(r.claudeArgs, "--allowedTools")).toContain("Bash(bash .claude/skills/review-code/post.sh *)");
+    expect(argAfter(r.claudeArgs, "--allowedTools")).not.toContain("gh api");
+  });
+
+  it("GitHub Actions에서는 판정 줄을 annotation으로 남긴다(막으면 error, 통과면 notice)", () => {
+    const ci = { GITHUB_ACTIONS: "true" };
+    expect(run(["pr", "3"], result("Blocked"), 0, ci).stdout).toContain("::error title=review-code::판정: Blocked");
+    expect(run(["pr", "3"], result("Approve"), 0, ci).stdout).toContain("::notice title=review-code::판정: Approve");
+    expect(run(["pr", "3"], { result: "Failed to authenticate", is_error: true }, 1, ci).stdout)
+      .toContain("::error title=review-code::리뷰 실패: Failed to authenticate");
+  });
+
+  it("GitHub Actions 밖에서는 annotation을 남기지 않는다", () => {
+    expect(run(["staged"], result("Blocked")).stdout).not.toContain("::");
   });
 
   it("판정 스키마는 verdict·report를 요구한다", () => {
