@@ -31,7 +31,10 @@ export async function PUT(request: Request): Promise<Response> {
     if (!input.success) return apiError(400, "BAD_REQUEST");
 
     const normalized = normalizeFeedback(input.data.text);
-    if (feedbackLength(normalized) > SUMMARY_FEEDBACK_MAX_LENGTH) return apiError(400, "BAD_REQUEST");
+    if (feedbackLength(normalized) > SUMMARY_FEEDBACK_MAX_LENGTH) {
+      console.warn("summary_feedback:too_long", userId, normalized);
+      return apiError(400, "BAD_REQUEST");
+    }
 
     const result = await saveSummaryFeedback(user.id, input.data.category, normalized);
     if (result.kind === "saved") {

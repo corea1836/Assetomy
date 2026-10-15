@@ -36,7 +36,7 @@ export function datesBetween(from: IsoDate, to: IsoDate): IsoDate[] {
 
   const dates: IsoDate[] = [];
   let date = from;
-  while (date <= to) {
+  while (date < to) {
     dates.push(date);
     const month = monthOf(date);
     const day = Number(date.slice(8, 10));
