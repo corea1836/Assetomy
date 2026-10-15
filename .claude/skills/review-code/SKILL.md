@@ -76,11 +76,11 @@ argument-hint: "[git 범위, 예: main...HEAD | --staged | --pr <번호> [--post
 
 ## 4. 게시 (PR 모드만)
 1. 지적마다 1-4의 hunk 중 같은 경로에서 `시작 ≤ line ≤ 끝`인 것이 있으면 인라인, 없으면 diff 밖 지적이다.
-2. "PR #n에 요약 1개와 인라인 n개를 게시할까요?"라고 묻고 답을 기다린다. diff 밖 지적이 있으면 개수도 함께 알린다. `--post`면 묻지 않고 3으로 간다.
+2. "PR #n의 요약 코멘트를 갱신하고 인라인 n개를 게시할까요?"라고 묻고 답을 기다린다. diff 밖 지적이 있으면 개수도 함께 알린다. `--post`면 묻지 않고 3으로 간다.
 3. 확인하면 `.review-tmp/review.json`을 쓴다: `{ "commit_id": headRefOid, "event": "COMMENT", "body": 요약, "comments": [{ "path", "line", "side": "RIGHT", "body": 인라인 }] }`
    - 인라인 body는 4줄 형식에서 `### 인라인 코멘트 · ...` 제목 줄을 뺀 것이다(GitHub가 위치를 보여 준다).
    - diff 밖 지적은 요약 body의 **critical·major** 뒤에 **diff 밖 지적** 목록으로 같은 한 줄 형식(`- 🟡 [minor] [{dimensions}] {title} — `{file}:{line}``)으로 적는다. 없으면 이 항목을 넣지 않는다.
-4. `bash .claude/skills/review-code/post.sh <n>`으로 게시한다. 리뷰를 게시하고, 인라인 코멘트 수가 review.json과 같은지 확인한 뒤 리뷰 링크를 출력한다. 0이 아닌 종료 코드면 stderr를 그대로 알린다. `gh api`를 직접 부르지 않는다(headless에서는 post.sh만 허용된다).
+4. `bash .claude/skills/review-code/post.sh <n>`으로 게시한다. body(요약)는 PR에 하나뿐인 요약 코멘트로 새로 달거나 고쳐 쓰고(리뷰마다 요약이 쌓이지 않게), comments는 요약 링크를 본문으로 한 COMMENT 리뷰로 단다(지적이 없으면 리뷰 없음). 인라인 수를 확인한 뒤 요약 코멘트 링크를 출력한다. 0이 아닌 종료 코드면 stderr를 그대로 알린다. `gh api`를 직접 부르지 않는다(headless에서는 post.sh만 허용된다).
 
 ## 금지사항
 - 리뷰 중에 코드를 고치지 마라. 이유: 지적이 검증되기 전이다. 고치는 것은 사용자 확인 뒤에 한다.
