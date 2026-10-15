@@ -1,0 +1,23 @@
+#!/usr/bin/env bash
+# pre-commit: staged 변경을 /review-code로 리뷰하고, major 이상 지적이 있으면 커밋을 막는다.
+# 설치: git config core.hooksPath .githooks (클론마다 한 번)
+# 리뷰를 끝내지 못하면(인증·네트워크 등) 경고만 하고 커밋한다. 우회: git commit --no-verify
+
+# phase 실행 중(execute.py의 Codex step 커밋)은 건너뛴다. step 커밋은 Claude가 따로 리뷰한다.
+pgrep -f scripts/execute.py >/dev/null && exit 0
+
+# docs/·phases/·*.md만 바뀌었으면 리뷰할 코드가 없다.
+git diff --cached --name-only | grep -qvE '^(docs|phases)/|\.md$' || exit 0
+
+scripts/review-code.sh staged
+case $? in
+  0) exit 0 ;;
+  1)
+    echo "✗ major 이상 지적이 있어 커밋을 막았습니다. 고친 뒤 다시 커밋하세요(우회: git commit --no-verify)." >&2
+    exit 1
+    ;;
+  *)
+    echo "⚠ 리뷰를 끝내지 못해 검사 없이 커밋합니다." >&2
+    exit 0
+    ;;
+esac

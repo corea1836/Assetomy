@@ -32,6 +32,7 @@
 ## 개발 프로세스
 - CRITICAL: 새 기능 구현 시 반드시 테스트를 먼저 작성하고, 테스트가 통과하는 구현을 작성할 것 (TDD)
 - 커밋 메시지는 conventional commits 형식을 따를 것 (feat:, fix:, docs:, refactor:)
+- 커밋하면 pre-commit 훅(`.githooks/pre-commit`)이 staged 변경을 `/review-code`로 리뷰하고 major 이상이면 막는다. 몇 분 걸리므로 `git commit`은 Bash timeout 600000으로 실행한다. 막히면 고친 뒤 다시 커밋한다(`--no-verify`는 사용자가 시킬 때만). 클론마다 `git config core.hooksPath .githooks`를 한 번 설정한다.
 - step 세션에서 `vercel deploy`를 실행하지 않는다. 이유: Preview 배포는 `execute.py --deploy`가 하고, Production 배포는 deploy step에서만 한다.
 
 ## 명령어
@@ -41,5 +42,6 @@ npm run build     # 프로덕션 빌드
 npm run lint      # eslint .
 npm run test      # vitest run, 단위 테스트(Supabase 불필요)
 npm run test:db   # vitest DB·Storage 통합 테스트(Supabase dev 프로젝트 필요)
+scripts/review-code.sh staged|pr <번호>   # /review-code headless 실행(pre-commit 훅·CI가 부름). 0 통과 · 1 major 이상 · 2 리뷰 실패
 supabase db push --linked && scripts/pgtap.sh   # dev 프로젝트 마이그레이션 + pgTAP(supabase login·link 후, 사용자가 수동으로. Docker 불필요)
 ```

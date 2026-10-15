@@ -33,7 +33,7 @@ async function pipeline(items: unknown[], ...stages: Array<(prev: unknown, item:
   }));
 }
 
-const args = { range: "main...HEAD", diffPath: ".claude/review-tmp/diff.patch", files: ["M\tsrc/a.ts"], untracked: [], docs: [] };
+const args = { range: "main...HEAD", diffPath: ".review-tmp/diff.patch", files: ["M\tsrc/a.ts"], untracked: [], docs: [] };
 const finding = (over: Partial<Item> = {}) => ({
   severity: "major", file: "src/a.ts", line: 10, title: "제목", tldr: "요약", good: "기준", fix: "fix()",
   rule: "CLAUDE.md", scenario: "입력 → 결과", ...over,

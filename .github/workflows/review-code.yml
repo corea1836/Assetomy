@@ -1,0 +1,44 @@
+# PR을 열 때와 review-code 라벨을 붙일 때 /review-code를 돌려 PR에 리뷰를 게시한다.
+# 판정이 major 이상(Changes Requested·Blocked)이거나 리뷰를 끝내지 못하면 check가 실패한다.
+# 필요한 secret: CLAUDE_CODE_OAUTH_TOKEN (로컬에서 claude setup-token으로 만든다)
+name: review-code
+
+on:
+  pull_request:
+    types: [opened, ready_for_review, reopened, labeled]
+
+jobs:
+  review:
+    # fork PR은 secret을 받지 못한다. 라벨 이벤트는 review-code 라벨일 때만, 그 밖에는 draft가 아닐 때만 돈다.
+    if: >-
+      github.event.pull_request.head.repo.full_name == github.repository &&
+      ((github.event.action == 'labeled' && github.event.label.name == 'review-code') ||
+       (github.event.action != 'labeled' && !github.event.pull_request.draft))
+    runs-on: ubuntu-latest
+    # job 수준에 둔다. workflow 수준이면 if보다 먼저 평가돼, 다른 라벨을 붙여도 진행 중인 리뷰가 취소된다.
+    concurrency:
+      group: review-code-${{ github.event.pull_request.number }}
+      cancel-in-progress: true
+    timeout-minutes: 30
+    permissions:
+      contents: read
+      pull-requests: write
+    env:
+      GH_TOKEN: ${{ github.token }}
+      PR: ${{ github.event.pull_request.number }}
+    steps:
+      # 기본 체크아웃은 merge 커밋이라 스킬의 HEAD == headRefOid 검사에 걸린다.
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+      - uses: actions/setup-node@v7
+        with:
+          node-version-file: .nvmrc
+      - run: npm install -g @anthropic-ai/claude-code@2.1.300
+      - run: scripts/review-code.sh pr "$PR"
+        env:
+          CLAUDE_CODE_OAUTH_TOKEN: ${{ secrets.CLAUDE_CODE_OAUTH_TOKEN }}
+      # 라벨은 재실행 스위치라 끝나면 뗀다. 다시 붙이면 최신 커밋으로 다시 돈다.
+      - if: always() && github.event.action == 'labeled'
+        run: gh pr edit "$PR" --remove-label review-code
