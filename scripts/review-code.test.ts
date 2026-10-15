@@ -90,6 +90,15 @@ describe("review-code.sh", () => {
     expect(run(["staged"], "not json").status).toBe(2);
   });
 
+  it("실패하면 원인을 stderr에 남긴다: result, errors(실행 중 에러), subtype, JSON이 아니면 원문", () => {
+    expect(run(["staged"], { subtype: "success", is_error: true, result: "Failed to authenticate" }, 1).stderr)
+      .toContain("Failed to authenticate");
+    const r = run(["staged"], { subtype: "error_during_execution", is_error: true, errors: ["boom"] }, 1);
+    expect(r.stderr).toContain("boom");
+    expect(r.stderr).toContain("subtype=error_during_execution");
+    expect(run(["staged"], "Error: unknown option", 1).stderr).toContain("Error: unknown option");
+  });
+
   it("거부된 도구가 있으면 이름만 stderr에 남긴다", () => {
     const r = run(["staged"], result("Approve", {
       permission_denials: [{ tool_name: "Bash", tool_use_id: "t1", tool_input: { command: "secret-cmd" } }],

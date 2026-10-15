@@ -40,7 +40,12 @@ denied=$(printf '%s' "$out" | jq -r '[.permission_denials[]?.tool_name] | unique
 verdict=$(printf '%s' "$out" | jq -r '.structured_output.verdict // empty' 2>/dev/null)
 if [ "$code" -ne 0 ] || [ -z "$verdict" ]; then
   echo "✗ 리뷰를 끝내지 못했습니다(claude 종료 코드 $code)." >&2
-  printf '%s' "$out" | jq -r '.result // empty' 2>/dev/null >&2
+  # 실패 종류마다 원인이 담기는 필드가 다르다(result 또는 errors). JSON이 아니면 원문 앞부분을 남긴다.
+  if printf '%s' "$out" | jq -e . >/dev/null 2>&1; then
+    printf '%s' "$out" | jq -r '.result // empty, (.errors // [] | .[] | tostring), "subtype=\(.subtype) terminal_reason=\(.terminal_reason) api_error_status=\(.api_error_status)"' >&2
+  else
+    printf '%s\n' "$out" | head -c 2000 >&2
+  fi
   exit 2
 fi
 
